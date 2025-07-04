@@ -1,0 +1,4 @@
+2025-07-04 09:29:50,207 - INFO - Status von 1 Artikel(n) auf 'Rewrite' gesetzt.
+2025-07-04 09:30:17,000 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-04 09:30:17,010 - INFO - ✅ Artikel umgeschrieben: Das weltweit größte Caravaning-Erlebnis
+2025-07-04 09:46:03,001 - INFO - Status von 1 Artikel(n) auf 'Online' gesetzt.

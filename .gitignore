@@ -1,1 +1,34 @@
+# Byte-compiled / optimierte / andere Python-Dateien
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtuelle Umgebungen
+.venv/
+env/
+venv/
+ENV/
+
+# VS Code / PyCharm / andere IDEs
+.vscode/
+.idea/
+
+# Betriebssystemdateien
+.DS_Store
+Thumbs.db
+
+# Streamlit spezifisch
+.streamlit/config.toml
+
+# dotenv / Umgebungsvariablen
 .env
+
+# JSON-Datenbanken / Zwischenspeicherung
+*.json
+!feeds.json  # optional entfernbar, wenn du Beispielfeeds mit versionieren willst
+
+# LOG Files ausschließen, dienen nur zum Debuggen
+# *.log
+
+# Start Bash ignirieren
+start.sh
