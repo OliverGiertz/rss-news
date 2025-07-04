@@ -1,0 +1,7 @@
+INFO:root:Abrufen von Feed: https://www.camping-news.de/rss/
+INFO:root:Abrufen von Feed: https://www.camping-news.de/rss/
+INFO:root:Starte Umschreiben von Artikeln mit Status 'Rewrite' ...
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:✅ Artikel 'Abenteuer für die Kleinen, Entspannung für
+die Großen' umgeschrieben.

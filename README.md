@@ -1,25 +1,27 @@
-# 📰 RSS Artikel Manager
+# 📰 RSS Article Manager
 
-Ein Python-Webtool, das RSS-Artikel automatisch einliest, per ChatGPT umschreibt und mit Tags versieht. Die Artikel lassen sich nach Status filtern und über eine tabellarische Streamlit-Oberfläche verwalten.
+Ein einfaches, modulares Webtool auf Basis von Streamlit, das RSS-Artikel automatisch einliest, umschreibt, zusammenfasst und mit Tags versieht – bereit zur Veröffentlichung auf WordPress.
 
----
+## ✨ Funktionen
 
-## 🚀 Features
+- 📥 RSS-Feeds direkt über die Oberfläche hinzufügen und verwalten
+- 📝 Artikel automatisch umschreiben mit Hilfe von ChatGPT
+- 🏷️ Tags und Zusammenfassungen automatisch generieren
+- 🗂️ Übersicht in tabellarischer Form mit Filter nach Status
+- 📋 Kopierbare Inhalte für manuelles Einfügen in WordPress
+- 📎 Link zum Originalartikel zur einfachen Bildübernahme
+- 💾 Speicherung in einer lokalen JSON-Datei (später SQLite möglich)
+- 📦 Versionierung inkl. CHANGELOG und GitHub Releases
 
-- Verwaltung von RSS-Feeds direkt in der Weboberfläche
-- Artikel laden, duplikatfrei speichern und anzeigen
-- Artikelstatus: `New`, `Rewrite`, `Process`, `Online`, `On Hold`, `Trash`
-- Artikel per ChatGPT umformulieren und automatisch taggen
-- Filterbare und editierbare Artikelübersicht in Tabellenform
-- Speicherung in `articles.json` (lokale JSON-Datei)
+## 🔐 Voraussetzungen
 
----
+- Python 3.8+
+- OpenAI API Key (per `.env` eingebunden)
 
-## 🛠️ Installation
+## 🚀 Loslegen
 
 ```bash
-git clone https://github.com/dein-user/rss-artikel-manager.git
-cd rss-artikel-manager
-python -m venv .venv
-source .venv/bin/activate  # oder .venv\\Scripts\\activate auf Windows
-pip install -r requirements.txt
+# Setup
+git clone https://github.com/dein-benutzername/rss-article-manager.git
+cd rss-article-manager
+bash start.sh
