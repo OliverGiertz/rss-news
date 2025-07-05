@@ -1,5 +1,25 @@
 # CHANGELOG.md
 
+## [1.4.1] – 2025-07-03
+### Hinzugefügt
+- Logging für `process_articles()`, damit nachvollziehbar ist, welche Feeds verarbeitet wurden
+- Rückmeldung in der App bei Klick auf „Alle Feeds neu laden“
+
+### Geändert
+- `main.py`: Inhalte aus `content`, `summary` oder `description` werden vollständig geladen und mit `BeautifulSoup` bereinigt
+- Sicherstellung, dass `fetch_and_process_feed()` alle relevanten Artikelinformationen vollständig speichert
+
+### Fehlerbehebungen
+- Problem behoben, bei dem Artikeltexte nicht vollständig übernommen wurden
+
+## [1.3.1] – 2025-07-03
+### Added
+- Tabellenansicht mit Checkbox, Titel, Datum, Zusammenfassung, Wortanzahl, Tags, Status
+- Direktes Bearbeiten des Status über Dropdown-Menü
+- Massenbearbeitung von Artikeln per Checkbox
+- Rewrite-Button für alle Artikel mit Status 'Rewrite'
+
+
 ## [1.2.0] - 2025-07-04
 ### Hinzugefügt
 - Automatische Bilderkennung beim Einlesen von Artikeln

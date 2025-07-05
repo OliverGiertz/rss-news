@@ -5,3 +5,52 @@ INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1
 INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 INFO:root:✅ Artikel 'Abenteuer für die Kleinen, Entspannung für
 die Großen' umgeschrieben.
+INFO:root:Abrufen von Feed: https://www.camping-news.de/rss/
+INFO:root:Starte Umschreiben von Artikeln mit Status 'Rewrite' ...
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:✅ Artikel 'Den eigenen Verbrauchszahlen auf der Spur' umgeschrieben.
+INFO:root:Starte Umschreiben von Artikeln mit Status 'Rewrite' ...
+INFO:root:Abrufen von Feed: https://www.camping-news.de/rss/
+INFO:root:🔄 Starte Verarbeitung von 0 Feeds...
+INFO:root:✅ Alle Feeds erfolgreich verarbeitet.
+INFO:root:🔄 Starte Verarbeitung von 1 Feeds...
+INFO:root:📥 Verarbeite Feed: https://www.camping-news.de/rss/
+INFO:root:✅ Alle Feeds erfolgreich verarbeitet.
+INFO:root:🔄 Starte Verarbeitung von 1 Feeds...
+INFO:root:📥 Verarbeite Feed: https://www.camping-news.de/rss/
+INFO:root:✅ Alle Feeds erfolgreich verarbeitet.
+2025-07-05 15:53:57,795 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-05 15:54:02,133 - INFO - 10 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-05 15:54:02,136 - INFO - 10 neue Artikel gespeichert.
+2025-07-05 15:57:50,216 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-05 15:57:54,463 - INFO - 10 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-05 15:57:54,465 - INFO - 10 neue Artikel gespeichert.
+2025-07-05 16:00:32,416 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-05 16:00:36,108 - INFO - 9 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-05 16:00:36,109 - INFO - 9 neue Artikel gespeichert.
+2025-07-05 16:06:28,832 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-05 16:06:30,875 - INFO - 4 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-05 16:06:30,877 - INFO - 4 neue Artikel gespeichert.
+2025-07-05 16:08:14,063 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-05 16:08:15,413 - INFO - 3 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-05 16:08:15,414 - INFO - 3 neue Artikel gespeichert.
+2025-07-05 16:09:14,943 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-05 16:09:18,883 - INFO - 9 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-05 16:09:18,885 - INFO - 9 neue Artikel gespeichert.
+2025-07-05 16:17:36,273 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-05 16:17:36,691 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-05 16:17:36,691 - INFO - Keine neuen Artikel gefunden.
+2025-07-05 16:18:45,562 - INFO - ✍️ Umschreiben von: Den eigenen Verbrauchszahlen auf der Spur
+2025-07-05 16:19:04,394 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-05 16:19:06,129 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-05 16:19:06,132 - INFO - ✅ Artikel umgeschrieben: Den eigenen Verbrauchszahlen auf der Spur
+2025-07-05 16:19:06,132 - INFO - ✍️ Umschreiben von: Das weltweit größte Caravaning-Erlebnis
+2025-07-05 16:19:18,595 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-05 16:19:20,334 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-05 16:19:20,336 - INFO - ✅ Artikel umgeschrieben: Das weltweit größte Caravaning-Erlebnis
+2025-07-05 16:19:20,336 - INFO - ✍️ Umschreiben von: Komfort und Flexibilität für moderne Camper
+2025-07-05 16:19:33,242 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-05 16:19:34,796 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-05 16:19:34,799 - INFO - ✅ Artikel umgeschrieben: Komfort und Flexibilität für moderne Camper
+2025-07-05 16:19:34,803 - INFO - Alle Artikel mit Status 'Rewrite' wurden verarbeitet.

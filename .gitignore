@@ -24,8 +24,8 @@ Thumbs.db
 .env
 
 # JSON-Datenbanken / Zwischenspeicherung
-*.json
-!feeds.json  # optional entfernbar, wenn du Beispielfeeds mit versionieren willst
+ *.json
+ !feeds.json  # optional entfernbar, wenn du Beispielfeeds mit versionieren willst
 
 # LOG Files ausschließen, dienen nur zum Debuggen
 # *.log
