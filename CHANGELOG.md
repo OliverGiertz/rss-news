@@ -9,9 +9,7 @@
 - 
 
 ### 📦 Internes
-- # CHANGELOG.md
-
-## [v1.4.3] – 2025-07-07
+- ## [v1.4.3] – 2025-07-07
 
 ### 💡 Neue Funktionen
 - ⚠️ Visuelle Warnanzeige in der Artikeltabelle für unvollständige Bildmetadaten (fehlende Caption, Copyright oder Quelle)
