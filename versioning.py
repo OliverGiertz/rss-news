@@ -53,8 +53,32 @@ def validate_changelog(version: str) -> bool:
     return False
 
 
+def tag_exists(tag: str) -> bool:
+    result = subprocess.run(["git", "tag"], capture_output=True, text=True)
+    return tag in result.stdout.splitlines()
+
+
+def ensure_branch(expected_branch="main"):
+    result = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True)
+    branch = result.stdout.strip()
+    if branch != expected_branch:
+        typer.echo(f"⛔ Du befindest dich auf Branch '{branch}', erwartet wird '{expected_branch}'")
+        raise typer.Exit(code=1)
+
+
+def extract_changelog_entry(version: str) -> str:
+    content = CHANGELOG_FILE.read_text(encoding="utf-8")
+    pattern = rf"## \[v?{re.escape(version)}\](.*?)^## \["
+    match = re.search(pattern, content + "\n## [", re.DOTALL | re.MULTILINE)
+    return match.group(1).strip() if match else ""
+
+
 def create_git_tag(version: str):
     try:
+        if tag_exists(f"v{version}"):
+            typer.echo(f"⚠️ Tag v{version} existiert bereits.")
+            return
+
         subprocess.run(["git", "add", "."], check=True)
         subprocess.run(["git", "commit", "-m", f"🔖 Release v{version}"], check=True)
         subprocess.run(["git", "tag", f"v{version}"], check=True)
@@ -101,6 +125,8 @@ def rollback():
 def create(level: str = typer.Option("patch", help="Versionstyp: patch, minor oder major"),
            push: bool = typer.Option(False, help="Änderungen direkt an GitHub pushen")):
     "Neue Version erstellen inkl. CHANGELOG, Git-Tag und optional Push"
+    ensure_branch()
+
     current_version = get_latest_version()
     next_version = bump_version(current_version, level)
 
