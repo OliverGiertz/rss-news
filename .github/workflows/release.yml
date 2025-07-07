@@ -7,26 +7,21 @@ on:
 
 jobs:
   create_release:
-    name: 📦 Release mit gesamtem CHANGELOG
+    name: 📦 Release mit sauberem Markdown-Body
     runs-on: ubuntu-latest
 
     steps:
       - name: 📥 Repository klonen
         uses: actions/checkout@v4
 
-      - name: 🔧 Lade gesamten Changelog-Inhalt
+      - name: 🔧 Lade gesamten CHANGELOG.md-Inhalt
         id: changelog
         run: |
-          CONTENT=$(cat CHANGELOG.md)
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-          # Escape für GitHub-Aktionen
-          CONTENT="${CONTENT//'%'/'%25'}"
-          CONTENT="${CONTENT//$'\n'/'%0A'}"
-          CONTENT="${CONTENT//$'\r'/'%0D'}"
-
-          echo "body=$CONTENT" >> $GITHUB_OUTPUT
-
-      - name: 🚀 Release erstellen mit komplettem CHANGELOG
+      - name: 🚀 Release erstellen mit Markdown
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
