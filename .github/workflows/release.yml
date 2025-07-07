@@ -24,16 +24,22 @@ jobs:
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
           echo "📌 Version: $VERSION"
-          CONTENT=$(awk "/## \[?$VERSION\]?/,/## \[/" CHANGELOG.md | sed '1d;$d')
+
+          BODY=$(awk -v version="$VERSION" '
+            BEGIN { found = 0 }
+            $0 ~ "## \\[v"version"\\]" { found = 1; next }
+            $0 ~ /^## \[v[0-9]+\.[0-9]+\.[0-9]+\]/ && found { exit }
+            found { print }
+          ' CHANGELOG.md)
+
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-          echo "$CONTENT" >> $GITHUB_ENV
+          echo "$BODY" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: 🚀 GitHub Release erstellen
+      - name: 🚀 GitHub Release veröffentlichen
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
           body: ${{ env.RELEASE_BODY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
