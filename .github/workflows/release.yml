@@ -1,0 +1,39 @@
+name: 🚀 GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create_release:
+    name: 📦 GitHub Release erstellen
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Repository klonen
+        uses: actions/checkout@v4
+
+      - name: 🧪 Python vorbereiten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📝 Release Notes aus CHANGELOG extrahieren
+        id: changelog
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "📌 Version: $VERSION"
+          CONTENT=$(awk "/## \[?$VERSION\]?/,/## \[/" CHANGELOG.md | sed '1d;$d')
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$CONTENT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: 🚀 GitHub Release erstellen
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body: ${{ env.RELEASE_BODY }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
