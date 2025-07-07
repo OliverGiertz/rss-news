@@ -1,5 +1,23 @@
 
 
+## [v1.4.5] – 2025-07-07
+
+### 💡 Neue Funktionen
+- Umstellung des versioning.py-Skripts auf eine moderne Typer-CLI:
+- create zum Erstellen neuer Versionen mit Level und Push-Option
+- rollback zum Zurücknehmen der letzten Version
+- list zur Anzeige aller Versionen im CHANGELOG.md
+- Validierung, ob der CHANGELOG.md-Eintrag vor Release wirklich ausgefüllt wurde
+- Interaktive CLI-Prompts zur besseren Benutzerführung
+
+### 🔧 Änderungen & Fixes
+- versioning.py ersetzt bisherige manuelle Menüs durch Typer-Kommandos
+- requirements.txt um typer[all]==0.12.3 ergänzt
+
+### 📦 Internes
+- Vorbereitung für globale CLI-Nutzung (versioning als Befehl möglich)
+- Automatisierung des Release-Prozesses mit GitHub Actions weiterhin vorbereitet
+
 ## [v1.4.4] – 2025-07-07
 
 ### 💡 Neue Funktionen
@@ -9,6 +27,8 @@
 - 
 
 ### 📦 Internes
+- automatische Versionierung eingebunden und direktes GitHub puschen der Änderungen
+
 - ## [v1.4.3] – 2025-07-07
 
 ### 💡 Neue Funktionen
