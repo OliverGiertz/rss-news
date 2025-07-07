@@ -1,3 +1,14 @@
+## [v1.4.8] – 2025-07-07
+
+### 💡 Neue Funktionen
+- 
+
+### 🔧 Änderungen & Fixes
+- Fehlerbehebung bei neuen Release, CHANGELOG wurde nicht angehangen, es wird nun die gesamte Datei übernommen
+
+### 📦 Internes
+- 
+
 ## [v1.4.7] – 2025-07-07
 
 ### 💡 Neue Funktionen
