@@ -18,6 +18,7 @@
 - Vorbereitung für globale CLI-Nutzung (versioning als Befehl möglich)
 - Automatisierung des Release-Prozesses mit GitHub Actions weiterhin vorbereitet
 
+
 ## [v1.4.4] – 2025-07-07
 
 ### 💡 Neue Funktionen
