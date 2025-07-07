@@ -54,3 +54,112 @@ INFO:root:✅ Alle Feeds erfolgreich verarbeitet.
 2025-07-05 16:19:34,796 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 2025-07-05 16:19:34,799 - INFO - ✅ Artikel umgeschrieben: Komfort und Flexibilität für moderne Camper
 2025-07-05 16:19:34,803 - INFO - Alle Artikel mit Status 'Rewrite' wurden verarbeitet.
+2025-07-05 16:41:31,067 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-05 16:41:34,773 - INFO - 8 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-05 16:41:34,775 - INFO - 8 neue Artikel gespeichert.
+2025-07-05 16:43:12,785 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-05 16:43:13,160 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-05 16:43:13,160 - INFO - Keine neuen Artikel gefunden.
+2025-07-05 16:43:52,517 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-05 16:43:56,021 - INFO - 9 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-05 16:43:56,022 - INFO - 9 neue Artikel gespeichert.
+INFO:root:🔄 Starte Artikelabruf...
+INFO:root:✅ 10 neue Artikel aus https://www.camping-news.de/rss/
+INFO:root:✅ Artikelverarbeitung abgeschlossen.
+INFO:root:🔄 Starte Artikelabruf...
+INFO:root:✅ 9 neue Artikel aus https://www.camping-news.de/rss/
+INFO:root:✅ Artikelverarbeitung abgeschlossen.
+2025-07-07 09:26:35,739 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-07 09:26:36,041 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5927
+2025-07-07 09:26:36,413 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5927
+2025-07-07 09:26:36,414 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5928
+2025-07-07 09:26:36,640 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5928
+2025-07-07 09:26:36,640 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5929
+2025-07-07 09:26:36,862 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5929
+2025-07-07 09:26:36,863 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5925
+2025-07-07 09:26:37,085 - INFO - 16 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5925
+2025-07-07 09:26:37,086 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5924
+2025-07-07 09:26:37,315 - INFO - 9 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5924
+2025-07-07 09:26:37,316 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5922
+2025-07-07 09:26:37,544 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5922
+2025-07-07 09:26:37,545 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5921
+2025-07-07 09:26:37,779 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5921
+2025-07-07 09:26:37,779 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5920
+2025-07-07 09:26:38,001 - INFO - 9 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5920
+2025-07-07 09:26:38,001 - INFO - 8 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-07 09:26:38,003 - INFO - 8 neue Artikel gespeichert.
+2025-07-07 09:27:24,535 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-07 09:27:24,690 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5927
+2025-07-07 09:27:24,914 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5927
+2025-07-07 09:27:24,915 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5928
+2025-07-07 09:27:25,127 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5928
+2025-07-07 09:27:25,127 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5929
+2025-07-07 09:27:25,345 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5929
+2025-07-07 09:27:25,346 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5925
+2025-07-07 09:27:25,530 - INFO - 16 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5925
+2025-07-07 09:27:25,531 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5926
+2025-07-07 09:27:25,761 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5926
+2025-07-07 09:27:25,762 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5923
+2025-07-07 09:27:25,983 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5923
+2025-07-07 09:27:25,984 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5924
+2025-07-07 09:27:26,176 - INFO - 9 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5924
+2025-07-07 09:27:26,177 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5922
+2025-07-07 09:27:26,391 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5922
+2025-07-07 09:27:26,391 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5921
+2025-07-07 09:27:26,583 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5921
+2025-07-07 09:27:26,583 - INFO - 9 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-07 09:27:26,584 - INFO - 9 neue Artikel gespeichert.
+2025-07-07 10:00:07,513 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-07 10:00:07,906 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5927
+2025-07-07 10:00:08,272 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5927
+2025-07-07 10:00:08,273 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5928
+2025-07-07 10:00:08,599 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5928
+2025-07-07 10:00:08,599 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5929
+2025-07-07 10:00:08,834 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5929
+2025-07-07 10:00:08,835 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5925
+2025-07-07 10:00:09,058 - INFO - 16 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5925
+2025-07-07 10:00:09,059 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5926
+2025-07-07 10:00:09,268 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5926
+2025-07-07 10:00:09,268 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5920
+2025-07-07 10:00:09,486 - INFO - 9 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5920
+2025-07-07 10:00:09,487 - INFO - 6 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-07 10:00:09,488 - INFO - 6 neue Artikel gespeichert.
+2025-07-07 10:00:30,026 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-07 10:00:30,189 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-07 10:00:30,189 - INFO - Keine neuen Artikel gefunden.
+2025-07-07 10:00:51,192 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-07 10:00:51,355 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-07 10:00:51,355 - INFO - Keine neuen Artikel gefunden.
+2025-07-07 10:01:08,635 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-07 10:01:08,815 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-07 10:01:08,815 - INFO - Keine neuen Artikel gefunden.
+2025-07-07 10:01:50,297 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-07 10:01:50,469 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5927
+2025-07-07 10:01:50,741 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5927
+2025-07-07 10:01:50,742 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5928
+2025-07-07 10:01:50,940 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5928
+2025-07-07 10:01:50,941 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5929
+2025-07-07 10:01:51,127 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5929
+2025-07-07 10:01:51,128 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5925
+2025-07-07 10:01:51,316 - INFO - 16 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5925
+2025-07-07 10:01:51,317 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5926
+2025-07-07 10:01:51,508 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5926
+2025-07-07 10:01:51,510 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5923
+2025-07-07 10:01:51,703 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5923
+2025-07-07 10:01:51,704 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5922
+2025-07-07 10:01:51,944 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5922
+2025-07-07 10:01:51,945 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5921
+2025-07-07 10:01:52,167 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5921
+2025-07-07 10:01:52,168 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5920
+2025-07-07 10:01:52,380 - INFO - 9 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5920
+2025-07-07 10:01:52,381 - INFO - 9 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-07 10:01:52,382 - INFO - 9 neue Artikel gespeichert.
+2025-07-07 10:13:46,271 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-07 10:13:46,597 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-07 10:13:46,598 - INFO - Keine neuen Artikel gefunden.
+2025-07-07 10:36:37,313 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-07 10:36:37,741 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-07 10:36:37,741 - INFO - Keine neuen Artikel gefunden.
+2025-07-07 10:38:21,362 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-07 10:38:21,538 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-07 10:38:21,538 - INFO - Keine neuen Artikel gefunden.

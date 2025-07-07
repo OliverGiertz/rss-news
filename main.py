@@ -12,11 +12,12 @@ import openai
 
 load_dotenv()
 
-# Logging konfigurieren
+# === Logging konfigurieren ===
 log_dir = "logs"
 os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, "rss_tool.log")
 logging.basicConfig(
-    filename=os.path.join(log_dir, "rss_tool.log"),
+    filename=log_file,
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -25,7 +26,6 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 ARTICLES_FILE = "data/articles.json"
 FEEDS_FILE = "data/feeds.json"
-
 VALID_STATUSES = ["New", "Rewrite", "Process", "Online", "On Hold", "Trash"]
 
 
@@ -35,9 +35,11 @@ def load_feeds():
     with open(FEEDS_FILE, "r") as f:
         return json.load(f)
 
+
 def save_feeds(feeds):
     with open(FEEDS_FILE, "w") as f:
         json.dump(feeds, f, indent=2)
+
 
 def load_articles():
     if not os.path.exists(ARTICLES_FILE):
@@ -45,15 +47,16 @@ def load_articles():
     with open(ARTICLES_FILE, "r") as f:
         articles = json.load(f)
 
-    # Sicherstellen, dass jeder Artikel einen gültigen Status hat
     for article in articles:
         if article.get("status") not in VALID_STATUSES:
             article["status"] = "New"
     return articles
 
+
 def save_articles(articles):
     with open(ARTICLES_FILE, "w") as f:
         json.dump(articles, f, indent=2)
+
 
 def fetch_and_process_feed(feed_url, existing_ids):
     feed = feedparser.parse(feed_url)
@@ -88,41 +91,44 @@ def fetch_and_process_feed(feed_url, existing_ids):
 
     return new_articles
 
+
 def process_articles(existing_ids):
     feeds = load_feeds()
     all_articles = load_articles()
+    articles_by_id = {article["id"]: article for article in all_articles if "id" in article}
     new_entries = []
 
     for feed in feeds:
-        if isinstance(feed, dict):
-            url = feed.get("url")
-        else:
-            url = feed
-
+        url = feed.get("url") if isinstance(feed, dict) else feed
         if not url:
             continue
-
         try:
             logging.info(f"Lade Feed: {url}")
             entries = fetch_and_process_feed(url, existing_ids)
             new_entries.extend(entries)
             logging.info(f"{len(entries)} neue Artikel gefunden in {url}")
         except Exception as e:
-            logging.error(f"Fehler beim Verarbeiten von {url}: {e}")
+            logging.exception(f"Fehler beim Verarbeiten von {url}:")
 
-    # Nur neue Artikel speichern, deren ID noch nicht vorhanden ist
-    existing_article_ids = set(article["id"] for article in all_articles)
-    unique_new_entries = [a for a in new_entries if a["id"] not in existing_article_ids]
+    added = 0
+    for entry in new_entries:
+        if entry["id"] not in articles_by_id:
+            articles_by_id[entry["id"]] = entry
+            added += 1
+        else:
+            logging.info(f"Artikel bereits vorhanden, wird übersprungen: {entry['title']}")
 
-    if unique_new_entries:
-        all_articles.extend(unique_new_entries)
-        save_articles(all_articles)
-        logging.info(f"{len(unique_new_entries)} neue Artikel gespeichert.")
+    if added > 0:
+        save_articles(list(articles_by_id.values()))
+        logging.info(f"{added} neue Artikel gespeichert.")
     else:
         logging.info("Keine neuen Artikel gefunden.")
 
+
 def rewrite_articles():
     articles = load_articles()
+    changed = False
+
     for article in articles:
         if article.get("status") == "Rewrite":
             try:
@@ -151,7 +157,6 @@ def rewrite_articles():
                 tags = [tag.strip(" ,") for tag in tags_raw.replace("\n", ",").split(",") if tag.strip()]
                 article["tags"] = tags
 
-                # Sicherstellen, dass Bildmetadaten vollständig sind
                 for img in article.get("images", []):
                     if "caption" not in img:
                         img["caption"] = "Kein Bildtitel vorhanden"
@@ -161,9 +166,11 @@ def rewrite_articles():
                         img["copyright_url"] = "#"
 
                 logging.info(f"✅ Artikel umgeschrieben: {article['title']}")
+                changed = True
 
             except Exception as e:
-                logging.error(f"❌ Fehler beim Umschreiben von '{article['title']}': {e}")
+                logging.exception(f"❌ Fehler beim Umschreiben von '{article['title']}':")
 
-    save_articles(articles)
-    logging.info("Alle Artikel mit Status 'Rewrite' wurden verarbeitet.")
+    if changed:
+        save_articles(articles)
+        logging.info("Alle Artikel mit Status 'Rewrite' wurden verarbeitet.")
