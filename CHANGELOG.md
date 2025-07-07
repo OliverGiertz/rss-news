@@ -1,4 +1,59 @@
-# CHANGELOG.md
+
+
+## [v1.4.4] – 2025-07-07
+
+### 💡 Neue Funktionen
+- 
+
+### 🔧 Änderungen & Fixes
+- 
+
+### 📦 Internes
+- # CHANGELOG.md
+
+## [v1.4.3] – 2025-07-07
+
+### 💡 Neue Funktionen
+- ⚠️ Visuelle Warnanzeige in der Artikeltabelle für unvollständige Bildmetadaten (fehlende Caption, Copyright oder Quelle)
+- ✍️ Inline-Bearbeitung von Bilddaten (Caption, Copyright, Quelle) direkt in der Detailansicht
+- 🪵 Neue separate Seite `Log-Viewer` zur Anzeige der letzten Log-Einträge (automatisch über `pages/log_viewer.py`)
+- 📂 Startfilter für Artikelansicht auf „New“ voreingestellt für fokussierten Workflow
+
+### 🔧 Änderungen & Fixes
+- ✅ Artikel aus Feeds überschreiben bestehende Artikel **nicht mehr** – Status, Tags und andere manuelle Änderungen bleiben erhalten
+- 🧹 `get_recent_logs()` wurde entfernt und die Sidebar-Logausgabe aus `app.py` entfernt
+- 🔗 Sidebar-Link zur Log-Seite hinzugefügt (mittlerweile durch native Seiten-Navigation ersetzt)
+- 🧭 Navigation durch Nutzung von Streamlit-Multipage-Struktur (`pages/`)
+
+### 📦 Internes
+- Refactoring von `process_articles()` zur sicheren ID-basierten Artikelzusammenführung
+- Verbesserte Logging-Ausgabe bei bereits vorhandenen Artikeln
+- Robusteres Fehlerhandling in `image_extractor.py`
+
+
+## [v1.4.2] – 2025-07-03
+
+### 💡 Neue Funktionen
+- Komplett überarbeitete Artikel-Tabelle mit:
+  - Auswahlcheckboxen
+  - Inline-Statuswechsel mit Dropdown
+  - Wortanzahl, Tag-Anzeige, Datum kompakt
+- Copy-to-Clipboard Funktion für Titel, Text und Tags
+- Bildanzeige inkl. Caption und Copyright-Quelle im Detailbereich
+- Titel wird automatisch beim Kopieren des Texts vorangestellt
+
+### 🔧 Änderungen & Fixes
+- `st.experimental_rerun()` durch `st.rerun()` ersetzt
+- Statusfilter „Alle“ funktioniert jetzt korrekt
+- UI-Tuning für bessere Lesbarkeit
+- Feedliste aus der Sidebar entfernt
+- Fix: Bilddaten ohne Caption verursachen keine Fehler mehr
+- Artikelüberschriften korrekt in Kopiertext eingebaut
+
+### 📦 Internes
+- Logging bleibt aktiv im Verzeichnis `/logs`
+- Vorbereitung für Bildquellen-Import aus Original-Artikel umgesetzt
+
 
 ## [1.4.1] – 2025-07-03
 ### Hinzugefügt
