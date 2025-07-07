@@ -1,3 +1,16 @@
+## [v1.4.7] – 2025-07-07
+
+### 💡 Neue Funktionen
+- Automatischer Release-Workflow bei `git tag v*`
+- Release-Text aus `CHANGELOG.md` wird extrahiert und als GitHub Release verwendet
+
+### 🔧 Änderungen & Fixes
+- Fehlerbehebung bei neuen Release, CHANGELOG wurde nicht angehangen
+
+### 📦 Internes
+- Erweiterte `release.yml` zur zuverlässigen Release-Erstellung
+- GitHub Actions mit `softprops/action-gh-release`
+
 ## [v1.4.6] – 2025-07-07
 
 ### 💡 Neue Funktionen
