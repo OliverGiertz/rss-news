@@ -1,5 +1,16 @@
 
 
+## [v1.4.6] – 2025-07-07
+
+### 💡 Neue Funktionen
+- 
+
+### 🔧 Änderungen & Fixes
+- 
+
+### 📦 Internes
+- Anpassung vom versioning.py dass alle Dateien nach GitHub übermittelt werden
+
 ## [v1.4.5] – 2025-07-07
 
 ### 💡 Neue Funktionen

@@ -55,7 +55,7 @@ def validate_changelog(version: str) -> bool:
 
 def create_git_tag(version: str):
     try:
-        subprocess.run(["git", "add", str(CHANGELOG_FILE), str(VERSION_FILE)], check=True)
+        subprocess.run(["git", "add", "."], check=True)
         subprocess.run(["git", "commit", "-m", f"🔖 Release v{version}"], check=True)
         subprocess.run(["git", "tag", f"v{version}"], check=True)
         typer.echo(f"🏷️ Git-Tag 'v{version}' erstellt und commit durchgeführt.")
