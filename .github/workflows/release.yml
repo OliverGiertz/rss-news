@@ -1,4 +1,4 @@
-name: 🚀 GitHub Release
+name: 🚀 GitHub Release (Full Changelog)
 
 on:
   push:
@@ -7,45 +7,30 @@ on:
 
 jobs:
   create_release:
-    name: 📦 GitHub Release erstellen
+    name: 📦 Release mit gesamtem CHANGELOG
     runs-on: ubuntu-latest
 
     steps:
       - name: 📥 Repository klonen
         uses: actions/checkout@v4
 
-      - name: 📝 Release Notes aus CHANGELOG extrahieren
+      - name: 🔧 Lade gesamten Changelog-Inhalt
         id: changelog
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          echo "📌 Version: $VERSION"
+          CONTENT=$(cat CHANGELOG.md)
 
-          BODY=$(awk -v version="$VERSION" '
-            BEGIN { found = 0 }
-            $0 ~ "## \\[v"version"\\]" { found = 1; next }
-            $0 ~ /^## \[v[0-9]+\.[0-9]+\.[0-9]+\]/ && found { exit }
-            found { print }
-          ' CHANGELOG.md)
+          # Escape für GitHub-Aktionen
+          CONTENT="${CONTENT//'%'/'%25'}"
+          CONTENT="${CONTENT//$'\n'/'%0A'}"
+          CONTENT="${CONTENT//$'\r'/'%0D'}"
 
-          echo "$BODY" > extracted_changelog.md
+          echo "body=$CONTENT" >> $GITHUB_OUTPUT
 
-          # Prüfen, ob Text extrahiert wurde
-          if [ ! -s extracted_changelog.md ]; then
-            echo "❌ Kein gültiger CHANGELOG-Eintrag für Version $VERSION gefunden. Abbruch."
-            exit 1
-          fi
-
-          BODY_ESCAPED="${BODY//'%'/'%25'}"
-          BODY_ESCAPED="${BODY_ESCAPED//$'\n'/'%0A'}"
-          BODY_ESCAPED="${BODY_ESCAPED//$'\r'/'%0D'}"
-
-          echo "body=$BODY_ESCAPED" >> $GITHUB_OUTPUT
-
-      - name: 🚀 GitHub Release veröffentlichen
+      - name: 🚀 Release erstellen mit komplettem CHANGELOG
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
           body: ${{ steps.changelog.outputs.body }}
-          files: extracted_changelog.md
+          files: CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
