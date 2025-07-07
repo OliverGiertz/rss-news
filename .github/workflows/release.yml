@@ -27,6 +27,14 @@ jobs:
             found { print }
           ' CHANGELOG.md)
 
+          echo "$BODY" > extracted_changelog.md
+
+          # Prüfen, ob Text extrahiert wurde
+          if [ ! -s extracted_changelog.md ]; then
+            echo "❌ Kein gültiger CHANGELOG-Eintrag für Version $VERSION gefunden. Abbruch."
+            exit 1
+          fi
+
           BODY_ESCAPED="${BODY//'%'/'%25'}"
           BODY_ESCAPED="${BODY_ESCAPED//$'\n'/'%0A'}"
           BODY_ESCAPED="${BODY_ESCAPED//$'\r'/'%0D'}"
@@ -38,5 +46,6 @@ jobs:
         with:
           name: ${{ github.ref_name }}
           body: ${{ steps.changelog.outputs.body }}
+          files: extracted_changelog.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
