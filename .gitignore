@@ -34,4 +34,4 @@ Thumbs.db
 internal/start.sh
 internal/copy_files.sh
 internal/_line.txt
-
+internal/push_commit.txt
