@@ -1,27 +1,71 @@
-# 📰 RSS Article Manager
+# 📰 RSS News Bot
 
-Ein einfaches, modulares Webtool auf Basis von Streamlit, das RSS-Artikel automatisch einliest, umschreibt, zusammenfasst und mit Tags versieht – bereit zur Veröffentlichung auf WordPress.
+Ein intelligentes Tool zum Einlesen, Umschreiben und Veröffentlichen von Artikeln aus RSS-Feeds – mit automatischer Tag-Erkennung, KI-unterstütztem Rewrite via GPT-4, Bildextraktion aus Originalartikeln und optionaler DALL·E-Bildgenerierung.
 
-## ✨ Funktionen
+![Version](https://img.shields.io/badge/version-1.5.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/python-3.10+-yellow)
+![Streamlit](https://img.shields.io/badge/built%20with-Streamlit-ff4b4b)
 
-- 📥 RSS-Feeds direkt über die Oberfläche hinzufügen und verwalten
-- 📝 Artikel automatisch umschreiben mit Hilfe von ChatGPT
-- 🏷️ Tags und Zusammenfassungen automatisch generieren
-- 🗂️ Übersicht in tabellarischer Form mit Filter nach Status
-- 📋 Kopierbare Inhalte für manuelles Einfügen in WordPress
-- 📎 Link zum Originalartikel zur einfachen Bildübernahme
-- 💾 Speicherung in einer lokalen JSON-Datei (später SQLite möglich)
-- 📦 Versionierung inkl. CHANGELOG und GitHub Releases
+---
 
-## 🔐 Voraussetzungen
+## 🚀 Features
 
-- Python 3.8+
-- OpenAI API Key (per `.env` eingebunden)
+- 📡 **RSS-Feeds verwalten** (hinzufügen, aktualisieren)
+- ✍️ **Artikel automatisch umschreiben** mit GPT-4
+- 🏷️ **Tags automatisch generieren**
+- 🖼️ **Bilder aus Originalartikeln extrahieren**
+- 🪄 **Optionales DALL·E-Bild generieren**
+- 🔧 **Bearbeiten von Bildmetadaten**
+- 🗂️ **Statusverwaltung der Artikel (New, Rewrite, Process, etc.)**
+- 📜 **Log-Viewer-Seite integriert**
+- 📥 **Export zur Veröffentlichung auf WordPress vorbereitet**
 
-## 🚀 Loslegen
+---
+
+📋 Artikeltabelle mit Status-Filter
+🔍 Artikel-Expander mit Rewrite, Tags & Bildern
+🪄 Button für KI-Bildgenerierung
+
+
+---
+
+## 🧱 Projektstruktur
+
+ss-news/
+├── app.py # Haupt-UI mit Streamlit
+├── main.py # Logik für Feed-Import und Verarbeitung
+├── utils/
+│ └── image_extractor.py # Bilder aus Originalartikeln extrahieren
+│ └── dalle_generator.py # DALL·E-Integration (KI-Bild)
+├── pages/
+│ └── log_viewer.py # UI zur Anzeige der Logs
+├── data/
+│ └── articles.json # Gespeicherte Artikel
+│ └── feeds.json # Gespeicherte Feed-URLs
+├── logs/
+│ └── rss_tool.log # Logging der Verarbeitung
+├── versioning.py # CLI-Tool zur Versionierung & Release
+├── TEST-CHECKLIST.md # Manuelle Prüfliste für Releases
+├── version.py # Aktuelle Version
+└── CHANGELOG.md # Änderungsprotokoll
+
+
+---
+
+## ⚙️ Installation
 
 ```bash
-# Setup
-git clone https://github.com/dein-benutzername/rss-article-manager.git
-cd rss-article-manager
-bash start.sh
+git clone https://github.com/OliverGiertz/rss-news.git
+cd rss-news
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+---
+
+## ▶️ Starten der App
+
+streamlit run app.py
+
