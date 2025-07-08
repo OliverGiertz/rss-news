@@ -1,5 +1,3 @@
-# app.py
-
 import streamlit as st
 from datetime import datetime
 from main import (
@@ -10,6 +8,7 @@ from main import (
     process_articles,
     rewrite_articles
 )
+from utils.dalle_generator import generate_dalle_image
 import os
 
 st.set_page_config(page_title="📰 RSS Artikel Manager", layout="wide")
@@ -38,9 +37,10 @@ if st.sidebar.button("✍️ Artikel umschreiben (Rewrite)"):
 st.header("📋 Artikelübersicht")
 status_filter = st.selectbox("Status filtern", ["Alle", "New", "Rewrite", "Process", "Online", "On Hold", "Trash"], index=1)
 
-articles = load_articles()
+all_articles = load_articles()
+articles = all_articles
 if status_filter != "Alle":
-    articles = [a for a in articles if a.get("status") == status_filter]
+    articles = [a for a in all_articles if a.get("status") == status_filter]
 
 # === Artikel-Tabelle ===
 if articles:
@@ -80,7 +80,12 @@ if articles:
             new_status = st.selectbox("", status_options, index=status_options.index(current_status), key=f"status_{article['id']}")
             if new_status != current_status:
                 article["status"] = new_status
-                save_articles(articles)
+                # Speichern in vollständiger Artikelliste
+                for idx, art in enumerate(all_articles):
+                    if art["id"] == article["id"]:
+                        all_articles[idx] = article
+                        break
+                save_articles(all_articles)
                 st.rerun()
 
         with st.expander(f"🔍 {article['title']}"):
@@ -102,8 +107,37 @@ if articles:
                         img["caption"] = caption or "Kein Bildtitel vorhanden"
                         img["copyright"] = copyright or "Unbekannt"
                         img["copyright_url"] = copyright_url or "#"
-                        save_articles(articles)
+                        # Speichern in vollständiger Artikelliste
+                        for idx, art in enumerate(all_articles):
+                            if art["id"] == article["id"]:
+                                all_articles[idx] = article
+                                break
+                        save_articles(all_articles)
                         st.success("Bilddaten gespeichert")
+
+            if st.button("🪄 KI-Bild generieren", key=f"dalle_{article['id']}"):
+                if not any(img.get("copyright") == "OpenAI DALL·E" for img in article.get("images", [])):
+                    prompt = article["title"]
+                    image_url = generate_dalle_image(prompt)
+                    if image_url:
+                        article.setdefault("images", []).append({
+                            "url": image_url,
+                            "alt": f"KI-generiertes Titelbild zu: {prompt}",
+                            "caption": f"KI-generiertes Titelbild zu: {prompt}",
+                            "copyright": "OpenAI DALL·E",
+                            "copyright_url": "https://openai.com/dall-e"
+                        })
+                        for idx, art in enumerate(all_articles):
+                            if art["id"] == article["id"]:
+                                all_articles[idx] = article
+                                break
+                        save_articles(all_articles)
+                        st.success("DALL·E-Bild erfolgreich hinzugefügt")
+                        st.rerun()
+                    else:
+                        st.error("Fehler beim Erzeugen des Bildes.")
+                else:
+                    st.info("Ein KI-generiertes Bild ist bereits vorhanden.")
 
 else:
     st.info("Keine Artikel für den gewählten Status gefunden.")

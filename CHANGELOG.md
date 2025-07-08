@@ -1,3 +1,21 @@
+
+
+## [v1.5.0] – 2025-07-08
+
+### 💡 Neue Funktionen
+- 🪄 DALL·E-Bildgenerierung per Button direkt im Artikel-Expander
+- Automatische Metadaten (Caption, Copyright, Quelle) für KI-generierte Bilder
+
+### 🔧 Änderungen & Fixes
+- 🔒 Kritischer Bugfix: Artikel gingen nach DALL·E oder Rewrite verloren → jetzt sichere `save_articles()`-Logik über alle Artikel
+- Status-Änderungen, Rewrite und Bilderfassung überschreiben nicht mehr die Gesamtdatei
+- Kein `st.rerun()` mehr nach jedem Klick – flüssiger Workflow 
+
+### 📦 Internes
+- Neue Datei `utils/dalle_generator.py` für DALL·E-Integration
+- Erweiterung der Teststrategie um strukturierte `TEST-CHECKLIST.md`
+- Verbesserte Update-Strategie für Einzelartikel bei Bearbeitung
+
 ## [v1.4.8] – 2025-07-07
 
 ### 💡 Neue Funktionen

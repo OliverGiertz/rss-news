@@ -92,3 +92,51 @@
 2025-07-07 10:38:21,362 - INFO - Lade Feed: https://www.camping-news.de/rss/
 2025-07-07 10:38:21,538 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
 2025-07-07 10:38:21,538 - INFO - Keine neuen Artikel gefunden.
+2025-07-08 09:28:17,147 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-08 09:28:17,409 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-08 09:28:17,409 - INFO - Keine neuen Artikel gefunden.
+2025-07-08 09:29:05,882 - INFO - ✍️ Umschreiben von: Frühjahrsaktionen vom Verein WOHNmobil für Klimaschutz
+2025-07-08 09:29:28,434 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-08 09:29:31,336 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-08 09:29:31,339 - INFO - ✅ Artikel umgeschrieben: Frühjahrsaktionen vom Verein WOHNmobil für Klimaschutz
+2025-07-08 09:29:31,343 - INFO - Alle Artikel mit Status 'Rewrite' wurden verarbeitet.
+2025-07-08 09:32:08,168 - INFO - 🧠 Generiere DALL·E-Bild für Prompt: Frühjahrsaktionen vom Verein WOHNmobil für Klimaschutz
+2025-07-08 09:32:20,090 - INFO - HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 200 OK"
+2025-07-08 09:32:20,096 - INFO - ✅ Bild generiert: https://oaidalleapiprodscus.blob.core.windows.net/private/org-YimPc01cYtOXjUpCATUqDABw/user-eA31w0vmy3fOrb3G64Ygndsr/img-TNJKFEUCBFmLnSUoZMXBlDdV.png?st=2025-07-08T06%3A32%3A20Z&se=2025-07-08T08%3A32%3A20Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=cc612491-d948-4d2e-9821-2683df3719f5&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-07-07T20%3A25%3A11Z&ske=2025-07-08T20%3A25%3A11Z&sks=b&skv=2024-08-04&sig=62C8D6N0YVYMRpgEhUnTgO9YGITstqAxRa370dT2Aq4%3D
+2025-07-08 09:39:01,010 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-08 09:39:01,311 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5927
+2025-07-08 09:39:01,669 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5927
+2025-07-08 09:39:01,670 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5928
+2025-07-08 09:39:01,886 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5928
+2025-07-08 09:39:01,887 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5929
+2025-07-08 09:39:02,095 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5929
+2025-07-08 09:39:02,096 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5925
+2025-07-08 09:39:02,305 - INFO - 16 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5925
+2025-07-08 09:39:02,306 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5926
+2025-07-08 09:39:02,518 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5926
+2025-07-08 09:39:02,519 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5923
+2025-07-08 09:39:02,702 - INFO - 10 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5923
+2025-07-08 09:39:02,702 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5922
+2025-07-08 09:39:02,947 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5922
+2025-07-08 09:39:02,948 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5921
+2025-07-08 09:39:03,157 - INFO - 17 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5921
+2025-07-08 09:39:03,157 - INFO - 📷 Extrahiere Bilder von https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5920
+2025-07-08 09:39:03,363 - INFO - 9 Bilder gefunden bei https://www.camping-in-deutschland.de/index.php?pid=meldung&id=5920
+2025-07-08 09:39:03,363 - INFO - 9 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-08 09:39:03,365 - INFO - 9 neue Artikel gespeichert.
+2025-07-08 09:50:04,409 - INFO - ✍️ Umschreiben von: Den eigenen Verbrauchszahlen auf der Spur
+2025-07-08 09:50:28,820 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-08 09:50:30,722 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-08 09:50:30,725 - INFO - ✅ Artikel umgeschrieben: Den eigenen Verbrauchszahlen auf der Spur
+2025-07-08 09:50:30,729 - INFO - Alle Artikel mit Status 'Rewrite' wurden verarbeitet.
+2025-07-08 09:51:09,253 - INFO - 🧠 Generiere DALL·E-Bild für Prompt: Den eigenen Verbrauchszahlen auf der Spur
+2025-07-08 09:51:24,155 - INFO - HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 200 OK"
+2025-07-08 09:51:24,161 - INFO - ✅ Bild generiert: https://oaidalleapiprodscus.blob.core.windows.net/private/org-YimPc01cYtOXjUpCATUqDABw/user-eA31w0vmy3fOrb3G64Ygndsr/img-w5yMQWBqUD40hBBdASWHRCGl.png?st=2025-07-08T06%3A51%3A24Z&se=2025-07-08T08%3A51%3A24Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=cc612491-d948-4d2e-9821-2683df3719f5&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-07-07T20%3A13%3A47Z&ske=2025-07-08T20%3A13%3A47Z&sks=b&skv=2024-08-04&sig=8r2oI6by0IXMpsxHTc9VK/2fFJOzdxPwGoXFiiA8Eiw%3D
+2025-07-08 10:36:28,283 - INFO - ✍️ Umschreiben von: Das weltweit größte Caravaning-Erlebnis
+2025-07-08 10:36:50,617 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-08 10:36:52,619 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-08 10:36:52,622 - INFO - ✅ Artikel umgeschrieben: Das weltweit größte Caravaning-Erlebnis
+2025-07-08 10:36:52,627 - INFO - Alle Artikel mit Status 'Rewrite' wurden verarbeitet.
+2025-07-08 10:38:57,857 - INFO - 🧠 Generiere DALL·E-Bild für Prompt: Das weltweit größte Caravaning-Erlebnis
+2025-07-08 10:39:16,622 - INFO - HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 200 OK"
+2025-07-08 10:39:16,627 - INFO - ✅ Bild generiert: https://oaidalleapiprodscus.blob.core.windows.net/private/org-YimPc01cYtOXjUpCATUqDABw/user-eA31w0vmy3fOrb3G64Ygndsr/img-6d1irbwhkDKGNvLJG50pYaZK.png?st=2025-07-08T07%3A39%3A16Z&se=2025-07-08T09%3A39%3A16Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=cc612491-d948-4d2e-9821-2683df3719f5&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-07-07T20%3A35%3A26Z&ske=2025-07-08T20%3A35%3A26Z&sks=b&skv=2024-08-04&sig=DVMzSGr162NqN8830eX0tAH5Wtm5NAnTPxk2C7NQgTs%3D
