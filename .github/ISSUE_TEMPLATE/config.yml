@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Frage oder Feedback
+    url: https://github.com/OliverGiertz/rss-news/discussions
+    about: Nutze GitHub Discussions für allgemeine Fragen oder Feedback.
