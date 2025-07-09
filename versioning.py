@@ -11,15 +11,14 @@ VERSION_PATTERN = r"## \[v?(\d+\.\d+\.\d+)\]"
 
 def get_latest_version():
     try:
-        # Versuch über Git-Tags
+        # Zuerst versuchen, Git-Tag auszulesen
         tag = subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"], stderr=subprocess.DEVNULL)
         return tag.decode("utf-8").strip().lstrip("v")
     except subprocess.CalledProcessError:
-        # Fallback: Changelog
+        # Fallback auf CHANGELOG.md
         content = CHANGELOG_FILE.read_text(encoding="utf-8")
         matches = re.findall(VERSION_PATTERN, content)
         return matches[0] if matches else "0.0.0"
-
 
 def bump_version(version: str, level: str = "patch") -> str:
     major, minor, patch = map(int, version.split("."))
@@ -31,17 +30,6 @@ def bump_version(version: str, level: str = "patch") -> str:
 
 def write_version_file(version: str):
     VERSION_FILE.write_text(f"VERSION = \"{version}\"\n", encoding="utf-8")
-
-def update_changelog(version: str):
-    date = datetime.now().strftime("%Y-%m-%d")
-    new_entry = f"## [{version}] - {date}\n\n- Beschreibung...\n\n"
-    content = CHANGELOG_FILE.read_text(encoding="utf-8")
-
-    if f"## [{version}]" in content:
-        typer.secho(f"ℹ️  Version {version} ist bereits im CHANGELOG.md vorhanden. Kein Eintrag hinzugefügt.", fg=typer.colors.BLUE)
-    else:
-        CHANGELOG_FILE.write_text(new_entry + content, encoding="utf-8")
-        typer.secho(f"📄 CHANGELOG.md um Version {version} ergänzt.", fg=typer.colors.MAGENTA)
 
 def is_ssh_signing_available() -> bool:
     return Path("~/.ssh/id_ed25519").expanduser().exists()
@@ -88,8 +76,24 @@ def create(
         typer.secho("🚫 Dry-Run beendet.\n", fg=typer.colors.YELLOW)
         return
 
+    # Update version file
     write_version_file(new_version)
-    update_changelog(new_version)
+
+    # Prepare or check changelog entry
+    date = datetime.now().strftime("%Y-%m-%d")
+    new_entry = f"## [{new_version}] - {date}\n\n- Beschreibung...\n\n"
+    content = CHANGELOG_FILE.read_text(encoding="utf-8")
+
+    if f"## [{new_version}]" in content:
+        typer.secho(f"ℹ️  Version {new_version} ist bereits im CHANGELOG.md vorhanden. Kein Eintrag hinzugefügt.", fg=typer.colors.BLUE)
+    else:
+        CHANGELOG_FILE.write_text(new_entry + content, encoding="utf-8")
+        typer.secho(f"📄 CHANGELOG.md wurde vorbereitet für Version {new_version}.", fg=typer.colors.MAGENTA)
+
+    typer.echo("")
+    typer.secho("✏️  Bitte jetzt den Eintrag in CHANGELOG.md überprüfen oder anpassen.", fg=typer.colors.CYAN)
+    input("⏸️  Drücke [Enter], um fortzufahren...")
+
     subprocess.run(["git", "add", "."], check=True)
 
     use_signing = False
