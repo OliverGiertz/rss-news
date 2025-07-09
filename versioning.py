@@ -5,16 +5,21 @@ from datetime import datetime
 import typer
 import os
 
-app = typer.Typer()
-
 CHANGELOG_FILE = Path("CHANGELOG.md")
 VERSION_FILE = Path("__version__.py")
 VERSION_PATTERN = r"## \[v?(\d+\.\d+\.\d+)\]"
 
 def get_latest_version():
-    content = CHANGELOG_FILE.read_text(encoding="utf-8")
-    matches = re.findall(VERSION_PATTERN, content)
-    return matches[0] if matches else "0.0.0"
+    try:
+        # Versuch über Git-Tags
+        tag = subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"], stderr=subprocess.DEVNULL)
+        return tag.decode("utf-8").strip().lstrip("v")
+    except subprocess.CalledProcessError:
+        # Fallback: Changelog
+        content = CHANGELOG_FILE.read_text(encoding="utf-8")
+        matches = re.findall(VERSION_PATTERN, content)
+        return matches[0] if matches else "0.0.0"
+
 
 def bump_version(version: str, level: str = "patch") -> str:
     major, minor, patch = map(int, version.split("."))
@@ -31,7 +36,12 @@ def update_changelog(version: str):
     date = datetime.now().strftime("%Y-%m-%d")
     new_entry = f"## [{version}] - {date}\n\n- Beschreibung...\n\n"
     content = CHANGELOG_FILE.read_text(encoding="utf-8")
-    CHANGELOG_FILE.write_text(new_entry + content, encoding="utf-8")
+
+    if f"## [{version}]" in content:
+        typer.secho(f"ℹ️  Version {version} ist bereits im CHANGELOG.md vorhanden. Kein Eintrag hinzugefügt.", fg=typer.colors.BLUE)
+    else:
+        CHANGELOG_FILE.write_text(new_entry + content, encoding="utf-8")
+        typer.secho(f"📄 CHANGELOG.md um Version {version} ergänzt.", fg=typer.colors.MAGENTA)
 
 def is_ssh_signing_available() -> bool:
     return Path("~/.ssh/id_ed25519").expanduser().exists()
@@ -51,20 +61,33 @@ def configure_signing(use_ssh: bool):
         subprocess.run(["git", "config", "--global", "gpg.format", "openpgp"], check=True)
     subprocess.run(["git", "config", "--global", "commit.gpgsign", "true"], check=True)
 
-def create_git_tag(version: str, sign: bool):
-    if sign:
-        subprocess.run(["git", "tag", "-s", f"v{version}", "-m", f"Release v{version}"], check=True)
-    else:
-        subprocess.run(["git", "tag", "-a", f"v{version}", "-m", f"Release v{version} (unsigned)"], check=True)
-
-def push_git_tag(version: str):
-    subprocess.run(["git", "push"], check=True)
-    subprocess.run(["git", "push", "origin", f"v{version}"], check=True)
-
-@app.command()
-def create(level: str = "patch", push: bool = False, no_sign: bool = False):
+def create(
+    level: str = "patch",
+    push: bool = False,
+    no_sign: bool = False,
+    dry_run: bool = False
+):
+    """
+    Erstellt eine neue Version mit optional signiertem Commit & Tag.
+    Optional: --push, --no-sign, --dry-run
+    """
     current = get_latest_version()
     new_version = bump_version(current, level)
+
+    if dry_run:
+        typer.secho("🔍 Dry-Run aktiviert – keine Dateien oder Git-Kommandos werden ausgeführt.\n", fg=typer.colors.YELLOW)
+        typer.echo(f"➡️  Aktuelle Version: {current}")
+        typer.echo(f"➡️  Neue Version:     {new_version}")
+        typer.echo(f"➡️  Commit-Level:     {level}")
+        typer.echo(f"➡️  Push nach GitHub: {'Ja' if push else 'Nein'}")
+        typer.echo(f"➡️  Signieren:        {'Nein' if no_sign else 'Automatisch (SSH > GPG)'}")
+
+        date = datetime.now().strftime("%Y-%m-%d")
+        typer.echo("\n📄 Vorschlag für CHANGELOG-Eintrag:")
+        typer.echo(f"\n## [{new_version}] - {date}\n\n- Beschreibung...\n")
+        typer.secho("🚫 Dry-Run beendet.\n", fg=typer.colors.YELLOW)
+        return
+
     write_version_file(new_version)
     update_changelog(new_version)
     subprocess.run(["git", "add", "."], check=True)
@@ -87,10 +110,14 @@ def create(level: str = "patch", push: bool = False, no_sign: bool = False):
         commit_cmd.append("-S")
     subprocess.run(commit_cmd, check=True)
 
-    create_git_tag(new_version, sign=use_signing)
+    if use_signing:
+        subprocess.run(["git", "tag", "-s", f"v{new_version}", "-m", f"Release v{new_version}"], check=True)
+    else:
+        subprocess.run(["git", "tag", "-a", f"v{new_version}", "-m", f"Release v{new_version} (unsigned)"], check=True)
 
     if push:
-        push_git_tag(new_version)
+        subprocess.run(["git", "push"], check=True)
+        subprocess.run(["git", "push", "origin", f"v{new_version}"], check=True)
 
     if use_signing:
         if signing_method == "ssh":
@@ -100,6 +127,5 @@ def create(level: str = "patch", push: bool = False, no_sign: bool = False):
     else:
         typer.secho(f"⚠️  Version {new_version} wurde ohne Signatur erstellt", fg=typer.colors.YELLOW)
 
-
 if __name__ == "__main__":
-    app()
+    typer.run(create)

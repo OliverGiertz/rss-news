@@ -98,7 +98,7 @@ Die Datei versioning.py automatisiert:
 Beispiel:
 
     ```bash
-    python versioning.py create --level minor --push
+    python versioning.py --level minor --push
     ```
 
 * Wählt automatisch SSH oder GPG zur Signatur

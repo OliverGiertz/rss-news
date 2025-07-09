@@ -1,7 +1,24 @@
-## [1.5.1] - 2025-07-09
+## [1.5.2] - 2025-07-09
 
 - Beschreibung...
 
+## [v1.5.2] - 2025-07-09
+
+- Fehlerbehandlung bei `CHANGELOG.md`-Doppelungen hinzugefügt
+- Signaturlogik robuster (SSH, GPG, fallback)
+- Farbige Terminalausgabe verbessert
+- dry-run Argument hinzugefügt:
+  * Versionsnummer wird berechnet ✅
+  * Änderungen (Version, Changelog, Commit, Tag, Push) werden nur angezeigt, nicht ausgeführt ✅
+  * Ausgabe erfolgt farbig und klar gegliedert ✅
+
+
+## [1.5.1] - 2025-07-09
+
+SSH-Commit-Signatur in versioning.py eingebaut
+Automatischer Fallback auf GPG oder keine Signatur
+Farbige Terminalausgabe zur Signaturmethode
+Readme erweitert mit Setup-Anleitung
 
 
 ## [v1.5.0] – 2025-07-08
