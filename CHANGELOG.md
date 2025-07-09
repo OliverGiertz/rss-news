@@ -1,7 +1,3 @@
-## [1.5.2] - 2025-07-09
-
-- Beschreibung...
-
 ## [v1.5.2] - 2025-07-09
 
 - Fehlerbehandlung bei `CHANGELOG.md`-Doppelungen hinzugefügt
