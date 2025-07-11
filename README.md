@@ -50,60 +50,6 @@ ss-news/
 
 ---
 
-## 🔐 Signierte Commits und Tags
-
-Dieses Projekt unterstützt **signierte Commits und Tags über SSH** (alternativ GPG). GitHub zeigt für signierte Beiträge ein ✅ **Verified**-Badge an.
-
-### 🛠 Voraussetzungen
-
-1. Ein SSH-Key (z. B. `~/.ssh/id_ed25519`) ist generiert:
-   
-   ```bash
-   ssh-keygen -t ed25519 -C "deine@email.de"
-    ```
-
-2. Key bei GitHub an zwei Stellen hinterlegen:
-    * 🔏 Signing Keys (für Commit-Signatur)
-    * 🔐 SSH Keys (für Git-Push/Pull)
-
-3. Git-Konfiguration
-
-    ```bash
-    git config --global gpg.format ssh
-    git config --global user.signingkey ~/.ssh/id_ed25519.pub
-    git config --global commit.gpgsign true
-    ```
-
-4. Optional: SSH config zur Sicherheit:
-    
-    ```bash
-    # ~/.ssh/config
-    Host github.com
-        HostName github.com
-        User git
-        IdentityFile ~/.ssh/id_ed25519
-        IdentitiesOnly yes
-    ```
----
-
-🧰 Nutzung von versioning.py
-Die Datei versioning.py automatisiert:
-
-    * ⬆️ Versionsnummer erhöhen
-    * 📄 CHANGELOG.md und __version__.py aktualisieren
-    * 🔒 Commit signieren (SSH oder GPG)
-    * 🏷 Git-Tag signieren
-    * ⬆️ Push zu GitHub
-
-Beispiel:
-   ```bash
-    python versioning.py --level minor --push
-   ```
-
-* Wählt automatisch SSH oder GPG zur Signatur
-* Optional --no-sign, um ohne Signatur zu arbeiten
----
-
 ## ⚙️ Installation
 
 ```bash
@@ -115,6 +61,14 @@ pip install -r requirements.txt
 ```
 
 ---
+
+## Update
+Ein Update Script findest du hier: https://gist.github.com/OliverGiertz/ad33ae3de9aa1c1163dad5fe8affb6ca
+
+```bash
+bash update.sh
+```
+
 
 ## ▶️ Starten der App
 
