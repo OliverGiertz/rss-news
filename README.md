@@ -2,7 +2,7 @@
 
 Ein intelligentes Tool zum Einlesen, Umschreiben und Veröffentlichen von Artikeln aus RSS-Feeds – mit automatischer Tag-Erkennung, KI-unterstütztem Rewrite via GPT-4, Bildextraktion aus Originalartikeln und optionaler DALL·E-Bildgenerierung.
 
-![Version](https://img.shields.io/badge/version-1.5.0-blue)
+![Version](https://img.shields.io/badge/version-1.5.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.10+-yellow)
 ![Streamlit](https://img.shields.io/badge/built%20with-Streamlit-ff4b4b)
@@ -96,10 +96,9 @@ Die Datei versioning.py automatisiert:
     * ⬆️ Push zu GitHub
 
 Beispiel:
-
-    ```bash
+   ```bash
     python versioning.py --level minor --push
-    ```
+   ```
 
 * Wählt automatisch SSH oder GPG zur Signatur
 * Optional --no-sign, um ohne Signatur zu arbeiten
