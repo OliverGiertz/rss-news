@@ -7,8 +7,9 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from dotenv import load_dotenv
 import logging
-from utils.image_extractor import extract_images_with_metadata
 import openai
+from utils.image_extractor import extract_images_with_metadata
+from utils.article_extractor import extract_full_article
 
 load_dotenv()
 
@@ -75,6 +76,12 @@ def fetch_and_process_feed(feed_url, existing_ids):
         soup = BeautifulSoup(content, "html.parser")
         clean_text = soup.get_text(" ", strip=True)
 
+        # Automatischer Volltext-Fetch bei zu wenig Wörtern
+        if len(clean_text.split()) < 50 and entry.get("link"):
+            fetched_text = extract_full_article(entry["link"])
+            if len(fetched_text.split()) > len(clean_text.split()):
+                clean_text = fetched_text
+
         images = extract_images_with_metadata(entry.link)
 
         new_articles.append({
@@ -86,7 +93,8 @@ def fetch_and_process_feed(feed_url, existing_ids):
             "tags": [],
             "status": "New",
             "link": entry.get("link", ""),
-            "images": images
+            "images": images,
+            "source": feed_url
         })
 
     return new_articles

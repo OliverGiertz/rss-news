@@ -1,3 +1,14 @@
 [
-  "https://www.camping-news.de/rss/"
+  {
+    "url": "https://www.camping-news.de/rss/",
+    "name": "Camping News"
+  },
+  {
+    "url": "https://www.promobil.de/rss/news",
+    "name": "Promobil News"
+  },
+  {
+    "url": "https://www.promobil.de/rss/ratgeber",
+    "name": "Promobil Ratgeber"
+  }
 ]

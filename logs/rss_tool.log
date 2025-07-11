@@ -140,3 +140,81 @@
 2025-07-08 10:38:57,857 - INFO - 🧠 Generiere DALL·E-Bild für Prompt: Das weltweit größte Caravaning-Erlebnis
 2025-07-08 10:39:16,622 - INFO - HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 200 OK"
 2025-07-08 10:39:16,627 - INFO - ✅ Bild generiert: https://oaidalleapiprodscus.blob.core.windows.net/private/org-YimPc01cYtOXjUpCATUqDABw/user-eA31w0vmy3fOrb3G64Ygndsr/img-6d1irbwhkDKGNvLJG50pYaZK.png?st=2025-07-08T07%3A39%3A16Z&se=2025-07-08T09%3A39%3A16Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=cc612491-d948-4d2e-9821-2683df3719f5&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-07-07T20%3A35%3A26Z&ske=2025-07-08T20%3A35%3A26Z&sks=b&skv=2024-08-04&sig=DVMzSGr162NqN8830eX0tAH5Wtm5NAnTPxk2C7NQgTs%3D
+2025-07-11 08:22:15,359 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-11 08:22:15,648 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-11 08:22:15,649 - INFO - Keine neuen Artikel gefunden.
+2025-07-11 08:29:26,863 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-11 08:29:27,225 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-11 08:29:27,225 - INFO - Lade Feed: https://www.promobil.de/rss/news
+2025-07-11 08:29:27,464 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/termine-veranstaltungen-juni-juli/
+2025-07-11 08:29:27,618 - INFO - 13 Bilder gefunden bei https://www.promobil.de/termine-veranstaltungen-juni-juli/
+2025-07-11 08:29:27,618 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/sicherheitszubehoer-wohnmobil-schutz-einbruch-diebstahl-gase/
+2025-07-11 08:29:27,782 - INFO - 22 Bilder gefunden bei https://www.promobil.de/sicherheitszubehoer-wohnmobil-schutz-einbruch-diebstahl-gase/
+2025-07-11 08:29:27,783 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/corigon-neue-hymer-marke-sommer-2025/
+2025-07-11 08:29:27,984 - INFO - 23 Bilder gefunden bei https://www.promobil.de/corigon-neue-hymer-marke-sommer-2025/
+2025-07-11 08:29:27,985 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/sieger-frosch-campfire-der-ideen-2025/
+2025-07-11 08:29:28,132 - INFO - 21 Bilder gefunden bei https://www.promobil.de/sieger-frosch-campfire-der-ideen-2025/
+2025-07-11 08:29:28,132 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/fiat-ducato-9-gang-automatik-softwareupdate/
+2025-07-11 08:29:28,279 - INFO - 13 Bilder gefunden bei https://www.promobil.de/fiat-ducato-9-gang-automatik-softwareupdate/
+2025-07-11 08:29:28,280 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/caravaning-jahrgangs-archiv-als-pdf-download/
+2025-07-11 08:29:28,422 - INFO - 14 Bilder gefunden bei https://www.promobil.de/caravaning-jahrgangs-archiv-als-pdf-download/
+2025-07-11 08:29:28,422 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/top-10-clever-campen-videos-2024/
+2025-07-11 08:29:28,572 - INFO - 14 Bilder gefunden bei https://www.promobil.de/top-10-clever-campen-videos-2024/
+2025-07-11 08:29:28,572 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/retro-wohnmobile-2004-nuller-jahre-rueckblick-promobil/
+2025-07-11 08:29:28,761 - INFO - 25 Bilder gefunden bei https://www.promobil.de/retro-wohnmobile-2004-nuller-jahre-rueckblick-promobil/
+2025-07-11 08:29:28,761 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/gaswarner-wohnmobil-schutz-gas/
+2025-07-11 08:29:28,945 - INFO - 33 Bilder gefunden bei https://www.promobil.de/gaswarner-wohnmobil-schutz-gas/
+2025-07-11 08:29:28,946 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/versicherungen-werden-2025-teuerer-tipps-und-tricks-um-die-kosten-zu-senken/
+2025-07-11 08:29:29,104 - INFO - 13 Bilder gefunden bei https://www.promobil.de/versicherungen-werden-2025-teuerer-tipps-und-tricks-um-die-kosten-zu-senken/
+2025-07-11 08:29:29,105 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/dailycamper-trekking-mini-camper-fiat-doblo/
+2025-07-11 08:29:29,257 - INFO - 15 Bilder gefunden bei https://www.promobil.de/dailycamper-trekking-mini-camper-fiat-doblo/
+2025-07-11 08:29:29,257 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/rocket-ryzon-campingbus-von-extrem-sportler-jonas-deichmann/
+2025-07-11 08:29:29,436 - INFO - 24 Bilder gefunden bei https://www.promobil.de/rocket-ryzon-campingbus-von-extrem-sportler-jonas-deichmann/
+2025-07-11 08:29:29,436 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/e-trailer-system-kontrollboard-wohnwagen-camper/
+2025-07-11 08:29:29,593 - INFO - 16 Bilder gefunden bei https://www.promobil.de/e-trailer-system-kontrollboard-wohnwagen-camper/
+2025-07-11 08:29:29,593 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/spielorte-em-2024-red-bull-arena-leipzig/
+2025-07-11 08:29:29,786 - INFO - 19 Bilder gefunden bei https://www.promobil.de/spielorte-em-2024-red-bull-arena-leipzig/
+2025-07-11 08:29:29,786 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/can-kasim-dogan-interview-westfalia/
+2025-07-11 08:29:29,934 - INFO - 13 Bilder gefunden bei https://www.promobil.de/can-kasim-dogan-interview-westfalia/
+2025-07-11 08:29:29,934 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/promobil-leser-meinung-mobilitaet-fortbewegungsmittel-fahrrad/
+2025-07-11 08:29:30,103 - INFO - 22 Bilder gefunden bei https://www.promobil.de/promobil-leser-meinung-mobilitaet-fortbewegungsmittel-fahrrad/
+2025-07-11 08:29:30,103 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/spielorte-em-2024-frankfurt/
+2025-07-11 08:29:30,276 - INFO - 18 Bilder gefunden bei https://www.promobil.de/spielorte-em-2024-frankfurt/
+2025-07-11 08:29:30,276 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/stuttgart-em-2024-fussball-stellplaetze-wohnmobil-camping/
+2025-07-11 08:29:30,450 - INFO - 18 Bilder gefunden bei https://www.promobil.de/stuttgart-em-2024-fussball-stellplaetze-wohnmobil-camping/
+2025-07-11 08:29:30,451 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/camper-radio-radiosender-caravan-fm/
+2025-07-11 08:29:30,600 - INFO - 13 Bilder gefunden bei https://www.promobil.de/camper-radio-radiosender-caravan-fm/
+2025-07-11 08:29:30,600 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/tourismus-management-armin-brysch-interview-virtuelle-reisen/
+2025-07-11 08:29:30,750 - INFO - 13 Bilder gefunden bei https://www.promobil.de/tourismus-management-armin-brysch-interview-virtuelle-reisen/
+2025-07-11 08:29:30,750 - INFO - 20 neue Artikel gefunden in https://www.promobil.de/rss/news
+2025-07-11 08:29:30,759 - INFO - 20 neue Artikel gespeichert.
+2025-07-11 08:34:46,453 - INFO - ✍️ Umschreiben von: Schutz vor Einbruch und Diebstahl fürs Wohnmobil: Wie schütze ich mein Wohnmobil vor Diebstahl?
+2025-07-11 08:34:50,280 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-11 08:34:51,815 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-11 08:34:51,819 - INFO - ✅ Artikel umgeschrieben: Schutz vor Einbruch und Diebstahl fürs Wohnmobil: Wie schütze ich mein Wohnmobil vor Diebstahl?
+2025-07-11 08:34:51,819 - INFO - ✍️ Umschreiben von: Gaswarner im Wohnmobil: So schütze Sie sich vor unsichtbaren Gasen
+2025-07-11 08:34:57,346 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-11 08:34:59,085 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-11 08:34:59,087 - INFO - ✅ Artikel umgeschrieben: Gaswarner im Wohnmobil: So schütze Sie sich vor unsichtbaren Gasen
+2025-07-11 08:34:59,087 - INFO - ✍️ Umschreiben von: Camper-Radio​ Caravan.fm : Radiosender speziell für Camping-Fans
+2025-07-11 08:35:05,071 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-11 08:35:07,789 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-11 08:35:07,792 - INFO - ✅ Artikel umgeschrieben: Camper-Radio​ Caravan.fm : Radiosender speziell für Camping-Fans
+2025-07-11 08:35:07,803 - INFO - Alle Artikel mit Status 'Rewrite' wurden verarbeitet.
+2025-07-11 08:54:52,549 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-11 08:54:53,036 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-11 08:54:53,036 - INFO - Lade Feed: https://www.promobil.de/rss/news
+2025-07-11 08:54:53,402 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/termine-veranstaltungen-juni-juli/
+2025-07-11 08:54:53,558 - INFO - 13 Bilder gefunden bei https://www.promobil.de/termine-veranstaltungen-juni-juli/
+2025-07-11 08:54:53,731 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/sicherheitszubehoer-wohnmobil-schutz-einbruch-diebstahl-gase/
+2025-07-11 08:54:53,908 - INFO - 22 Bilder gefunden bei https://www.promobil.de/sicherheitszubehoer-wohnmobil-schutz-einbruch-diebstahl-gase/
+2025-07-11 08:54:54,076 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/fiat-ducato-9-gang-automatik-softwareupdate/
+2025-07-11 08:54:54,217 - INFO - 13 Bilder gefunden bei https://www.promobil.de/fiat-ducato-9-gang-automatik-softwareupdate/
+2025-07-11 08:54:54,376 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/versicherungen-werden-2025-teuerer-tipps-und-tricks-um-die-kosten-zu-senken/
+2025-07-11 08:54:54,537 - INFO - 13 Bilder gefunden bei https://www.promobil.de/versicherungen-werden-2025-teuerer-tipps-und-tricks-um-die-kosten-zu-senken/
+2025-07-11 08:54:54,682 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/camper-radio-radiosender-caravan-fm/
+2025-07-11 08:54:54,826 - INFO - 13 Bilder gefunden bei https://www.promobil.de/camper-radio-radiosender-caravan-fm/
+2025-07-11 08:54:54,826 - INFO - 5 neue Artikel gefunden in https://www.promobil.de/rss/news
+2025-07-11 08:54:54,834 - INFO - 5 neue Artikel gespeichert.
+2025-07-11 09:34:42,951 - INFO - ❌ Feed gelöscht: Promobil Ratgeber (https://www.promobil.de/rss/ratgeber)
+2025-07-11 09:35:05,863 - INFO - 🔗 Neuer Feed hinzugefügt: Promobil Ratgeber (https://www.promobil.de/rss/ratgeber)

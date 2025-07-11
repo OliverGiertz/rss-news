@@ -1,3 +1,36 @@
+## [v1.5.3] - 2025-07-11
+
+### ✨ Neue Funktionen
+
+- Automatischer Volltextabruf bei zu kurzen Artikeln (< 50 Wörter)
+  - Inhalte werden direkt von der Originalseite geladen (ähnlich wie bei der Bildextraktion)
+  - Promobil, Camping-News und andere gängige WordPress-Seiten werden unterstützt
+
+- Neue Verwaltungsseite `Feed-Verwaltung` unter `pages/01_feed_manager.py`
+  - RSS-Feeds können nun über eine dedizierte Oberfläche hinzugefügt, bearbeitet und gelöscht werden
+  - Anzahl verknüpfter Artikel pro Feed wird angezeigt
+  - Änderungen werden protokolliert und per `st.rerun()` sofort sichtbar
+
+### 🔧 Verbesserungen
+
+- Feed-Filter in der Artikelübersicht zeigt jetzt die **korrekten Feed-Namen mit Artikelanzahl**
+  - Beispiel: „Promobil News (12)“ statt nur „Alle (20)“
+  - Basierend auf `source`-Feld im Artikelobjekt
+
+- Verbesserte Logging-Ausgaben bei Feed-Aktionen (hinzufügen, ändern, löschen)
+
+### 📁 Neue Dateien
+
+- `utils/article_extractor.py` – Logik zum Abrufen vollständiger Artikeltexte von Originalseiten
+- `pages/01_feed_manager.py` – Eigenständige Verwaltungsseite für RSS-Feeds
+
+### 🛠 Interne Änderungen
+
+- `main.py` erweitert: Automatischer Fallback auf `extract_full_article()` bei zu kurzem Text
+- Logging konsolidiert und mit Feed-Aktionen ergänzt
+
+
+
 ## [v1.5.2] - 2025-07-09
 
 - Fehlerbehandlung bei `CHANGELOG.md`-Doppelungen hinzugefügt

@@ -1,3 +1,5 @@
+# app.py (aktualisiert mit Feed-Dropdown)
+
 import streamlit as st
 from datetime import datetime
 from main import (
@@ -10,6 +12,7 @@ from main import (
 )
 from utils.dalle_generator import generate_dalle_image
 import os
+from collections import Counter
 
 st.set_page_config(page_title="📰 RSS Artikel Manager", layout="wide")
 st.title("📰 RSS Artikel Manager")
@@ -20,7 +23,7 @@ feeds = load_feeds()
 new_feed = st.sidebar.text_input("Neuen RSS Feed hinzufügen")
 if st.sidebar.button("Feed hinzufügen"):
     if new_feed and new_feed not in [f.get("url", f) for f in feeds]:
-        feeds.append({"url": new_feed})
+        feeds.append({"url": new_feed, "name": "Neuer Feed"})
         save_feeds(feeds)
         st.sidebar.success("Feed hinzugefügt")
 
@@ -39,8 +42,28 @@ status_filter = st.selectbox("Status filtern", ["Alle", "New", "Rewrite", "Proce
 
 all_articles = load_articles()
 articles = all_articles
+
 if status_filter != "Alle":
-    articles = [a for a in all_articles if a.get("status") == status_filter]
+    articles = [a for a in articles if a.get("status") == status_filter]
+
+# === Feed-Filter ===
+source_to_name = {f.get("url"): f.get("name", "unidentified") for f in feeds}
+source_counter = Counter([a.get("source", "unidentified") for a in articles])
+
+feed_options = ["Alle ({})".format(len(articles))]
+feed_map = {}
+
+for source, count in source_counter.items():
+    name = source_to_name.get(source, "unidentified")
+    label = f"{name} ({count})"
+    feed_options.append(label)
+    feed_map[label] = source
+
+selected_feed_label = st.selectbox("Feed-Auswahl", feed_options)
+
+if selected_feed_label != feed_options[0]:  # nicht „Alle“
+    selected_source = feed_map[selected_feed_label]
+    articles = [a for a in articles if a.get("source", "unidentified") == selected_source]
 
 # === Artikel-Tabelle ===
 if articles:
@@ -80,7 +103,6 @@ if articles:
             new_status = st.selectbox("", status_options, index=status_options.index(current_status), key=f"status_{article['id']}")
             if new_status != current_status:
                 article["status"] = new_status
-                # Speichern in vollständiger Artikelliste
                 for idx, art in enumerate(all_articles):
                     if art["id"] == article["id"]:
                         all_articles[idx] = article
@@ -107,7 +129,6 @@ if articles:
                         img["caption"] = caption or "Kein Bildtitel vorhanden"
                         img["copyright"] = copyright or "Unbekannt"
                         img["copyright_url"] = copyright_url or "#"
-                        # Speichern in vollständiger Artikelliste
                         for idx, art in enumerate(all_articles):
                             if art["id"] == article["id"]:
                                 all_articles[idx] = article
@@ -138,6 +159,5 @@ if articles:
                         st.error("Fehler beim Erzeugen des Bildes.")
                 else:
                     st.info("Ein KI-generiertes Bild ist bereits vorhanden.")
-
 else:
     st.info("Keine Artikel für den gewählten Status gefunden.")
