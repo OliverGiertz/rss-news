@@ -218,3 +218,296 @@
 2025-07-11 08:54:54,834 - INFO - 5 neue Artikel gespeichert.
 2025-07-11 09:34:42,951 - INFO - ❌ Feed gelöscht: Promobil Ratgeber (https://www.promobil.de/rss/ratgeber)
 2025-07-11 09:35:05,863 - INFO - 🔗 Neuer Feed hinzugefügt: Promobil Ratgeber (https://www.promobil.de/rss/ratgeber)
+2025-07-28 09:17:09,355 - INFO - ✍️ Umschreiben von: Preisschock bei Wohnmobilversicherungen: Versicherung gestiegen? Das können Sie tun!
+2025-07-28 09:17:19,759 - INFO - Retrying request to /chat/completions in 0.484478 seconds
+2025-07-28 09:17:30,386 - INFO - Retrying request to /chat/completions in 0.765465 seconds
+2025-07-28 09:17:41,238 - ERROR - ❌ Fehler beim Umschreiben von 'Preisschock bei Wohnmobilversicherungen: Versicherung gestiegen? Das können Sie tun!':
+Traceback (most recent call last):
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_sync/connection_pool.py", line 256, in handle_request
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_sync/connection.py", line 101, in handle_request
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_sync/connection.py", line 78, in handle_request
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_sync/connection.py", line 124, in _connect
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_backends/sync.py", line 207, in connect_tcp
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_exceptions.py", line 14, in map_exceptions
+httpcore.ConnectError: [Errno 8] nodename nor servname provided, or not known
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 972, in request
+    response = self._client.send(
+        request,
+        stream=stream or self._should_stream_response_body(request=request),
+        **kwargs,
+    )
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_client.py", line 914, in send
+    response = self._send_handling_auth(
+        request,
+    ...<2 lines>...
+        history=[],
+    )
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+        request,
+        follow_redirects=follow_redirects,
+        history=history,
+    )
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_transports/default.py", line 249, in handle_request
+    with map_httpcore_exceptions():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError: [Errno 8] nodename nor servname provided, or not known
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/oliver/Documents/rss-news/main.py", line 145, in rewrite_articles
+    response = openai.chat.completions.create(
+        model="gpt-4",
+    ...<3 lines>...
+        ]
+    )
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 287, in wrapper
+    return func(*args, **kwargs)
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 1087, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<43 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1249, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1004, in request
+    raise APIConnectionError(request=request) from err
+openai.APIConnectionError: Connection error.
+2025-07-28 09:18:02,091 - INFO - ✍️ Umschreiben von: Camper-Radio​ Caravan.fm : Radiosender speziell für Camping-Fans
+2025-07-28 09:18:02,094 - INFO - Retrying request to /chat/completions in 0.415304 seconds
+2025-07-28 09:18:02,517 - INFO - Retrying request to /chat/completions in 0.899018 seconds
+2025-07-28 09:18:03,419 - ERROR - ❌ Fehler beim Umschreiben von 'Camper-Radio​ Caravan.fm : Radiosender speziell für Camping-Fans':
+Traceback (most recent call last):
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_sync/connection_pool.py", line 256, in handle_request
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_sync/connection.py", line 101, in handle_request
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_sync/connection.py", line 78, in handle_request
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_sync/connection.py", line 124, in _connect
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_backends/sync.py", line 207, in connect_tcp
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpcore/_exceptions.py", line 14, in map_exceptions
+httpcore.ConnectError: [Errno 8] nodename nor servname provided, or not known
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 972, in request
+    response = self._client.send(
+        request,
+        stream=stream or self._should_stream_response_body(request=request),
+        **kwargs,
+    )
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_client.py", line 914, in send
+    response = self._send_handling_auth(
+        request,
+    ...<2 lines>...
+        history=[],
+    )
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+        request,
+        follow_redirects=follow_redirects,
+        history=history,
+    )
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_transports/default.py", line 249, in handle_request
+    with map_httpcore_exceptions():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError: [Errno 8] nodename nor servname provided, or not known
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/oliver/Documents/rss-news/main.py", line 145, in rewrite_articles
+    response = openai.chat.completions.create(
+        model="gpt-4",
+    ...<3 lines>...
+        ]
+    )
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 287, in wrapper
+    return func(*args, **kwargs)
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 1087, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<43 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1249, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/oliver/Documents/rss-news/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1004, in request
+    raise APIConnectionError(request=request) from err
+openai.APIConnectionError: Connection error.
+2025-07-28 09:18:43,426 - INFO - ✍️ Umschreiben von: Preisschock bei Wohnmobilversicherungen: Versicherung gestiegen? Das können Sie tun!
+2025-07-28 09:19:04,744 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-28 09:19:09,962 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-28 09:19:09,964 - INFO - ✅ Artikel umgeschrieben: Preisschock bei Wohnmobilversicherungen: Versicherung gestiegen? Das können Sie tun!
+2025-07-28 09:19:09,964 - INFO - ✍️ Umschreiben von: Camper-Radio​ Caravan.fm : Radiosender speziell für Camping-Fans
+2025-07-28 09:19:23,989 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-28 09:19:27,267 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-28 09:19:27,269 - INFO - ✅ Artikel umgeschrieben: Camper-Radio​ Caravan.fm : Radiosender speziell für Camping-Fans
+2025-07-28 09:19:27,276 - INFO - Alle Artikel mit Status 'Rewrite' wurden verarbeitet.
+2025-07-28 09:27:10,258 - INFO - 🧠 Generiere DALL·E-Bild für Prompt: Preisschock bei Wohnmobilversicherungen: Versicherung gestiegen? Das können Sie tun!
+2025-07-28 09:27:26,502 - INFO - HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 200 OK"
+2025-07-28 09:27:26,514 - INFO - ✅ Bild generiert: https://oaidalleapiprodscus.blob.core.windows.net/private/org-YimPc01cYtOXjUpCATUqDABw/user-eA31w0vmy3fOrb3G64Ygndsr/img-yKWdGDCQJZBOCQ4V4HoD40A0.png?st=2025-07-28T06%3A27%3A26Z&se=2025-07-28T08%3A27%3A26Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=cc612491-d948-4d2e-9821-2683df3719f5&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-07-27T22%3A07%3A39Z&ske=2025-07-28T22%3A07%3A39Z&sks=b&skv=2024-08-04&sig=HUMRhg2FbaKnLil%2BMbyvNemVeBcrvTODpctkfQyFHPc%3D
+2025-07-28 09:39:35,087 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-28 09:39:35,473 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-28 09:39:35,473 - INFO - Lade Feed: https://www.promobil.de/rss/news
+2025-07-28 09:39:35,914 - INFO - 0 neue Artikel gefunden in https://www.promobil.de/rss/news
+2025-07-28 09:39:35,915 - INFO - Lade Feed: https://www.promobil.de/rss/ratgeber
+2025-07-28 09:39:36,365 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/stunt-auf-wohnwagen-jensen-ackles-countdown/
+2025-07-28 09:39:36,584 - INFO - 16 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/stunt-auf-wohnwagen-jensen-ackles-countdown/
+2025-07-28 09:39:36,585 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/clever-campen-podcast-wie-passen-gravelbikes-und-camping-zusamen/
+2025-07-28 09:39:36,793 - INFO - 13 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/clever-campen-podcast-wie-passen-gravelbikes-und-camping-zusamen/
+2025-07-28 09:39:36,794 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/stellplatz-radar-30-tage-kostenlos-alle-plus-funktionen/
+2025-07-28 09:39:36,999 - INFO - 15 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/stellplatz-radar-30-tage-kostenlos-alle-plus-funktionen/
+2025-07-28 09:39:36,999 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/wann-der-digitale-fahrzeugschein-fuer-alle-kommt/
+2025-07-28 09:39:37,219 - INFO - 14 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/wann-der-digitale-fahrzeugschein-fuer-alle-kommt/
+2025-07-28 09:39:37,220 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/umfrage-welches-bad-brauchen-sie-im-wohnmobil/
+2025-07-28 09:39:37,439 - INFO - 22 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/umfrage-welches-bad-brauchen-sie-im-wohnmobil/
+2025-07-28 09:39:37,440 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/umfrage-kaffeegenuss-camping-wohnmobil-wohnwagen/
+2025-07-28 09:39:37,744 - INFO - 13 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/umfrage-kaffeegenuss-camping-wohnmobil-wohnwagen/
+2025-07-28 09:39:37,746 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/meinung-privates-mietbad-beim-camping-komfort-oder-stilbruch/
+2025-07-28 09:39:37,983 - INFO - 17 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/meinung-privates-mietbad-beim-camping-komfort-oder-stilbruch/
+2025-07-28 09:39:37,984 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/tipps/caravan-salon-duesseldorf-eine-einmalige-gelegenheit-fuer-camping-zubehoer-shopper/
+2025-07-28 09:39:38,242 - INFO - 20 Bilder gefunden bei https://www.promobil.de/tipps/caravan-salon-duesseldorf-eine-einmalige-gelegenheit-fuer-camping-zubehoer-shopper/
+2025-07-28 09:39:38,244 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/tipps/caravan-salon-2025-6-gruende-besuch-messe/
+2025-07-28 09:39:38,476 - INFO - 20 Bilder gefunden bei https://www.promobil.de/tipps/caravan-salon-2025-6-gruende-besuch-messe/
+2025-07-28 09:39:38,479 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/tipps/tipps-schutz-gegen-sommerhitze-hitzestau-wohnmobil/
+2025-07-28 09:39:38,758 - INFO - 24 Bilder gefunden bei https://www.promobil.de/tipps/tipps-schutz-gegen-sommerhitze-hitzestau-wohnmobil/
+2025-07-28 09:39:38,759 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/ratgeber/dethleffs-reiselust-praemie-2025-rabatte-wohnmobile/
+2025-07-28 09:39:39,019 - INFO - 16 Bilder gefunden bei https://www.promobil.de/ratgeber/dethleffs-reiselust-praemie-2025-rabatte-wohnmobile/
+2025-07-28 09:39:39,021 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/promobil-newsletter-ab-sofort-zwei-mal-die-woche-samstags-keine-camping-news-verpassen/
+2025-07-28 09:39:39,254 - INFO - 13 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/promobil-newsletter-ab-sofort-zwei-mal-die-woche-samstags-keine-camping-news-verpassen/
+2025-07-28 09:39:39,256 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/campingtourismus-boomt-drittes-camping-rekordjahr-in-folge/
+2025-07-28 09:39:39,516 - INFO - 18 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/campingtourismus-boomt-drittes-camping-rekordjahr-in-folge/
+2025-07-28 09:39:39,517 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/ratgeber/camping-ausruester-herzog-beantragt-insolvenz-wohnmobilhandel-belastet-vorzelthersteller/
+2025-07-28 09:39:39,729 - INFO - 13 Bilder gefunden bei https://www.promobil.de/ratgeber/camping-ausruester-herzog-beantragt-insolvenz-wohnmobilhandel-belastet-vorzelthersteller/
+2025-07-28 09:39:39,731 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/tipps/bordtechnik-einmaleins-einsteiger-tipps-fuer-den-campingurlaub/
+2025-07-28 09:39:39,951 - INFO - 13 Bilder gefunden bei https://www.promobil.de/tipps/bordtechnik-einmaleins-einsteiger-tipps-fuer-den-campingurlaub/
+2025-07-28 09:39:39,952 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/gotthard-brenner-reschenpass-wo-wohnmobile-und-camper-heute-geduld-brauchen/
+2025-07-28 09:39:40,197 - INFO - 13 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/gotthard-brenner-reschenpass-wo-wohnmobile-und-camper-heute-geduld-brauchen/
+2025-07-28 09:39:40,199 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/tipps/leichtbautricks-wohnmobilhersteller/
+2025-07-28 09:39:40,458 - INFO - 13 Bilder gefunden bei https://www.promobil.de/tipps/leichtbautricks-wohnmobilhersteller/
+2025-07-28 09:39:40,462 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/slowenische-campingmarken-sind-laengst-auf-dem-deutschen-markt-angekommen/
+2025-07-28 09:39:40,695 - INFO - 16 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/slowenische-campingmarken-sind-laengst-auf-dem-deutschen-markt-angekommen/
+2025-07-28 09:39:40,697 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/recap-folge-2-bella-italia-camping-auf-deutsch/
+2025-07-28 09:39:40,919 - INFO - 14 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/recap-folge-2-bella-italia-camping-auf-deutsch/
+2025-07-28 09:39:40,922 - INFO - 📷 Extrahiere Bilder von https://www.promobil.de/weitere-ratgeber/diese-kostenlosen-apps-muessen-camper-kennen/
+2025-07-28 09:39:41,210 - INFO - 17 Bilder gefunden bei https://www.promobil.de/weitere-ratgeber/diese-kostenlosen-apps-muessen-camper-kennen/
+2025-07-28 09:39:41,210 - INFO - 20 neue Artikel gefunden in https://www.promobil.de/rss/ratgeber
+2025-07-28 09:39:41,211 - INFO - Lade Feed: https://caravan.fm/
+2025-07-28 09:39:44,233 - INFO - 0 neue Artikel gefunden in https://caravan.fm/
+2025-07-28 09:39:44,238 - INFO - 20 neue Artikel gespeichert.
+2025-07-28 09:42:36,590 - INFO - ❌ Feed gelöscht: Neuer Feed (https://caravan.fm/)
+2025-07-28 09:44:53,801 - INFO - ✍️ Umschreiben von: Pannen und Probleme im Wohnmobil & Wohnwagen: Erste Hilfe für die Camper-Bordtechnik
+2025-07-28 09:45:18,500 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-28 09:45:21,113 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-28 09:45:21,126 - INFO - ✅ Artikel umgeschrieben: Pannen und Probleme im Wohnmobil & Wohnwagen: Erste Hilfe für die Camper-Bordtechnik
+2025-07-28 09:45:21,146 - INFO - Alle Artikel mit Status 'Rewrite' wurden verarbeitet.
+2025-07-28 10:29:47,016 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-28 10:29:47,407 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-28 10:29:47,407 - INFO - Lade Feed: https://www.promobil.de/rss/news
+2025-07-28 10:29:47,719 - INFO - 0 neue Artikel gefunden in https://www.promobil.de/rss/news
+2025-07-28 10:29:47,719 - INFO - Lade Feed: https://www.promobil.de/rss/ratgeber
+2025-07-28 10:29:48,183 - INFO - 0 neue Artikel gefunden in https://www.promobil.de/rss/ratgeber
+2025-07-28 10:29:48,183 - INFO - Keine neuen Artikel gefunden.
+2025-07-29 19:30:44,481 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-07-29 19:30:44,923 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-07-29 19:30:44,923 - INFO - Lade Feed: https://www.promobil.de/rss/news
+2025-07-29 19:30:45,348 - INFO - 0 neue Artikel gefunden in https://www.promobil.de/rss/news
+2025-07-29 19:30:45,348 - INFO - Lade Feed: https://www.promobil.de/rss/ratgeber
+2025-07-29 19:30:45,899 - INFO - 0 neue Artikel gefunden in https://www.promobil.de/rss/ratgeber
+2025-07-29 19:30:45,899 - INFO - Keine neuen Artikel gefunden.
+2025-08-15 09:44:18,677 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-08-15 09:44:18,993 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-08-15 09:44:18,993 - INFO - Lade Feed: https://www.promobil.de/rss/news
+2025-08-15 09:44:19,241 - INFO - 0 neue Artikel gefunden in https://www.promobil.de/rss/news
+2025-08-15 09:44:19,241 - INFO - Lade Feed: https://www.promobil.de/rss/ratgeber
+2025-08-15 09:44:19,550 - INFO - 🖼️ Starte Bildextraktion von: https://www.promobil.de/weitere-ratgeber/frankreichs-autobahnen-kein-adac-schutz-bei-pannen/
+2025-08-15 09:44:19,709 - INFO - 🔍 12 img-Tags gefunden
+2025-08-15 09:44:19,710 - INFO - ✅ Bild hinzugefügt: Bild aus Originalartikel...
+2025-08-15 09:44:19,710 - ERROR - ❌ Unerwarteter Fehler bei Bildextraktion von https://www.promobil.de/weitere-ratgeber/frankreichs-autobahnen-kein-adac-schutz-bei-pannen/: unsupported operand type(s) for *: 'NoneType' and 'NoneType'
+2025-08-15 09:44:19,710 - INFO - 🖼️ Starte Bildextraktion von: https://www.promobil.de/weitere-ratgeber/warntafel-wahnsinn-in-italien-anbringen-an-fahrradtraegern-trotz-neuer-gesetze-empfohlen/
+2025-08-15 09:44:19,856 - INFO - 🔍 13 img-Tags gefunden
+2025-08-15 09:44:19,856 - INFO - ✅ Bild hinzugefügt: 02/2024, Fahrradträger mit Warntafel...
+2025-08-15 09:44:19,856 - INFO - ✅ Bild hinzugefügt: Bild aus Originalartikel...
+2025-08-15 09:44:19,857 - ERROR - ❌ Unerwarteter Fehler bei Bildextraktion von https://www.promobil.de/weitere-ratgeber/warntafel-wahnsinn-in-italien-anbringen-an-fahrradtraegern-trotz-neuer-gesetze-empfohlen/: unsupported operand type(s) for *: 'NoneType' and 'NoneType'
+2025-08-15 09:44:19,859 - INFO - 🖼️ Starte Bildextraktion von: https://www.promobil.de/tipps/achtung-mautschock-warum-viele-wohnmobile-bald-eine-go-box-brauchen/
+2025-08-15 09:44:20,025 - INFO - 🔍 20 img-Tags gefunden
+2025-08-15 09:44:20,025 - INFO - ✅ Bild hinzugefügt: Maut, Basis, Wissen, Österreich, Vignette, Go-Box,...
+2025-08-15 09:44:20,025 - INFO - ✅ Bild hinzugefügt: Wohnmobil, Küste, Parkplatz, Wohnmobil, Mann...
+2025-08-15 09:44:20,026 - INFO - ✅ Bild hinzugefügt: 05/2025, Spanien Polizei Verkehr...
+2025-08-15 09:44:20,026 - INFO - ✅ Bild hinzugefügt: f_Autohof, Restaurant, essen, vegetarisch...
+2025-08-15 09:44:20,026 - INFO - ✅ Bild hinzugefügt: Supercheck, Dethleffs Magic Edition T 2 EB, Seiten...
+2025-08-15 09:44:20,026 - INFO - 🎉 5 Bilder erfolgreich extrahiert von https://www.promobil.de/tipps/achtung-mautschock-warum-viele-wohnmobile-bald-eine-go-box-brauchen/
+2025-08-15 09:44:20,026 - INFO - 3 neue Artikel gefunden in https://www.promobil.de/rss/ratgeber
+2025-08-15 09:44:20,038 - INFO - 3 neue Artikel gespeichert.
+2025-08-15 09:45:55,607 - INFO - ✍️ Umschreiben von: Fahrradtransport in Italien: Warntafel bei Fahrradträgern doch wieder Pflicht?
+2025-08-15 09:46:09,158 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-15 09:46:11,508 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-15 09:46:11,564 - INFO - ✅ Artikel umgeschrieben: Fahrradtransport in Italien: Warntafel bei Fahrradträgern doch wieder Pflicht?
+2025-08-15 09:46:11,565 - INFO - ✍️ Umschreiben von: Neue Mautregeln für Wohnmobile mit 3,5 t: Diese Camper brauchen ab dem Stichtag eine GO-Box
+2025-08-15 09:46:32,092 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-15 09:46:34,549 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-15 09:46:34,552 - INFO - ✅ Artikel umgeschrieben: Neue Mautregeln für Wohnmobile mit 3,5 t: Diese Camper brauchen ab dem Stichtag eine GO-Box
+2025-08-15 09:46:34,571 - INFO - Alle Artikel mit Status 'Rewrite' wurden verarbeitet.
+2025-08-15 09:48:30,972 - INFO - 🧠 Generiere DALL·E-Bild für Prompt: Fahrradtransport in Italien: Warntafel bei Fahrradträgern doch wieder Pflicht?
+2025-08-15 09:48:42,548 - INFO - HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 200 OK"
+2025-08-15 09:48:42,559 - INFO - ✅ Bild generiert: https://oaidalleapiprodscus.blob.core.windows.net/private/org-YimPc01cYtOXjUpCATUqDABw/user-eA31w0vmy3fOrb3G64Ygndsr/img-Ksiks2ssSZxpEFf1MQedlap1.png?st=2025-08-15T06%3A48%3A42Z&se=2025-08-15T08%3A48%3A42Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=8b33a531-2df9-46a3-bc02-d4b1430a422c&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-08-14T16%3A59%3A16Z&ske=2025-08-15T16%3A59%3A16Z&sks=b&skv=2024-08-04&sig=e0/ULpNgNLwixo3UapqnxHgR18t4HCpyEtnbmik33yA%3D
+2025-08-15 09:51:43,090 - INFO - 🧠 Generiere DALL·E-Bild für Prompt: Neue Mautregeln für Wohnmobile mit 3,5 t: Diese Camper brauchen ab dem Stichtag eine GO-Box
+2025-08-15 09:51:53,907 - INFO - HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 200 OK"
+2025-08-15 09:51:53,914 - INFO - ✅ Bild generiert: https://oaidalleapiprodscus.blob.core.windows.net/private/org-YimPc01cYtOXjUpCATUqDABw/user-eA31w0vmy3fOrb3G64Ygndsr/img-Pl4ik6W7mTrv2MhIbdWlwgOL.png?st=2025-08-15T06%3A51%3A53Z&se=2025-08-15T08%3A51%3A53Z&sp=r&sv=2024-08-04&sr=b&rscd=inline&rsct=image/png&skoid=b1a0ae1f-618f-4548-84fd-8b16cacd5485&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-08-14T15%3A09%3A17Z&ske=2025-08-15T15%3A09%3A17Z&sks=b&skv=2024-08-04&sig=RHIFlJLMumrcr/jEskOVfqJ%2Bns0pDS2HM8l5siBfLmM%3D
+2025-08-15 09:55:42,370 - INFO - Lade Feed: https://www.camping-news.de/rss/
+2025-08-15 09:55:42,639 - INFO - 0 neue Artikel gefunden in https://www.camping-news.de/rss/
+2025-08-15 09:55:42,640 - INFO - Lade Feed: https://www.promobil.de/rss/news
+2025-08-15 09:55:42,843 - INFO - 0 neue Artikel gefunden in https://www.promobil.de/rss/news
+2025-08-15 09:55:42,843 - INFO - Lade Feed: https://www.promobil.de/rss/ratgeber
+2025-08-15 09:55:43,180 - INFO - 0 neue Artikel gefunden in https://www.promobil.de/rss/ratgeber
+2025-08-15 09:55:43,180 - INFO - Keine neuen Artikel gefunden.
