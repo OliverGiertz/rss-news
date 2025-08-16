@@ -40,6 +40,14 @@ def is_gpg_available() -> bool:
     except Exception:
         return False
 
+def tag_exists(tag_name: str) -> bool:
+    """Prüft, ob ein Git-Tag bereits existiert"""
+    try:
+        result = subprocess.check_output(["git", "tag", "-l", tag_name], stderr=subprocess.DEVNULL).decode().strip()
+        return result == tag_name
+    except subprocess.CalledProcessError:
+        return False
+
 def configure_signing(use_ssh: bool):
     if use_ssh:
         subprocess.run(["git", "config", "--global", "gpg.format", "ssh"], check=True)
@@ -54,10 +62,11 @@ def configure_signing(use_ssh: bool):
 @click.option("--push", is_flag=True, help="Push to GitHub after creating version")
 @click.option("--no-sign", is_flag=True, help="Skip signing of commits and tags")
 @click.option("--dry-run", is_flag=True, help="Show what would be done without executing")
-def create(level, specific_version, push, no_sign, dry_run):
+@click.option("--force", is_flag=True, help="Force creation even if tag already exists (overwrites existing tag)")
+def create(level, specific_version, push, no_sign, dry_run, force):
     """
     Erstellt eine neue Version mit optional signiertem Commit & Tag.
-    Optional: --push, --no-sign, --dry-run, --version
+    Optional: --push, --no-sign, --dry-run, --version, --force
     """
     current = get_latest_version()
     
@@ -69,18 +78,37 @@ def create(level, specific_version, push, no_sign, dry_run):
             click.secho("❌ Fehler: Version muss im Format X.Y.Z sein (z.B. 2.1.0)", fg="red")
             return
         
-        # Prüfe, ob die vorgegebene Version höher als die aktuelle ist
-        def version_tuple(v):
-            return tuple(map(int, v.split('.')))
-        
-        if version_tuple(specific_version) <= version_tuple(current):
-            click.secho(f"❌ Fehler: Neue Version {specific_version} muss höher sein als aktuelle Version {current}", fg="red")
+        # Prüfe, ob der Tag bereits existiert
+        tag_name = f"v{specific_version}"
+        if tag_exists(tag_name) and not force:
+            click.secho(f"❌ Fehler: Tag {tag_name} existiert bereits. Verwende --force zum Überschreiben.", fg="red")
             return
+        elif tag_exists(tag_name) and force:
+            click.secho(f"⚠️  Tag {tag_name} existiert bereits - wird überschrieben (--force aktiviert)", fg="yellow")
+        
+        # Prüfe, ob die vorgegebene Version höher als die aktuelle ist (nur ohne force)
+        if not force:
+            def version_tuple(v):
+                return tuple(map(int, v.split('.')))
+            
+            if version_tuple(specific_version) <= version_tuple(current):
+                click.secho(f"❌ Fehler: Neue Version {specific_version} muss höher sein als aktuelle Version {current}", fg="red")
+                click.secho("💡 Tipp: Verwende --force um diese Prüfung zu überspringen", fg="blue")
+                return
         
         new_version = specific_version
         click.secho(f"📌 Verwende vorgegebene Version: {new_version}", fg="blue")
     else:
         new_version = bump_version(current, level)
+        
+        # Prüfe auch bei Auto-Bump, ob Tag existiert
+        tag_name = f"v{new_version}"
+        if tag_exists(tag_name) and not force:
+            click.secho(f"❌ Fehler: Tag {tag_name} existiert bereits. Verwende --force zum Überschreiben.", fg="red")
+            return
+        elif tag_exists(tag_name) and force:
+            click.secho(f"⚠️  Tag {tag_name} existiert bereits - wird überschrieben (--force aktiviert)", fg="yellow")
+        
         click.secho(f"🔄 Auto-Bump ({level}): {current} → {new_version}", fg="green")
 
     if dry_run:
@@ -90,6 +118,7 @@ def create(level, specific_version, push, no_sign, dry_run):
         click.echo(f"➡️  Commit-Level:     {level}")
         click.echo(f"➡️  Push nach GitHub: {'Ja' if push else 'Nein'}")
         click.echo(f"➡️  Signieren:        {'Nein' if no_sign else 'Automatisch (SSH > GPG)'}")
+        click.echo(f"➡️  Force-Modus:      {'Ja' if force else 'Nein'}")
 
         date = datetime.now().strftime("%Y-%m-%d")
         click.echo("\n📄 Vorschlag für CHANGELOG-Eintrag:")
@@ -135,14 +164,24 @@ def create(level, specific_version, push, no_sign, dry_run):
         commit_cmd.append("-S")
     subprocess.run(commit_cmd, check=True)
 
+    # Tag erstellen
+    tag_name = f"v{new_version}"
     if use_signing:
-        subprocess.run(["git", "tag", "-s", f"v{new_version}", "-m", f"Release v{new_version}"], check=True)
+        if force and tag_exists(tag_name):
+            subprocess.run(["git", "tag", "-d", tag_name], check=True)  # Lokalen Tag löschen
+        subprocess.run(["git", "tag", "-s", tag_name, "-m", f"Release {tag_name}"], check=True)
     else:
-        subprocess.run(["git", "tag", "-a", f"v{new_version}", "-m", f"Release v{new_version} (unsigned)"], check=True)
+        if force and tag_exists(tag_name):
+            subprocess.run(["git", "tag", "-d", tag_name], check=True)  # Lokalen Tag löschen
+        subprocess.run(["git", "tag", "-a", tag_name, "-m", f"Release {tag_name} (unsigned)"], check=True)
 
     if push:
         subprocess.run(["git", "push"], check=True)
-        subprocess.run(["git", "push", "origin", f"v{new_version}"], check=True)
+        if force and tag_exists(tag_name):
+            # Force push des Tags, falls er bereits auf Remote existiert
+            subprocess.run(["git", "push", "origin", tag_name, "--force"], check=True)
+        else:
+            subprocess.run(["git", "push", "origin", tag_name], check=True)
 
     if use_signing:
         if signing_method == "ssh":
