@@ -8,9 +8,11 @@ from main import (
     load_articles,
     save_articles,
     process_articles,
-    rewrite_articles
+    rewrite_articles,
+    upload_articles_to_wp
 )
 from utils.dalle_generator import generate_dalle_image
+from utils.wordpress_uploader import WordPressUploader
 import os
 from collections import Counter
 import time
@@ -66,6 +68,7 @@ st.markdown("""
     .status-online { background-color: #e8f5e8; color: #388e3c; }
     .status-hold { background-color: #fce4ec; color: #c2185b; }
     .status-trash { background-color: #ffebee; color: #d32f2f; }
+    .status-wp-pending { background-color: #e1f5fe; color: #0277bd; }
     
     /* Filter Section */
     .filter-section {
@@ -107,6 +110,15 @@ st.markdown("""
         min-width: 200px;
         text-align: center;
     }
+    
+    /* WordPress Upload Status */
+    .wp-status {
+        background: #e3f2fd;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+        border-left: 4px solid #2196f3;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -129,7 +141,8 @@ def get_status_badge(status):
         "Process": "status-process",
         "Online": "status-online",
         "On Hold": "status-hold",
-        "Trash": "status-trash"
+        "Trash": "status-trash",
+        "WordPress Pending": "status-wp-pending"
     }
     class_name = status_classes.get(status, "status-new")
     return f'<span class="status-badge {class_name}">{status}</span>'
@@ -159,21 +172,31 @@ def show_notification(message, type="success"):
     elif type == "info":
         st.info(message)
 
+def test_wordpress_connection():
+    """Testet die WordPress-Verbindung"""
+    try:
+        uploader = WordPressUploader()
+        success, message = uploader.test_connection()
+        return success, message
+    except Exception as e:
+        return False, f"Fehler beim Testen der Verbindung: {str(e)}"
+
 # === Header ===
 st.markdown("""
 <div class="main-header">
     <h1>📰 RSS Artikel Manager</h1>
-    <p>Moderne Verwaltung deiner RSS-Feeds und Artikel</p>
+    <p>Moderne Verwaltung deiner RSS-Feeds und Artikel mit WordPress-Integration</p>
 </div>
 """, unsafe_allow_html=True)
 
 # === Tab Navigation ===
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📋 Dashboard", 
     "📰 Artikel", 
     "📡 Feeds", 
     "🖼️ Bilder", 
-    "📊 Statistiken"
+    "📊 Statistiken",
+    "🔧 WordPress"
 ])
 
 # === Dashboard Tab ===
@@ -185,7 +208,7 @@ with tab1:
     feeds = load_feeds()
     
     # Statistiken
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         st.markdown("""
@@ -205,14 +228,24 @@ with tab1:
         """.format(new_count), unsafe_allow_html=True)
     
     with col3:
+        process_count = len([a for a in all_articles if a.get("status") == "Process"])
         st.markdown("""
         <div class="stats-card">
             <div class="stats-number">{}</div>
-            <div>RSS Feeds</div>
+            <div>Bereit für WP</div>
         </div>
-        """.format(len(feeds)), unsafe_allow_html=True)
+        """.format(process_count), unsafe_allow_html=True)
     
     with col4:
+        wp_pending_count = len([a for a in all_articles if a.get("status") == "WordPress Pending"])
+        st.markdown("""
+        <div class="stats-card">
+            <div class="stats-number">{}</div>
+            <div>WP Ausstehend</div>
+        </div>
+        """.format(wp_pending_count), unsafe_allow_html=True)
+    
+    with col5:
         online_count = len([a for a in all_articles if a.get("status") == "Online"])
         st.markdown("""
         <div class="stats-card">
@@ -226,7 +259,7 @@ with tab1:
     # Quick Actions
     st.subheader("⚡ Schnellaktionen")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         if st.button("🔄 Alle Feeds aktualisieren", use_container_width=True):
@@ -250,12 +283,53 @@ with tab1:
                 show_notification("Keine Artikel zum Umschreiben gefunden.", "info")
     
     with col3:
+        if st.button("📤 WordPress Upload", use_container_width=True):
+            process_count = len([a for a in all_articles if a.get("status") == "Process"])
+            if process_count > 0:
+                with st.spinner(f"{process_count} Artikel werden zu WordPress hochgeladen..."):
+                    upload_results = upload_articles_to_wp()
+                    
+                    if upload_results.get('error'):
+                        show_notification(f"Fehler beim WordPress-Upload: {upload_results['error']}", "error")
+                    else:
+                        successful = upload_results.get('successful', 0)
+                        failed = upload_results.get('failed', 0)
+                        duplicates = upload_results.get('duplicates', 0)
+                        
+                        if successful > 0:
+                            show_notification(f"✅ {successful} Artikel erfolgreich zu WordPress hochgeladen!")
+                        if failed > 0:
+                            show_notification(f"⚠️ {failed} Artikel konnten nicht hochgeladen werden.", "warning")
+                        if duplicates > 0:
+                            show_notification(f"ℹ️ {duplicates} Duplikate übersprungen.", "info")
+                    
+                    time.sleep(2)
+                    st.rerun()
+            else:
+                show_notification("Keine Artikel für WordPress-Upload gefunden.", "info")
+    
+    with col4:
         if st.button("🧹 Aufräumen", use_container_width=True):
             trash_count = len([a for a in all_articles if a.get("status") == "Trash"])
             if trash_count > 0:
                 show_notification(f"{trash_count} Artikel im Papierkorb gefunden.", "info")
             else:
                 show_notification("Keine Artikel zum Aufräumen gefunden.", "info")
+    
+    # WordPress-Status-Übersicht
+    if wp_pending_count > 0 or online_count > 0:
+        st.subheader("🔗 WordPress-Status")
+        
+        wp_articles = [a for a in all_articles if a.get("status") in ["WordPress Pending", "Online"]]
+        for article in wp_articles[:5]:  # Nur die ersten 5 anzeigen
+            st.markdown(f"""
+            <div class="wp-status">
+                <strong>{article.get('title', 'Kein Titel')}</strong>
+                {get_status_badge(article.get('status', 'Unknown'))}
+                <br>
+                <small>WP Post ID: {article.get('wp_post_id', 'Unbekannt')} | Upload: {format_date(article.get('wp_upload_date', ''))}</small>
+            </div>
+            """, unsafe_allow_html=True)
     
     # Neueste Artikel Preview
     st.subheader("🕒 Neueste Artikel")
@@ -288,7 +362,7 @@ with tab2:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        status_options = ["Alle", "New", "Rewrite", "Process", "Online", "On Hold", "Trash"]
+        status_options = ["Alle", "New", "Rewrite", "Process", "Online", "On Hold", "Trash", "WordPress Pending"]
         st.session_state.status_filter = st.selectbox(
             "Status", 
             status_options, 
@@ -366,6 +440,10 @@ with tab2:
             st.markdown(f"**{title}**")
             st.markdown(f"📅 {format_date(article.get('date', ''))}")
             
+            # WordPress-Info anzeigen falls vorhanden
+            if article.get("wp_post_id"):
+                st.markdown(f"🔗 WordPress ID: {article.get('wp_post_id')} | Upload: {format_date(article.get('wp_upload_date', ''))}")
+            
         with col2:
             st.markdown(get_status_badge(article.get("status", "New")), unsafe_allow_html=True)
         
@@ -388,11 +466,11 @@ with tab2:
             st.markdown(f"📡 {source_name}")
         
         # Actions
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             # Status ändern
-            status_options = ["New", "Rewrite", "Process", "Online", "On Hold", "Trash"]
+            status_options = ["New", "Rewrite", "Process", "Online", "On Hold", "Trash", "WordPress Pending"]
             current_status = article.get("status", "New")
             new_status = st.selectbox(
                 "Status", 
@@ -423,6 +501,30 @@ with tab2:
                 st.markdown(f"[🔗 Artikel öffnen]({article.get('link', '#')})")
         
         with col4:
+            # WordPress Upload Button für einzelne Artikel
+            if article.get("status") == "Process":
+                if st.button("📤 WordPress", key=f"wp_upload_{article['id']}"):
+                    with st.spinner("Lade zu WordPress hoch..."):
+                        from utils.wordpress_uploader import upload_single_article_to_wordpress
+                        success, message, wp_post_id = upload_single_article_to_wordpress(article)
+                        
+                        if success:
+                            # Status ändern
+                            for idx, art in enumerate(all_articles):
+                                if art["id"] == article["id"]:
+                                    all_articles[idx]["status"] = "WordPress Pending"
+                                    all_articles[idx]["wp_upload_date"] = datetime.now().isoformat()
+                                    all_articles[idx]["wp_post_id"] = wp_post_id
+                                    break
+                            save_articles(all_articles)
+                            show_notification("✅ Erfolgreich zu WordPress hochgeladen!")
+                        else:
+                            show_notification(f"❌ WordPress-Upload fehlgeschlagen: {message}", "error")
+                        
+                        time.sleep(1)
+                        st.rerun()
+        
+        with col5:
             # Details anzeigen
             if st.button("📖 Details", key=f"details_{article['id']}"):
                 st.session_state[f"show_details_{article['id']}"] = not st.session_state.get(f"show_details_{article['id']}", False)
@@ -641,6 +743,39 @@ with tab5:
         for feed_name, count in feed_counts.most_common():
             st.markdown(f"**{feed_name}:** {count} Artikel")
     
+    # WordPress-Statistiken
+    st.subheader("🔗 WordPress-Statistiken")
+    wp_articles = [a for a in all_articles if a.get("wp_post_id")]
+    
+    if wp_articles:
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("WordPress Artikel", len(wp_articles))
+        
+        with col2:
+            pending_count = len([a for a in wp_articles if a.get("status") == "WordPress Pending"])
+            st.metric("Ausstehend", pending_count)
+        
+        with col3:
+            online_wp_count = len([a for a in wp_articles if a.get("status") == "Online"])
+            st.metric("Online", online_wp_count)
+        
+        # Neueste WordPress-Uploads
+        recent_wp = sorted([a for a in wp_articles if a.get("wp_upload_date")], 
+                          key=lambda x: x.get("wp_upload_date", ""), reverse=True)[:5]
+        
+        if recent_wp:
+            st.subheader("🕒 Neueste WordPress-Uploads")
+            for article in recent_wp:
+                st.markdown(f"""
+                **{article.get('title', 'Kein Titel')}** {get_status_badge(article.get('status', 'Unknown'))}
+                
+                WP ID: {article.get('wp_post_id')} | Upload: {format_date(article.get('wp_upload_date', ''))}
+                """, unsafe_allow_html=True)
+    else:
+        st.info("Noch keine Artikel zu WordPress hochgeladen.")
+    
     # Weitere Statistiken
     st.subheader("📝 Textstatistiken")
     
@@ -669,3 +804,200 @@ with tab5:
             st.markdown(f"**{tag}:** {count}x verwendet")
     else:
         st.info("Keine Tags gefunden.")
+
+# === WordPress Tab ===
+with tab6:
+    st.header("🔧 WordPress-Integration")
+    
+    # Verbindungstest
+    st.subheader("🔗 Verbindungstest")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🧪 WordPress-Verbindung testen", use_container_width=True):
+            with st.spinner("Teste Verbindung..."):
+                success, message = test_wordpress_connection()
+                
+                if success:
+                    show_notification(f"✅ {message}")
+                else:
+                    show_notification(f"❌ {message}", "error")
+    
+    with col2:
+        # WordPress-Konfiguration anzeigen
+        wp_url = os.getenv("WP_BASE_URL", "Nicht konfiguriert")
+        wp_user = os.getenv("WP_USERNAME", "Nicht konfiguriert")
+        wp_base64 = os.getenv("WP_AUTH_BASE64", "")
+        
+        st.info(f"""
+        **WordPress-Konfiguration:**
+        - URL: {wp_url}
+        - Benutzer: {wp_user}
+        - Passwort: {'✅ Konfiguriert' if os.getenv("WP_PASSWORD") else '❌ Nicht konfiguriert'}
+        - Base64 Auth: {'✅ Konfiguriert' if wp_base64 else '❌ Nicht konfiguriert'}
+        """)
+    
+    # WordPress Auth Debug (nur für Entwicklung)
+    if st.checkbox("🔧 Debug-Modus (Auth-Details anzeigen)", value=False):
+        st.warning("⚠️ Nur für Entwicklung - zeigt Auth-Details!")
+        
+        wp_base64 = os.getenv("WP_AUTH_BASE64", "")
+        if wp_base64:
+            try:
+                import base64
+                decoded = base64.b64decode(wp_base64).decode('utf-8')
+                st.code(f"Base64: {wp_base64}\nDecoded: {decoded}")
+            except Exception as e:
+                st.error(f"Fehler beim Dekodieren: {e}")
+        else:
+            st.info("Kein Base64-String konfiguriert")
+    
+    # Bulk Upload
+    st.subheader("📦 Massenupload")
+    
+    process_articles_list = [a for a in all_articles if a.get("status") == "Process"]
+    
+    if process_articles_list:
+        st.write(f"**{len(process_articles_list)} Artikel bereit für WordPress-Upload:**")
+        
+        # Artikel-Vorschau
+        for article in process_articles_list[:5]:  # Nur die ersten 5 anzeigen
+            st.markdown(f"• **{article.get('title', 'Kein Titel')}** ({get_word_count(article.get('text', ''))} Wörter)")
+        
+        if len(process_articles_list) > 5:
+            st.markdown(f"... und {len(process_articles_list) - 5} weitere")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📤 Alle zu WordPress hochladen", use_container_width=True):
+                with st.spinner(f"Lade {len(process_articles_list)} Artikel zu WordPress hoch..."):
+                    upload_results = upload_articles_to_wp()
+                    
+                    # Detaillierte Ergebnisse anzeigen
+                    st.subheader("📊 Upload-Ergebnisse")
+                    
+                    if upload_results.get('error'):
+                        show_notification(f"❌ Fehler: {upload_results['error']}", "error")
+                    else:
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            st.metric("Erfolgreich", upload_results.get('successful', 0))
+                        with col2:
+                            st.metric("Fehlgeschlagen", upload_results.get('failed', 0))
+                        with col3:
+                            st.metric("Duplikate", upload_results.get('duplicates', 0))
+                        
+                        # Details anzeigen
+                        if upload_results.get('details'):
+                            st.subheader("📋 Upload-Details")
+                            for detail in upload_results['details']:
+                                status_icon = "✅" if detail['success'] else "❌"
+                                st.markdown(f"{status_icon} **{detail['title']}**: {detail['message']}")
+                    
+                    time.sleep(2)
+                    st.rerun()
+        
+        with col2:
+            st.info("💡 Artikel erhalten den Status 'WordPress Pending' nach erfolgreichem Upload.")
+    
+    else:
+        st.info("Keine Artikel mit Status 'Process' gefunden. Artikel müssen zuerst umgeschrieben werden.")
+    
+    # WordPress-Artikel-Übersicht
+    st.subheader("📋 WordPress-Artikel-Übersicht")
+    
+    wp_articles = [a for a in all_articles if a.get("wp_post_id")]
+    
+    if wp_articles:
+        # Filter für WordPress-Artikel
+        wp_status_filter = st.selectbox(
+            "WordPress-Status filtern",
+            ["Alle", "WordPress Pending", "Online"],
+            key="wp_status_filter"
+        )
+        
+        filtered_wp_articles = wp_articles
+        if wp_status_filter != "Alle":
+            filtered_wp_articles = [a for a in wp_articles if a.get("status") == wp_status_filter]
+        
+        st.write(f"**{len(filtered_wp_articles)} WordPress-Artikel gefunden**")
+        
+        # WordPress-Artikel anzeigen
+        for article in filtered_wp_articles:
+            st.markdown(f"""
+            <div class="wp-status">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>{article.get('title', 'Kein Titel')}</strong>
+                        <br>
+                        <small>WP ID: {article.get('wp_post_id')} | Upload: {format_date(article.get('wp_upload_date', ''))}</small>
+                    </div>
+                    <div>
+                        {get_status_badge(article.get('status', 'Unknown'))}
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    else:
+        st.info("Noch keine Artikel zu WordPress hochgeladen.")
+    
+    # Konfigurationshilfe
+    st.subheader("⚙️ Konfiguration")
+    
+    with st.expander("📋 .env-Datei Vorlage", expanded=False):
+        st.code("""
+# WordPress-Konfiguration
+WP_BASE_URL=https://vanityontour.de
+WP_USERNAME=ogiertz
+WP_PASSWORD=whNEx9aZCIUXViV89Z3e7Z03
+
+# WordPress Base64-Authentifizierung (bevorzugte Methode)
+WP_AUTH_BASE64=b2dpZXJ0ejp3aE5FeDlhWkNJVVhWaVY4OVozZTdaMDM=
+
+# OpenAI-Konfiguration (für Artikel-Umschreibung)
+OPENAI_API_KEY=sk-...
+        """, language="bash")
+    
+    with st.expander("🔑 Base64-Authentifizierung verstehen", expanded=False):
+        st.markdown("""
+        **WordPress REST API Authentifizierung:**
+        
+        Die WordPress REST API erfordert eine Base64-kodierte Authentifizierung im Format:
+        ```
+        Authorization: Basic <base64_encoded_credentials>
+        ```
+        
+        **Ihr bereitgestellter Base64-String:**
+        - `b2dpZXJ0ejp3aE5FeDlhWkNJVVhWaVY4OVozZTdaMDM=`
+        - Dekodiert: `ogiertz:whNEx9aZCIUXViV89Z3e7Z03`
+        
+        **So funktioniert es:**
+        1. Benutzername und Anwendungspasswort werden kombiniert: `username:password`
+        2. Dieser String wird Base64-kodiert
+        3. Im Authorization-Header verwendet: `Basic <base64_string>`
+        
+        **Fallback-Verhalten:**
+        - Wenn `WP_AUTH_BASE64` gesetzt ist → Direkter Base64-String verwendet
+        - Wenn nicht gesetzt → Base64 wird aus `WP_USERNAME:WP_PASSWORD` generiert
+        """)
+    
+    with st.expander("📖 WordPress-API Berechtigungen", expanded=False):
+        st.markdown("""
+        **Erforderliche Berechtigungen für den WordPress-Benutzer:**
+        
+        - `edit_posts` - Beiträge erstellen und bearbeiten
+        - `publish_posts` - Beiträge veröffentlichen (für Status-Änderungen)
+        - `upload_files` - Dateien hochladen (für spätere Bild-Uploads)
+        - `edit_categories` - Kategorien verwalten
+        - `edit_tags` - Tags verwalten
+        
+        **Anwendungspasswort erstellen:**
+        1. WordPress Admin → Benutzer → Profil
+        2. Unter "Anwendungspasswörter" neues Passwort erstellen
+        3. Name: "RSS Feed Manager"
+        4. Generiertes Passwort in .env-Datei eintragen
+        """)

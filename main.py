@@ -10,6 +10,7 @@ import logging
 import openai
 from utils.image_extractor import extract_images_with_metadata
 from utils.article_extractor import extract_full_article
+from utils.wordpress_uploader import upload_articles_to_wordpress
 import hashlib
 import time
 
@@ -34,7 +35,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 ARTICLES_FILE = "data/articles.json"
 FEEDS_FILE = "data/feeds.json"
-VALID_STATUSES = ["New", "Rewrite", "Process", "Online", "On Hold", "Trash"]
+VALID_STATUSES = ["New", "Rewrite", "Process", "Online", "On Hold", "Trash", "WordPress Pending"]
 
 # === Datenordner erstellen ===
 os.makedirs("data", exist_ok=True)
@@ -404,6 +405,51 @@ def rewrite_articles():
         
     except Exception as e:
         logging.error(f"❌ Kritischer Fehler beim Umschreiben: {e}")
+
+def upload_articles_to_wp():
+    """Lädt Artikel mit Status 'Process' zu WordPress hoch"""
+    try:
+        logging.info("📤 Starte WordPress-Upload")
+        
+        articles = load_articles()
+        process_articles_list = [a for a in articles if a.get("status") == "Process"]
+        
+        if not process_articles_list:
+            logging.info("ℹ️ Keine Artikel für WordPress-Upload gefunden")
+            return {"total": 0, "successful": 0, "failed": 0, "message": "Keine Artikel zum Hochladen gefunden"}
+        
+        logging.info(f"📦 {len(process_articles_list)} Artikel für WordPress-Upload gefunden")
+        
+        # WordPress-Upload durchführen
+        upload_results = upload_articles_to_wordpress(process_articles_list)
+        
+        # Status der erfolgreich hochgeladenen Artikel ändern
+        if upload_results.get('successful', 0) > 0:
+            changed = False
+            
+            for detail in upload_results.get('details', []):
+                if detail.get('success'):
+                    article_id = detail.get('article_id')
+                    
+                    # Artikel in der Liste finden und Status ändern
+                    for article in articles:
+                        if article.get('id') == article_id:
+                            article['status'] = "WordPress Pending"
+                            article['wp_upload_date'] = datetime.now().isoformat()
+                            article['wp_post_id'] = detail.get('wp_post_id')
+                            changed = True
+                            logging.info(f"✅ Status geändert für '{article.get('title')}': Process → WordPress Pending")
+                            break
+            
+            if changed:
+                save_articles(articles)
+                logging.info(f"💾 Artikel-Status nach WordPress-Upload aktualisiert")
+        
+        return upload_results
+        
+    except Exception as e:
+        logging.error(f"❌ Kritischer Fehler beim WordPress-Upload: {e}")
+        return {"total": 0, "successful": 0, "failed": 1, "error": str(e)}
 
 def get_article_stats():
     """Gibt Statistiken über die Artikel zurück"""

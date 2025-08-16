@@ -511,3 +511,292 @@ openai.APIConnectionError: Connection error.
 2025-08-15 09:55:42,843 - INFO - Lade Feed: https://www.promobil.de/rss/ratgeber
 2025-08-15 09:55:43,180 - INFO - 0 neue Artikel gefunden in https://www.promobil.de/rss/ratgeber
 2025-08-15 09:55:43,180 - INFO - Keine neuen Artikel gefunden.
+2025-08-16 12:11:35,892 - INFO - load_articles:123 - ✅ 53 Artikel geladen
+2025-08-16 12:11:35,893 - INFO - load_feeds:92 - ✅ 3 Feeds geladen
+2025-08-16 12:42:43,093 - INFO - load_articles:124 - ✅ 53 Artikel geladen
+2025-08-16 12:42:43,095 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:48:41,965 - INFO - load_articles:124 - ✅ 53 Artikel geladen
+2025-08-16 12:48:41,966 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:49:23,544 - INFO - load_articles:124 - ✅ 53 Artikel geladen
+2025-08-16 12:49:23,544 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:49:23,547 - INFO - process_articles:268 - 🚀 Starte Artikel-Verarbeitung
+2025-08-16 12:49:23,547 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:49:23,554 - INFO - load_articles:124 - ✅ 53 Artikel geladen
+2025-08-16 12:49:23,554 - INFO - fetch_and_process_feed:174 - 🔄 Verarbeite Feed: https://www.camping-news.de/rss/
+2025-08-16 12:49:25,076 - INFO - fetch_and_process_feed:181 - 📡 Feed-Name: Camping-News
+2025-08-16 12:49:25,076 - INFO - fetch_and_process_feed:187 - 📰 10 Einträge gefunden
+2025-08-16 12:49:25,079 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: 15 Jahre PremiumCamps
+2025-08-16 12:49:25,080 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Der neue Eriba Feeling und Novaline
+2025-08-16 12:49:25,081 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Den eigenen Verbrauchszahlen auf der Spur
+2025-08-16 12:49:25,083 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Abenteuer für die Kleinen, Entspannung für
+die Großen
+2025-08-16 12:49:25,084 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Das weltweit größte Caravaning-Erlebnis
+2025-08-16 12:49:25,086 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Komfort und Flexibilität für moderne Camper
+2025-08-16 12:49:25,087 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Frühjahrsaktionen vom Verein WOHNmobil für Klimaschutz
+2025-08-16 12:49:25,090 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Viel los auf dem Klaukenhof
+2025-08-16 12:49:25,092 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Camping Resort Allweglehen bietet "Wellness plus"
+2025-08-16 12:49:25,093 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: EU-Führerscheinreform kommt
+2025-08-16 12:49:25,093 - INFO - fetch_and_process_feed:257 - ✅ Feed verarbeitet: 0 neue Artikel aus https://www.camping-news.de/rss/
+2025-08-16 12:49:26,098 - INFO - fetch_and_process_feed:174 - 🔄 Verarbeite Feed: https://www.promobil.de/rss/news
+2025-08-16 12:49:26,570 - INFO - fetch_and_process_feed:181 - 📡 Feed-Name: News bei www.promobil.de
+2025-08-16 12:49:26,571 - INFO - fetch_and_process_feed:187 - 📰 20 Einträge gefunden
+2025-08-16 12:49:26,571 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Vanlife-Events im Juni bis November 2025: Events für Bulli-Lover und Campervan-Fans
+2025-08-16 12:49:26,571 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/termine-veranstaltungen-juni-juli/ (Versuch 1)
+2025-08-16 12:49:27,928 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:27,930 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:27,931 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 649 Wörter
+2025-08-16 12:49:27,931 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 649 Wörter
+2025-08-16 12:49:27,931 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Vanlife-Events im Juni bis November 2025: Events für Bulli-Lover und Campervan-Fans
+2025-08-16 12:49:27,932 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Schutz vor Einbruch und Diebstahl fürs Wohnmobil: Wie schütze ich mein Wohnmobil vor Diebstahl?
+2025-08-16 12:49:27,932 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/sicherheitszubehoer-wohnmobil-schutz-einbruch-diebstahl-gase/ (Versuch 1)
+2025-08-16 12:49:28,227 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:28,228 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:28,230 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 1134 Wörter
+2025-08-16 12:49:28,230 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 1134 Wörter
+2025-08-16 12:49:28,230 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Schutz vor Einbruch und Diebstahl fürs Wohnmobil: Wie schütze ich mein Wohnmobil vor Diebstahl?
+2025-08-16 12:49:28,231 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Hymer kündigt neue Wohnmobil-Marke Corigon an: Hymer bringt neue Günstig-Marke für Camper
+2025-08-16 12:49:28,231 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/corigon-neue-hymer-marke-sommer-2025/ (Versuch 1)
+2025-08-16 12:49:28,591 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:28,593 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:28,594 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 874 Wörter
+2025-08-16 12:49:28,594 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 874 Wörter
+2025-08-16 12:49:28,594 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Hymer kündigt neue Wohnmobil-Marke Corigon an: Hymer bringt neue Günstig-Marke für Camper
+2025-08-16 12:49:28,594 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Die besten Camper-Innovationen 2025: „Frosch“ ist das genialste neue Camping-Zubehör
+2025-08-16 12:49:28,594 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/sieger-frosch-campfire-der-ideen-2025/ (Versuch 1)
+2025-08-16 12:49:30,472 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:30,473 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:30,473 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 452 Wörter
+2025-08-16 12:49:30,474 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 452 Wörter
+2025-08-16 12:49:30,474 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Die besten Camper-Innovationen 2025: „Frosch“ ist das genialste neue Camping-Zubehör
+2025-08-16 12:49:30,474 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Leserstimmen zum Update der 9-Gang-Automatik: Was bringt das Softwareupdate für den Ducato 8?
+2025-08-16 12:49:30,475 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/fiat-ducato-9-gang-automatik-softwareupdate/ (Versuch 1)
+2025-08-16 12:49:31,156 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:31,157 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:31,160 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 1546 Wörter
+2025-08-16 12:49:31,160 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 1546 Wörter
+2025-08-16 12:49:31,161 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Leserstimmen zum Update der 9-Gang-Automatik: Was bringt das Softwareupdate für den Ducato 8?
+2025-08-16 12:49:31,161 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: CARAVANING Jahrgangs Archiv 2024: CARAVANING fürs Archiv
+2025-08-16 12:49:31,161 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/caravaning-jahrgangs-archiv-als-pdf-download/ (Versuch 1)
+2025-08-16 12:49:32,094 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:32,095 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:32,095 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 136 Wörter
+2025-08-16 12:49:32,096 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 136 Wörter
+2025-08-16 12:49:32,096 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: CARAVANING Jahrgangs Archiv 2024: CARAVANING fürs Archiv
+2025-08-16 12:49:32,096 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Top 10 Clever-Campen-Videos 2024: Die beliebtesten Camping-Videos
+2025-08-16 12:49:32,096 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/top-10-clever-campen-videos-2024/ (Versuch 1)
+2025-08-16 12:49:33,747 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:33,748 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:33,749 - INFO - extract_full_article:262 - 🔄 Fallback auf Paragraph-Extraktion
+2025-08-16 12:49:33,749 - INFO - extract_from_paragraphs:194 - ✅ Fallback-Extraktion aus 18 Paragraphen
+2025-08-16 12:49:33,749 - INFO - extract_full_article:271 - 🔄 Letzter Fallback: Body-Text
+2025-08-16 12:49:33,752 - INFO - extract_full_article:281 - ⚠️ Body-Extraktion: 0 Wörter
+2025-08-16 12:49:33,752 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Top 10 Clever-Campen-Videos 2024: Die beliebtesten Camping-Videos
+2025-08-16 12:49:33,752 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Retro-Campingfahrzeuge aus den Nuller-Jahren: Das waren die heißesten Wohnmobile 2004
+2025-08-16 12:49:33,752 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/retro-wohnmobile-2004-nuller-jahre-rueckblick-promobil/ (Versuch 1)
+2025-08-16 12:49:34,562 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:34,564 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:34,566 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 1870 Wörter
+2025-08-16 12:49:34,567 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 1870 Wörter
+2025-08-16 12:49:34,567 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Retro-Campingfahrzeuge aus den Nuller-Jahren: Das waren die heißesten Wohnmobile 2004
+2025-08-16 12:49:34,567 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Gaswarner im Wohnmobil: So schütze Sie sich vor unsichtbaren Gasen
+2025-08-16 12:49:34,568 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/gaswarner-wohnmobil-schutz-gas/ (Versuch 1)
+2025-08-16 12:49:35,350 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:35,352 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:35,354 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 1796 Wörter
+2025-08-16 12:49:35,354 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 1796 Wörter
+2025-08-16 12:49:35,355 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Gaswarner im Wohnmobil: So schütze Sie sich vor unsichtbaren Gasen
+2025-08-16 12:49:35,355 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Preisschock bei Wohnmobilversicherungen: Versicherung gestiegen? Das können Sie tun!
+2025-08-16 12:49:35,355 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/versicherungen-werden-2025-teuerer-tipps-und-tricks-um-die-kosten-zu-senken/ (Versuch 1)
+2025-08-16 12:49:35,626 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:35,627 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:35,628 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 942 Wörter
+2025-08-16 12:49:35,629 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 942 Wörter
+2025-08-16 12:49:35,629 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Preisschock bei Wohnmobilversicherungen: Versicherung gestiegen? Das können Sie tun!
+2025-08-16 12:49:35,629 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Dailycamper Trekking (2025): Neuer Mini-Camper auf Fiat Doblo
+2025-08-16 12:49:35,629 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/dailycamper-trekking-mini-camper-fiat-doblo/ (Versuch 1)
+2025-08-16 12:49:35,899 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:35,900 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:35,901 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 416 Wörter
+2025-08-16 12:49:35,901 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 416 Wörter
+2025-08-16 12:49:35,901 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Dailycamper Trekking (2025): Neuer Mini-Camper auf Fiat Doblo
+2025-08-16 12:49:35,901 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Campingbus Rocket Camper Ryzon beim Weltrekord: Jonas Deichmanns Camper für Ironman-Rekord
+2025-08-16 12:49:35,902 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: E-Trailer für die Campingfahrzeug-Steuerung per App: So werden Wohnwagen & Camper zum Smarthome
+2025-08-16 12:49:35,902 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/e-trailer-system-kontrollboard-wohnwagen-camper/ (Versuch 1)
+2025-08-16 12:49:36,613 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:36,614 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:36,614 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 499 Wörter
+2025-08-16 12:49:36,615 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 499 Wörter
+2025-08-16 12:49:36,615 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: E-Trailer für die Campingfahrzeug-Steuerung per App: So werden Wohnwagen & Camper zum Smarthome
+2025-08-16 12:49:36,615 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Im Wohnmobil zum 2024-EM-Spielort Leipzig: Nach Leipzig in die Red Bull Arena zur Fußball-EM
+2025-08-16 12:49:36,615 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/spielorte-em-2024-red-bull-arena-leipzig/ (Versuch 1)
+2025-08-16 12:49:38,736 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:38,737 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:38,739 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 894 Wörter
+2025-08-16 12:49:38,739 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 894 Wörter
+2025-08-16 12:49:38,739 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Im Wohnmobil zum 2024-EM-Spielort Leipzig: Nach Leipzig in die Red Bull Arena zur Fußball-EM
+2025-08-16 12:49:38,740 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Can-Kasim Dogan von Westfalen Mobil  im Interview : Wie sieht der Westfalia-CEO die Camping-Zukunft?
+2025-08-16 12:49:38,740 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/can-kasim-dogan-interview-westfalia/ (Versuch 1)
+2025-08-16 12:49:39,605 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:39,606 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:39,607 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 599 Wörter
+2025-08-16 12:49:39,607 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 599 Wörter
+2025-08-16 12:49:39,607 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Can-Kasim Dogan von Westfalen Mobil  im Interview : Wie sieht der Westfalia-CEO die Camping-Zukunft?
+2025-08-16 12:49:39,608 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Top-Fortbewegungsmittel für Wohnmobil-Reisende: Wie bleiben Sie im Campingurlaub mobil?
+2025-08-16 12:49:39,608 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/promobil-leser-meinung-mobilitaet-fortbewegungsmittel-fahrrad/ (Versuch 1)
+2025-08-16 12:49:40,376 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:40,377 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:40,378 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 639 Wörter
+2025-08-16 12:49:40,378 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 639 Wörter
+2025-08-16 12:49:40,378 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Top-Fortbewegungsmittel für Wohnmobil-Reisende: Wie bleiben Sie im Campingurlaub mobil?
+2025-08-16 12:49:40,379 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Camping-Tipps für EM-Spielorte 2024  : Frankfurt für Fußball-Fans im Wohnmobil
+2025-08-16 12:49:40,379 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/spielorte-em-2024-frankfurt/ (Versuch 1)
+2025-08-16 12:49:41,173 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:41,174 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:41,175 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 691 Wörter
+2025-08-16 12:49:41,176 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 691 Wörter
+2025-08-16 12:49:41,176 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Camping-Tipps für EM-Spielorte 2024  : Frankfurt für Fußball-Fans im Wohnmobil
+2025-08-16 12:49:41,176 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Spielorte und Stellplätze zur Fußball-EM 2024 : Mit dem Wohnmobil zur Euro 2024 in Stuttgart
+2025-08-16 12:49:41,176 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/stuttgart-em-2024-fussball-stellplaetze-wohnmobil-camping/ (Versuch 1)
+2025-08-16 12:49:42,081 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:42,083 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:42,084 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 923 Wörter
+2025-08-16 12:49:42,085 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 923 Wörter
+2025-08-16 12:49:42,085 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Spielorte und Stellplätze zur Fußball-EM 2024 : Mit dem Wohnmobil zur Euro 2024 in Stuttgart
+2025-08-16 12:49:42,085 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Camper-Radio​ Caravan.fm : Radiosender speziell für Camping-Fans
+2025-08-16 12:49:42,085 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/camper-radio-radiosender-caravan-fm/ (Versuch 1)
+2025-08-16 12:49:42,899 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:42,900 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:42,901 - INFO - extract_full_article:257 - 🎉 Erfolgreiche Extraktion (generisch): 258 Wörter
+2025-08-16 12:49:42,901 - INFO - fetch_and_process_feed:215 - ✅ Volltext extrahiert: 258 Wörter
+2025-08-16 12:49:42,901 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Camper-Radio​ Caravan.fm : Radiosender speziell für Camping-Fans
+2025-08-16 12:49:42,902 - INFO - fetch_and_process_feed:211 - 🔍 Kurzer Artikel erkannt, versuche Volltext-Extraktion: Professor für Tourismus-Management im Interview: Armin Brysch spricht über virtuelle Reisen
+2025-08-16 12:49:42,902 - INFO - extract_full_article:214 - 📰 Starte Volltextextraktion von: https://www.promobil.de/tourismus-management-armin-brysch-interview-virtuelle-reisen/ (Versuch 1)
+2025-08-16 12:49:44,184 - INFO - extract_full_article:253 - 🔄 Fallback auf generische Selektoren
+2025-08-16 12:49:44,185 - INFO - extract_with_selectors:165 - ✅ Erfolgreiche Extraktion mit Selektor: {'tag': 'article', 'class': None}
+2025-08-16 12:49:44,186 - INFO - extract_full_article:262 - 🔄 Fallback auf Paragraph-Extraktion
+2025-08-16 12:49:44,186 - INFO - extract_from_paragraphs:194 - ✅ Fallback-Extraktion aus 8 Paragraphen
+2025-08-16 12:49:44,187 - INFO - extract_full_article:271 - 🔄 Letzter Fallback: Body-Text
+2025-08-16 12:49:44,189 - INFO - extract_full_article:281 - ⚠️ Body-Extraktion: 0 Wörter
+2025-08-16 12:49:44,190 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Professor für Tourismus-Management im Interview: Armin Brysch spricht über virtuelle Reisen
+2025-08-16 12:49:44,190 - INFO - fetch_and_process_feed:257 - ✅ Feed verarbeitet: 0 neue Artikel aus https://www.promobil.de/rss/news
+2025-08-16 12:49:45,196 - INFO - fetch_and_process_feed:174 - 🔄 Verarbeite Feed: https://www.promobil.de/rss/ratgeber
+2025-08-16 12:49:46,821 - INFO - fetch_and_process_feed:181 - 📡 Feed-Name: ratgeber bei www.promobil.de
+2025-08-16 12:49:46,821 - INFO - fetch_and_process_feed:187 - 📰 20 Einträge gefunden
+2025-08-16 12:49:46,822 - INFO - extract_images_with_metadata:149 - 🖼️ Starte Bildextraktion von: https://www.promobil.de/weitere-ratgeber/gasflaschenservice-fuer-camping-und-grillfans-im-promobil-test/
+2025-08-16 12:49:47,648 - INFO - extract_images_with_metadata:167 - 🔍 16 img-Tags gefunden
+2025-08-16 12:49:47,649 - INFO - extract_images_with_metadata:180 - ✅ Bild hinzugefügt: Automat...
+2025-08-16 12:49:47,649 - INFO - extract_images_with_metadata:180 - ✅ Bild hinzugefügt: Camping, Gas...
+2025-08-16 12:49:47,650 - INFO - extract_images_with_metadata:180 - ✅ Bild hinzugefügt: Gasflaschen, Tauschautomat, Energie Rath,  Dinkels...
+2025-08-16 12:49:47,650 - INFO - extract_images_with_metadata:180 - ✅ Bild hinzugefügt: LPG...
+2025-08-16 12:49:47,650 - INFO - extract_images_with_metadata:180 - ✅ Bild hinzugefügt: Bild aus Originalartikel...
+2025-08-16 12:49:47,650 - ERROR - extract_images_with_metadata:200 - ❌ Unerwarteter Fehler bei Bildextraktion von https://www.promobil.de/weitere-ratgeber/gasflaschenservice-fuer-camping-und-grillfans-im-promobil-test/: unsupported operand type(s) for *: 'NoneType' and 'NoneType'
+2025-08-16 12:49:47,651 - INFO - fetch_and_process_feed:244 - 🖼️ 0 Bilder für 'Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper' extrahiert
+2025-08-16 12:49:47,651 - INFO - fetch_and_process_feed:249 - ✅ Neuer Artikel hinzugefügt: Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper
+2025-08-16 12:49:47,652 - INFO - extract_images_with_metadata:149 - 🖼️ Starte Bildextraktion von: https://www.promobil.de/weitere-ratgeber/neue-bussgelder-in-italien-falsche-muellentsorgung-aus-dem-wohnmobil-wird-besonders-teuer/
+2025-08-16 12:49:50,073 - INFO - extract_images_with_metadata:167 - 🔍 13 img-Tags gefunden
+2025-08-16 12:49:50,074 - INFO - extract_images_with_metadata:180 - ✅ Bild hinzugefügt: Basiswissen, Der gute Ton, Stellplatz-Knigge, Müll...
+2025-08-16 12:49:50,074 - INFO - extract_images_with_metadata:180 - ✅ Bild hinzugefügt: Bild aus Originalartikel...
+2025-08-16 12:49:50,074 - ERROR - extract_images_with_metadata:200 - ❌ Unerwarteter Fehler bei Bildextraktion von https://www.promobil.de/weitere-ratgeber/neue-bussgelder-in-italien-falsche-muellentsorgung-aus-dem-wohnmobil-wird-besonders-teuer/: unsupported operand type(s) for *: 'NoneType' and 'NoneType'
+2025-08-16 12:49:50,075 - INFO - fetch_and_process_feed:244 - 🖼️ 0 Bilder für 'Italien verschärft Regeln zur Müllentsorgung: Bis zu 18.000 Euro Strafe für Müll vor dem Camper' extrahiert
+2025-08-16 12:49:50,075 - INFO - fetch_and_process_feed:249 - ✅ Neuer Artikel hinzugefügt: Italien verschärft Regeln zur Müllentsorgung: Bis zu 18.000 Euro Strafe für Müll vor dem Camper
+2025-08-16 12:49:50,076 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Regeln auf Frankreichs Autobahnen im Pannenfall: Kein Schutz durch ADAC & Co. auf Autobahnen
+2025-08-16 12:49:50,078 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Fahrradtransport in Italien: Warntafel bei Fahrradträgern doch wieder Pflicht?
+2025-08-16 12:49:50,081 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Neue Mautregeln für Wohnmobile mit 3,5 t: Diese Camper brauchen ab dem Stichtag eine GO-Box
+2025-08-16 12:49:50,083 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Film-Stunt mit Caravan – wie realistisch ist das?: Sexsymbol Jensen Ackles wagt Stunt auf Wohnwagen
+2025-08-16 12:49:50,085 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: CLEVER CAMPEN Podcast Folge 40: Gravelbikes und Camping – die beste Kombi?
+2025-08-16 12:49:50,086 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Stellplatz-Radar Sommeraktion 2025: 30 Tage Stellplatz-Radar PLUS gratis testen
+2025-08-16 12:49:50,088 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Digitaler Fahrzeugschein für Camper: promobil testet den digitalen Fahrzeugschein
+2025-08-16 12:49:50,089 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Badezimmer beim Camping - Umfrage: Welches Bad brauchen Sie im Wohnmobil?
+2025-08-16 12:49:50,091 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Umfrage zum Kaffeegenuss beim Camping: So kochen Sie am liebsten Ihren Kaffee
+2025-08-16 12:49:50,092 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Zwei Menschen, zwei Meinungen: Das Mietbad spaltet die Campingwelt
+2025-08-16 12:49:50,094 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Zubehör auf der größten Campingmesse kaufen: Deshalb müssen Zubehör-Shopper zum Caravan Salon
+2025-08-16 12:49:50,096 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Tipps für die größte Camping-Messe Deutschlands: Darum dürfen Sie den Caravan Salon nicht verpassen
+2025-08-16 12:49:50,099 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Sommerhitze im Wohnmobil & Wohnwagen: Die besten Tipps gegen Hitze im Camper
+2025-08-16 12:49:50,101 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Dethleffs Reiselust-Prämie: Bis zu 20.000 Euro Rabatt auf Wohnmobile
+2025-08-16 12:49:50,102 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Der neue promobil-Newsletter - gratis!: Zum Frühstück die spannendsten Camping-Themen
+2025-08-16 12:49:50,103 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Drittes Camping-Rekordjahr in Folge: Süd schlägt Nord – Hier wird am häufigsten gecampt
+2025-08-16 12:49:50,104 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Wohnmobil-Handel treibt Vorzelt-Profi in Insolvenz: Camping-Ausrüster Herzog beantragt Insolvenz
+2025-08-16 12:49:50,106 - INFO - fetch_and_process_feed:251 - 🔄 Duplikat übersprungen: Pannen und Probleme im Wohnmobil & Wohnwagen: Erste Hilfe für die Camper-Bordtechnik
+2025-08-16 12:49:50,106 - INFO - fetch_and_process_feed:257 - ✅ Feed verarbeitet: 2 neue Artikel aus https://www.promobil.de/rss/ratgeber
+2025-08-16 12:49:51,131 - INFO - save_articles:144 - ✅ 55 Artikel gespeichert
+2025-08-16 12:49:51,131 - INFO - process_articles:310 - 🎉 Verarbeitung abgeschlossen: 2 neue Artikel in 27.58s hinzugefügt
+2025-08-16 12:49:52,222 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:49:52,223 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:50:27,304 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:50:27,305 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:50:27,334 - INFO - save_articles:144 - ✅ 55 Artikel gespeichert
+2025-08-16 12:50:27,909 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:50:27,910 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:50:33,666 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:50:33,667 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:50:47,623 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:50:47,624 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:50:49,242 - INFO - _get_default_category_id:63 - ✅ Standard-Kategorie 'Allgemein' gefunden: ID 1
+2025-08-16 12:50:49,242 - INFO - test_connection:237 - 🔧 Teste WordPress-API-Verbindung...
+2025-08-16 12:50:49,751 - INFO - test_connection:247 - ✅ WordPress-API-Verbindung erfolgreich
+2025-08-16 12:51:22,341 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:51:22,342 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:51:22,344 - INFO - rewrite_articles:320 - ✍️ Starte Artikel-Umschreibung
+2025-08-16 12:51:22,346 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:51:22,347 - INFO - rewrite_articles:337 - ✍️ Umschreiben von: Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper
+2025-08-16 12:51:37,237 - INFO - _send_single_request:1025 - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-16 12:51:39,037 - INFO - _send_single_request:1025 - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-16 12:51:39,038 - INFO - rewrite_articles:392 - ✅ Artikel erfolgreich umgeschrieben: Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper
+2025-08-16 12:51:41,055 - INFO - save_articles:144 - ✅ 55 Artikel gespeichert
+2025-08-16 12:51:41,055 - INFO - rewrite_articles:404 - 🎉 1 Artikel erfolgreich umgeschrieben
+2025-08-16 12:51:42,128 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:51:42,128 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:52:01,541 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:52:01,542 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:52:08,641 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:52:08,641 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:52:14,550 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:52:14,550 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:52:32,308 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:52:32,311 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:53:12,402 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:53:12,403 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:53:15,939 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:53:15,939 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:53:15,959 - INFO - save_articles:144 - ✅ 55 Artikel gespeichert
+2025-08-16 12:53:16,006 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:53:16,006 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:53:21,156 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:53:21,156 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:53:21,821 - INFO - _get_default_category_id:63 - ✅ Standard-Kategorie 'Allgemein' gefunden: ID 1
+2025-08-16 12:53:21,821 - INFO - test_connection:237 - 🔧 Teste WordPress-API-Verbindung...
+2025-08-16 12:53:22,205 - INFO - test_connection:247 - ✅ WordPress-API-Verbindung erfolgreich
+2025-08-16 12:53:22,205 - INFO - upload_article:158 - 📤 Starte WordPress-Upload: Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper
+2025-08-16 12:53:23,117 - ERROR - upload_article:190 - ❌ WordPress-Fehler 400 für 'Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper': Ungültige(r) Parameter: tags
+2025-08-16 12:53:24,214 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:53:24,214 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:58:02,027 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:58:02,028 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:58:14,389 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:58:14,391 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
+2025-08-16 12:58:14,395 - INFO - upload_articles_to_wp:412 - 📤 Starte WordPress-Upload
+2025-08-16 12:58:14,408 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:58:14,408 - INFO - upload_articles_to_wp:421 - 📦 1 Artikel für WordPress-Upload gefunden
+2025-08-16 12:58:14,410 - INFO - __init__:51 - ✅ WordPress-Authentifizierung: Verwende bereitgestellten Base64-String
+2025-08-16 12:58:16,007 - INFO - _get_default_category_id:87 - ✅ Standard-Kategorie 'Allgemein' gefunden: ID 1
+2025-08-16 12:58:16,007 - INFO - test_connection:338 - 🔧 Teste WordPress-API-Verbindung mit Base64-Auth...
+2025-08-16 12:58:16,007 - INFO - test_connection:342 - 🔑 Authorization Header: Basic b2dpZXJ0ejp3aE...
+2025-08-16 12:58:16,501 - INFO - test_connection:351 - 📡 API-Response Status: 200
+2025-08-16 12:58:16,501 - INFO - test_connection:352 - 📡 API-Response Headers: {'Content-Type': 'application/json; charset=UTF-8', 'Transfer-Encoding': 'chunked', 'Connection': 'keep-alive', 'X-WS-RateLimit-Limit': '1000', 'X-WS-RateLimit-Remaining': '998', 'Date': 'Sat, 16 Aug 2025 10:58:16 GMT', 'Server': 'Apache', 'X-Powered-By': 'PHP/8.2.29', 'Pragma': 'no-cache', 'X-Robots-Tag': 'noindex', 'X-Content-Type-Options': 'nosniff', 'Access-Control-Expose-Headers': 'X-WP-Total, X-WP-TotalPages, Link', 'Access-Control-Allow-Headers': 'Authorization, X-WP-Nonce, Content-Disposition, Content-MD5, Content-Type', 'X-WP-Total': '4', 'X-WP-TotalPages': '4', 'Link': '<https://vanityontour.de/wp-json/wp/v2/categories?per_page=1&page=2>; rel="next"', 'Allow': 'GET, POST', 'Expires': 'Wed, 11 Jan 1984 05:00:00 GMT', 'Cache-Control': 'no-cache, must-revalidate, max-age=0, no-store, private'}
+2025-08-16 12:58:16,501 - INFO - test_connection:355 - ✅ WordPress-API-Verbindung erfolgreich
+2025-08-16 12:58:16,501 - INFO - upload_multiple_articles:392 - 📦 Starte Batch-Upload von 1 Artikeln zu WordPress
+2025-08-16 12:58:16,502 - INFO - upload_multiple_articles:396 - 📤 Upload 1/1: Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper
+2025-08-16 12:58:16,502 - INFO - upload_article:249 - 📤 Starte WordPress-Upload: Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper
+2025-08-16 12:58:18,037 - INFO - _get_or_create_tags:149 - ✅ Neuer Tag erstellt: 'Gasflaschen-Automat' (ID: 891)
+2025-08-16 12:58:18,550 - INFO - _get_or_create_tags:135 - ✅ Existierender Tag gefunden: 'Wohnmobil' (ID: 646)
+2025-08-16 12:58:19,573 - INFO - _get_or_create_tags:149 - ✅ Neuer Tag erstellt: 'Globus-Baumarkt' (ID: 892)
+2025-08-16 12:58:19,573 - INFO - _get_or_create_tags:158 - 🏷️ Tags verarbeitet: 3 Tag-IDs erstellt
+2025-08-16 12:58:19,573 - INFO - _prepare_post_data:194 - 📝 Post-Daten vorbereitet: Titel='Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper', Tags=3, Kategorie=1
+2025-08-16 12:58:20,442 - INFO - upload_article:274 - ✅ WordPress-Upload erfolgreich: 'Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper' (ID: 3378)
+2025-08-16 12:58:20,442 - INFO - upload_article:275 - 🔗 WordPress-URL: https://vanityontour.de/?p=3378
+2025-08-16 12:58:20,442 - INFO - upload_multiple_articles:422 - 📊 Batch-Upload abgeschlossen: 1 erfolgreich, 0 fehlgeschlagen, 0 Duplikate
+2025-08-16 12:58:20,443 - INFO - upload_articles_to_wp:441 - ✅ Status geändert für 'Tauschautomat für Gasflaschen im Praxischeck: Wie funktioniert der 24/7-Service für Camper': Process → WordPress Pending
+2025-08-16 12:58:20,453 - INFO - save_articles:144 - ✅ 55 Artikel gespeichert
+2025-08-16 12:58:20,454 - INFO - upload_articles_to_wp:446 - 💾 Artikel-Status nach WordPress-Upload aktualisiert
+2025-08-16 12:58:22,520 - INFO - load_articles:124 - ✅ 55 Artikel geladen
+2025-08-16 12:58:22,522 - INFO - load_feeds:93 - ✅ 3 Feeds geladen
