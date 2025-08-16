@@ -2,8 +2,7 @@ import re
 import subprocess
 from pathlib import Path
 from datetime import datetime
-import typer
-import os
+import click
 
 CHANGELOG_FILE = Path("CHANGELOG.md")
 VERSION_FILE = Path("__version__.py")
@@ -49,31 +48,53 @@ def configure_signing(use_ssh: bool):
         subprocess.run(["git", "config", "--global", "gpg.format", "openpgp"], check=True)
     subprocess.run(["git", "config", "--global", "commit.gpgsign", "true"], check=True)
 
-def create(
-    level: str = "patch",
-    push: bool = False,
-    no_sign: bool = False,
-    dry_run: bool = False
-):
+@click.command()
+@click.option("--level", default="patch", help="Version bump level: patch, minor, major")
+@click.option("--version", "specific_version", help="Set specific version (e.g., 2.1.0) instead of auto-bumping")
+@click.option("--push", is_flag=True, help="Push to GitHub after creating version")
+@click.option("--no-sign", is_flag=True, help="Skip signing of commits and tags")
+@click.option("--dry-run", is_flag=True, help="Show what would be done without executing")
+def create(level, specific_version, push, no_sign, dry_run):
     """
     Erstellt eine neue Version mit optional signiertem Commit & Tag.
-    Optional: --push, --no-sign, --dry-run
+    Optional: --push, --no-sign, --dry-run, --version
     """
     current = get_latest_version()
-    new_version = bump_version(current, level)
+    
+    # Validierung und Festlegung der neuen Version
+    if specific_version:
+        # Validiere das Format der vorgegebenen Version
+        version_pattern = r"^\d+\.\d+\.\d+$"
+        if not re.match(version_pattern, specific_version):
+            click.secho("❌ Fehler: Version muss im Format X.Y.Z sein (z.B. 2.1.0)", fg="red")
+            return
+        
+        # Prüfe, ob die vorgegebene Version höher als die aktuelle ist
+        def version_tuple(v):
+            return tuple(map(int, v.split('.')))
+        
+        if version_tuple(specific_version) <= version_tuple(current):
+            click.secho(f"❌ Fehler: Neue Version {specific_version} muss höher sein als aktuelle Version {current}", fg="red")
+            return
+        
+        new_version = specific_version
+        click.secho(f"📌 Verwende vorgegebene Version: {new_version}", fg="blue")
+    else:
+        new_version = bump_version(current, level)
+        click.secho(f"🔄 Auto-Bump ({level}): {current} → {new_version}", fg="green")
 
     if dry_run:
-        typer.secho("🔍 Dry-Run aktiviert – keine Dateien oder Git-Kommandos werden ausgeführt.\n", fg=typer.colors.YELLOW)
-        typer.echo(f"➡️  Aktuelle Version: {current}")
-        typer.echo(f"➡️  Neue Version:     {new_version}")
-        typer.echo(f"➡️  Commit-Level:     {level}")
-        typer.echo(f"➡️  Push nach GitHub: {'Ja' if push else 'Nein'}")
-        typer.echo(f"➡️  Signieren:        {'Nein' if no_sign else 'Automatisch (SSH > GPG)'}")
+        click.secho("🔍 Dry-Run aktiviert – keine Dateien oder Git-Kommandos werden ausgeführt.\n", fg="yellow")
+        click.echo(f"➡️  Aktuelle Version: {current}")
+        click.echo(f"➡️  Neue Version:     {new_version}")
+        click.echo(f"➡️  Commit-Level:     {level}")
+        click.echo(f"➡️  Push nach GitHub: {'Ja' if push else 'Nein'}")
+        click.echo(f"➡️  Signieren:        {'Nein' if no_sign else 'Automatisch (SSH > GPG)'}")
 
         date = datetime.now().strftime("%Y-%m-%d")
-        typer.echo("\n📄 Vorschlag für CHANGELOG-Eintrag:")
-        typer.echo(f"\n## [{new_version}] - {date}\n\n- Beschreibung...\n")
-        typer.secho("🚫 Dry-Run beendet.\n", fg=typer.colors.YELLOW)
+        click.echo("\n📄 Vorschlag für CHANGELOG-Eintrag:")
+        click.echo(f"\n## [{new_version}] - {date}\n\n- Beschreibung...\n")
+        click.secho("🚫 Dry-Run beendet.\n", fg="yellow")
         return
 
     # Update version file
@@ -85,13 +106,13 @@ def create(
     content = CHANGELOG_FILE.read_text(encoding="utf-8")
 
     if f"## [{new_version}]" in content:
-        typer.secho(f"ℹ️  Version {new_version} ist bereits im CHANGELOG.md vorhanden. Kein Eintrag hinzugefügt.", fg=typer.colors.BLUE)
+        click.secho(f"ℹ️  Version {new_version} ist bereits im CHANGELOG.md vorhanden. Kein Eintrag hinzugefügt.", fg="blue")
     else:
         CHANGELOG_FILE.write_text(new_entry + content, encoding="utf-8")
-        typer.secho(f"📄 CHANGELOG.md wurde vorbereitet für Version {new_version}.", fg=typer.colors.MAGENTA)
+        click.secho(f"📄 CHANGELOG.md wurde vorbereitet für Version {new_version}.", fg="magenta")
 
-    typer.echo("")
-    typer.secho("✏️  Bitte jetzt den Eintrag in CHANGELOG.md überprüfen oder anpassen.", fg=typer.colors.CYAN)
+    click.echo("")
+    click.secho("✏️  Bitte jetzt den Eintrag in CHANGELOG.md überprüfen oder anpassen.", fg="cyan")
     input("⏸️  Drücke [Enter], um fortzufahren...")
 
     subprocess.run(["git", "add", "."], check=True)
@@ -125,11 +146,11 @@ def create(
 
     if use_signing:
         if signing_method == "ssh":
-            typer.secho(f"✅ Version {new_version} erstellt und signiert mit SSH 🔐", fg=typer.colors.GREEN)
+            click.secho(f"✅ Version {new_version} erstellt und signiert mit SSH 🔐", fg="green")
         elif signing_method == "gpg":
-            typer.secho(f"✅ Version {new_version} erstellt und signiert mit GPG 🔏", fg=typer.colors.CYAN)
+            click.secho(f"✅ Version {new_version} erstellt und signiert mit GPG 🔏", fg="cyan")
     else:
-        typer.secho(f"⚠️  Version {new_version} wurde ohne Signatur erstellt", fg=typer.colors.YELLOW)
+        click.secho(f"⚠️  Version {new_version} wurde ohne Signatur erstellt", fg="yellow")
 
 if __name__ == "__main__":
-    typer.run(create)
+    create()
