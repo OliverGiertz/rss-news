@@ -53,3 +53,6 @@ typing_extensions==4.14.0
 tzdata==2025.2
 urllib3==2.5.0
 typer[all]==0.12.3
+# Bild- und Hashing-Bibliotheken für Dedupe
+Pillow>=10.0.0        # Bildverarbeitung (öffnet Bilder für pHash)
+ImageHash>=4.3        # Perzeptueller Hash (pHash) für Near-Duplicate Erkennung
