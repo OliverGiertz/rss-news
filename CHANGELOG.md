@@ -1,6 +1,11 @@
 ## [1.6.3] - 2025-08-18
 
-- Beschreibung...
+### 🔧 Verbesserungen
+- **SyleSheet erneut hinzugefügt
+  - Style wurde bei einem Release leider vergessen
+  - Style auf DarkMode angepasst
+
+---
 
 ## [v1.6.2] - 2025-08-16
 
