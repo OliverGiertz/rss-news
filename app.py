@@ -13,6 +13,7 @@ from main import (
 )
 from utils.dalle_generator import generate_dalle_image
 from utils.wordpress_uploader import WordPressUploader
+from utils.css_loader import load_css, apply_dark_theme
 import os
 from collections import Counter
 import time
@@ -24,103 +25,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# === Custom CSS für modernes Design ===
-st.markdown("""
-<style>
-    /* Hauptcontainer */
-    .main-header {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-        color: white;
-        text-align: center;
-    }
-    
-    /* Artikel Cards */
-    .article-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-left: 4px solid #667eea;
-        transition: transform 0.2s;
-    }
-    
-    .article-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
-    }
-    
-    /* Status Badges */
-    .status-badge {
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: bold;
-        margin-right: 0.5rem;
-    }
-    
-    .status-new { background-color: #e3f2fd; color: #1976d2; }
-    .status-rewrite { background-color: #fff3e0; color: #f57c00; }
-    .status-process { background-color: #f3e5f5; color: #7b1fa2; }
-    .status-online { background-color: #e8f5e8; color: #388e3c; }
-    .status-hold { background-color: #fce4ec; color: #c2185b; }
-    .status-trash { background-color: #ffebee; color: #d32f2f; }
-    .status-wp-pending { background-color: #e1f5fe; color: #0277bd; }
-    
-    /* Filter Section */
-    .filter-section {
-        background: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-    }
-    
-    /* Stats Cards */
-    .stats-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 10px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    .stats-number {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #667eea;
-    }
-    
-    /* Action Buttons */
-    .action-button {
-        margin: 0.25rem;
-    }
-    
-    /* Image Gallery */
-    .image-gallery {
-        display: flex;
-        gap: 1rem;
-        overflow-x: auto;
-        padding: 1rem 0;
-    }
-    
-    .image-item {
-        min-width: 200px;
-        text-align: center;
-    }
-    
-    /* WordPress Upload Status */
-    .wp-status {
-        background: #e3f2fd;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
-        border-left: 4px solid #2196f3;
-    }
-</style>
-""", unsafe_allow_html=True)
+# === CSS & Theme laden ===
+load_css()
+apply_dark_theme()
 
 # === Initialize Session State ===
 if 'selected_articles' not in st.session_state:
@@ -340,9 +247,8 @@ with tab1:
         <div class="article-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <strong>{article.get('title', 'Kein Titel')}</strong>
-                    <br>
-                    <small>{format_date(article.get('date', ''))}</small>
+                    <h3 class="article-title">{article.get('title', 'Kein Titel')}</h3>
+                    <div class="article-meta">{format_date(article.get('date', ''))}</div>
                 </div>
                 <div>
                     {get_status_badge(article.get('status', 'New'))}
@@ -437,12 +343,12 @@ with tab2:
             title = article.get("title", "Kein Titel")
             if has_incomplete_images:
                 title += " ⚠️"
-            st.markdown(f"**{title}**")
-            st.markdown(f"📅 {format_date(article.get('date', ''))}")
+            st.markdown(f'<h3 class="article-title">{title}</h3>', unsafe_allow_html=True)
+            st.markdown(f'<div class="article-meta">📅 {format_date(article.get("date", ""))}</div>', unsafe_allow_html=True)
             
             # WordPress-Info anzeigen falls vorhanden
             if article.get("wp_post_id"):
-                st.markdown(f"🔗 WordPress ID: {article.get('wp_post_id')} | Upload: {format_date(article.get('wp_upload_date', ''))}")
+                st.markdown(f'<div class="article-meta">🔗 WordPress ID: {article.get("wp_post_id")} | Upload: {format_date(article.get("wp_upload_date", ""))}</div>', unsafe_allow_html=True)
             
         with col2:
             st.markdown(get_status_badge(article.get("status", "New")), unsafe_allow_html=True)
@@ -451,19 +357,19 @@ with tab2:
         summary = article.get("summary", "")[:200]
         if len(summary) == 200:
             summary += "..."
-        st.markdown(summary)
+        st.markdown(f'<div class="article-summary">{summary}</div>', unsafe_allow_html=True)
         
         # Meta Info
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.markdown(f"📝 **{get_word_count(article.get('text', ''))} Wörter**")
+            st.markdown(f'<div class="article-footer">📝 **{get_word_count(article.get("text", ""))} Wörter**</div>', unsafe_allow_html=True)
         with col2:
             tags = article.get("tags", [])
             if tags:
-                st.markdown(f"🏷️ {', '.join(tags[:3])}{'...' if len(tags) > 3 else ''}")
+                st.markdown(f'<div class="article-footer">🏷️ {", ".join(tags[:3])}{"..." if len(tags) > 3 else ""}</div>', unsafe_allow_html=True)
         with col3:
             source_name = source_to_name.get(article.get("source", ""), "Unbekannt")
-            st.markdown(f"📡 {source_name}")
+            st.markdown(f'<div class="article-footer">📡 {source_name}</div>', unsafe_allow_html=True)
         
         # Actions
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -642,11 +548,9 @@ with tab3:
         <div class="article-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <strong>{feed_name}</strong>
-                    <br>
-                    <small>{feed_url}</small>
-                    <br>
-                    <span style="color: #667eea;">📰 {article_count} Artikel</span>
+                    <h3 class="article-title">{feed_name}</h3>
+                    <div class="article-meta">{feed_url}</div>
+                    <div class="article-footer">📰 {article_count} Artikel</div>
                 </div>
                 <div>
                     <span class="status-badge status-online">{article_count} Artikel</span>
@@ -712,13 +616,15 @@ with tab4:
         cols = st.columns(3)
         for idx, img in enumerate(all_images):
             with cols[idx % 3]:
+                st.markdown('<div class="image-item">', unsafe_allow_html=True)
                 st.image(img["url"], use_column_width=True)
-                st.markdown(f"**{img.get('caption', 'Kein Titel')}**")
-                st.markdown(f"📰 {img['article_title']}")
-                st.markdown(f"©️ {img.get('copyright', 'Unbekannt')}")
+                st.markdown(f'<strong class="text-primary">{img.get("caption", "Kein Titel")}</strong>', unsafe_allow_html=True)
+                st.markdown(f'<div class="text-secondary">📰 {img["article_title"]}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="text-muted">©️ {img.get("copyright", "Unbekannt")}</div>', unsafe_allow_html=True)
                 
                 if img.get("copyright_url") and img["copyright_url"] != "#":
-                    st.markdown(f"[🔗 Quelle]({img['copyright_url']})")
+                    st.markdown(f'<a href="{img["copyright_url"]}" target="_blank" class="text-accent">🔗 Quelle</a>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("Keine Bilder gefunden.")
 
@@ -735,13 +641,13 @@ with tab5:
         st.subheader("📈 Status Verteilung")
         for status, count in status_counts.items():
             percentage = (count / len(all_articles) * 100) if all_articles else 0
-            st.markdown(f"{get_status_badge(status)} {count} ({percentage:.1f}%)", unsafe_allow_html=True)
+            st.markdown(f"{get_status_badge(status)} <span class='text-primary'>{count} ({percentage:.1f}%)</span>", unsafe_allow_html=True)
     
     with col2:
         st.subheader("📡 Artikel pro Feed")
         feed_counts = Counter([source_to_name.get(a.get("source", ""), "Unbekannt") for a in all_articles])
         for feed_name, count in feed_counts.most_common():
-            st.markdown(f"**{feed_name}:** {count} Artikel")
+            st.markdown(f'<div class="text-primary"><strong>{feed_name}:</strong> {count} Artikel</div>', unsafe_allow_html=True)
     
     # WordPress-Statistiken
     st.subheader("🔗 WordPress-Statistiken")
@@ -751,15 +657,30 @@ with tab5:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric("WordPress Artikel", len(wp_articles))
+            st.markdown("""
+            <div class="stats-card">
+                <div class="stats-number">{}</div>
+                <div>WordPress Artikel</div>
+            </div>
+            """.format(len(wp_articles)), unsafe_allow_html=True)
         
         with col2:
             pending_count = len([a for a in wp_articles if a.get("status") == "WordPress Pending"])
-            st.metric("Ausstehend", pending_count)
+            st.markdown("""
+            <div class="stats-card">
+                <div class="stats-number">{}</div>
+                <div>Ausstehend</div>
+            </div>
+            """.format(pending_count), unsafe_allow_html=True)
         
         with col3:
             online_wp_count = len([a for a in wp_articles if a.get("status") == "Online"])
-            st.metric("Online", online_wp_count)
+            st.markdown("""
+            <div class="stats-card">
+                <div class="stats-number">{}</div>
+                <div>Online</div>
+            </div>
+            """.format(online_wp_count), unsafe_allow_html=True)
         
         # Neueste WordPress-Uploads
         recent_wp = sorted([a for a in wp_articles if a.get("wp_upload_date")], 
@@ -769,9 +690,11 @@ with tab5:
             st.subheader("🕒 Neueste WordPress-Uploads")
             for article in recent_wp:
                 st.markdown(f"""
-                **{article.get('title', 'Kein Titel')}** {get_status_badge(article.get('status', 'Unknown'))}
-                
-                WP ID: {article.get('wp_post_id')} | Upload: {format_date(article.get('wp_upload_date', ''))}
+                <div class="article-card">
+                    <h3 class="article-title">{article.get('title', 'Kein Titel')}</h3>
+                    {get_status_badge(article.get('status', 'Unknown'))}
+                    <div class="article-meta">WP ID: {article.get('wp_post_id')} | Upload: {format_date(article.get('wp_upload_date', ''))}</div>
+                </div>
                 """, unsafe_allow_html=True)
     else:
         st.info("Noch keine Artikel zu WordPress hochgeladen.")
@@ -784,13 +707,28 @@ with tab5:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric("Durchschnittliche Wortanzahl", f"{sum(word_counts) // len(word_counts)}")
+            st.markdown("""
+            <div class="stats-card">
+                <div class="stats-number">{}</div>
+                <div>Durchschnittliche Wortanzahl</div>
+            </div>
+            """.format(sum(word_counts) // len(word_counts)), unsafe_allow_html=True)
         
         with col2:
-            st.metric("Längster Artikel", f"{max(word_counts)} Wörter")
+            st.markdown("""
+            <div class="stats-card">
+                <div class="stats-number">{}</div>
+                <div>Längster Artikel (Wörter)</div>
+            </div>
+            """.format(max(word_counts)), unsafe_allow_html=True)
         
         with col3:
-            st.metric("Kürzester Artikel", f"{min(word_counts)} Wörter")
+            st.markdown("""
+            <div class="stats-card">
+                <div class="stats-number">{}</div>
+                <div>Kürzester Artikel (Wörter)</div>
+            </div>
+            """.format(min(word_counts)), unsafe_allow_html=True)
     
     # Tag Cloud Simulation
     st.subheader("🏷️ Häufigste Tags")
@@ -801,7 +739,7 @@ with tab5:
     if all_tags:
         tag_counts = Counter(all_tags)
         for tag, count in tag_counts.most_common(10):
-            st.markdown(f"**{tag}:** {count}x verwendet")
+            st.markdown(f'<div class="text-primary"><strong>{tag}:</strong> {count}x verwendet</div>', unsafe_allow_html=True)
     else:
         st.info("Keine Tags gefunden.")
 
@@ -830,13 +768,17 @@ with tab6:
         wp_user = os.getenv("WP_USERNAME", "Nicht konfiguriert")
         wp_base64 = os.getenv("WP_AUTH_BASE64", "")
         
-        st.info(f"""
-        **WordPress-Konfiguration:**
-        - URL: {wp_url}
-        - Benutzer: {wp_user}
-        - Passwort: {'✅ Konfiguriert' if os.getenv("WP_PASSWORD") else '❌ Nicht konfiguriert'}
-        - Base64 Auth: {'✅ Konfiguriert' if wp_base64 else '❌ Nicht konfiguriert'}
-        """)
+        st.markdown(f"""
+        <div class="wp-status">
+            <strong>WordPress-Konfiguration:</strong><br>
+            <div class="text-secondary">
+                URL: {wp_url}<br>
+                Benutzer: {wp_user}<br>
+                Passwort: {'✅ Konfiguriert' if os.getenv("WP_PASSWORD") else '❌ Nicht konfiguriert'}<br>
+                Base64 Auth: {'✅ Konfiguriert' if wp_base64 else '❌ Nicht konfiguriert'}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     # WordPress Auth Debug (nur für Entwicklung)
     if st.checkbox("🔧 Debug-Modus (Auth-Details anzeigen)", value=False):
@@ -863,10 +805,10 @@ with tab6:
         
         # Artikel-Vorschau
         for article in process_articles_list[:5]:  # Nur die ersten 5 anzeigen
-            st.markdown(f"• **{article.get('title', 'Kein Titel')}** ({get_word_count(article.get('text', ''))} Wörter)")
+            st.markdown(f'<div class="text-primary">• <strong>{article.get("title", "Kein Titel")}</strong> ({get_word_count(article.get("text", ""))} Wörter)</div>', unsafe_allow_html=True)
         
         if len(process_articles_list) > 5:
-            st.markdown(f"... und {len(process_articles_list) - 5} weitere")
+            st.markdown(f'<div class="text-muted">... und {len(process_articles_list) - 5} weitere</div>', unsafe_allow_html=True)
         
         col1, col2 = st.columns(2)
         
@@ -884,24 +826,46 @@ with tab6:
                         col1, col2, col3 = st.columns(3)
                         
                         with col1:
-                            st.metric("Erfolgreich", upload_results.get('successful', 0))
+                            st.markdown("""
+                            <div class="stats-card">
+                                <div class="stats-number">{}</div>
+                                <div>Erfolgreich</div>
+                            </div>
+                            """.format(upload_results.get('successful', 0)), unsafe_allow_html=True)
                         with col2:
-                            st.metric("Fehlgeschlagen", upload_results.get('failed', 0))
+                            st.markdown("""
+                            <div class="stats-card">
+                                <div class="stats-number">{}</div>
+                                <div>Fehlgeschlagen</div>
+                            </div>
+                            """.format(upload_results.get('failed', 0)), unsafe_allow_html=True)
                         with col3:
-                            st.metric("Duplikate", upload_results.get('duplicates', 0))
+                            st.markdown("""
+                            <div class="stats-card">
+                                <div class="stats-number">{}</div>
+                                <div>Duplikate</div>
+                            </div>
+                            """.format(upload_results.get('duplicates', 0)), unsafe_allow_html=True)
                         
                         # Details anzeigen
                         if upload_results.get('details'):
                             st.subheader("📋 Upload-Details")
                             for detail in upload_results['details']:
                                 status_icon = "✅" if detail['success'] else "❌"
-                                st.markdown(f"{status_icon} **{detail['title']}**: {detail['message']}")
+                                st.markdown(f'<div class="text-primary">{status_icon} <strong>{detail["title"]}:</strong> {detail["message"]}</div>', unsafe_allow_html=True)
                     
                     time.sleep(2)
                     st.rerun()
         
         with col2:
-            st.info("💡 Artikel erhalten den Status 'WordPress Pending' nach erfolgreichem Upload.")
+            st.markdown("""
+            <div class="wp-status">
+                <strong>💡 Info:</strong><br>
+                <div class="text-secondary">
+                    Artikel erhalten den Status 'WordPress Pending' nach erfolgreichem Upload.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
     
     else:
         st.info("Keine Artikel mit Status 'Process' gefunden. Artikel müssen zuerst umgeschrieben werden.")
@@ -931,8 +895,7 @@ with tab6:
             <div class="wp-status">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <strong>{article.get('title', 'Kein Titel')}</strong>
-                        <br>
+                        <strong>{article.get('title', 'Kein Titel')}</strong><br>
                         <small>WP ID: {article.get('wp_post_id')} | Upload: {format_date(article.get('wp_upload_date', ''))}</small>
                     </div>
                     <div>
@@ -964,40 +927,44 @@ OPENAI_API_KEY=sk-...
     
     with st.expander("🔑 Base64-Authentifizierung verstehen", expanded=False):
         st.markdown("""
-        **WordPress REST API Authentifizierung:**
-        
-        Die WordPress REST API erfordert eine Base64-kodierte Authentifizierung im Format:
-        ```
-        Authorization: Basic <base64_encoded_credentials>
-        ```
-        
-        **Ihr bereitgestellter Base64-String:**
-        - `b2dpZXJ0ejp3aE5FeDlhWkNJVVhWaVY4OVozZTdaMDM=`
-        - Dekodiert: `ogiertz:whNEx9aZCIUXViV89Z3e7Z03`
-        
-        **So funktioniert es:**
-        1. Benutzername und Anwendungspasswort werden kombiniert: `username:password`
-        2. Dieser String wird Base64-kodiert
-        3. Im Authorization-Header verwendet: `Basic <base64_string>`
-        
-        **Fallback-Verhalten:**
-        - Wenn `WP_AUTH_BASE64` gesetzt ist → Direkter Base64-String verwendet
-        - Wenn nicht gesetzt → Base64 wird aus `WP_USERNAME:WP_PASSWORD` generiert
-        """)
+        <div class="article-card">
+            <h3 class="article-title">WordPress REST API Authentifizierung:</h3>
+            <div class="article-summary">
+                Die WordPress REST API erfordert eine Base64-kodierte Authentifizierung im Format:<br>
+                <code>Authorization: Basic &lt;base64_encoded_credentials&gt;</code>
+                <br><br>
+                <strong>Ihr bereitgestellter Base64-String:</strong><br>
+                • <code>b2dpZXJ0ejp3aE5FeDlhWkNJVVhWaVY4OVozZTdaMDM=</code><br>
+                • Dekodiert: <code>ogiertz:whNEx9aZCIUXViV89Z3e7Z03</code>
+                <br><br>
+                <strong>So funktioniert es:</strong><br>
+                1. Benutzername und Anwendungspasswort werden kombiniert: <code>username:password</code><br>
+                2. Dieser String wird Base64-kodiert<br>
+                3. Im Authorization-Header verwendet: <code>Basic &lt;base64_string&gt;</code>
+                <br><br>
+                <strong>Fallback-Verhalten:</strong><br>
+                • Wenn <code>WP_AUTH_BASE64</code> gesetzt ist → Direkter Base64-String verwendet<br>
+                • Wenn nicht gesetzt → Base64 wird aus <code>WP_USERNAME:WP_PASSWORD</code> generiert
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with st.expander("📖 WordPress-API Berechtigungen", expanded=False):
         st.markdown("""
-        **Erforderliche Berechtigungen für den WordPress-Benutzer:**
-        
-        - `edit_posts` - Beiträge erstellen und bearbeiten
-        - `publish_posts` - Beiträge veröffentlichen (für Status-Änderungen)
-        - `upload_files` - Dateien hochladen (für spätere Bild-Uploads)
-        - `edit_categories` - Kategorien verwalten
-        - `edit_tags` - Tags verwalten
-        
-        **Anwendungspasswort erstellen:**
-        1. WordPress Admin → Benutzer → Profil
-        2. Unter "Anwendungspasswörter" neues Passwort erstellen
-        3. Name: "RSS Feed Manager"
-        4. Generiertes Passwort in .env-Datei eintragen
-        """)
+        <div class="article-card">
+            <h3 class="article-title">Erforderliche Berechtigungen für den WordPress-Benutzer:</h3>
+            <div class="article-summary">
+                • <code>edit_posts</code> - Beiträge erstellen und bearbeiten<br>
+                • <code>publish_posts</code> - Beiträge veröffentlichen (für Status-Änderungen)<br>
+                • <code>upload_files</code> - Dateien hochladen (für spätere Bild-Uploads)<br>
+                • <code>edit_categories</code> - Kategorien verwalten<br>
+                • <code>edit_tags</code> - Tags verwalten
+                <br><br>
+                <strong>Anwendungspasswort erstellen:</strong><br>
+                1. WordPress Admin → Benutzer → Profil<br>
+                2. Unter "Anwendungspasswörter" neues Passwort erstellen<br>
+                3. Name: "RSS Feed Manager"<br>
+                4. Generiertes Passwort in .env-Datei eintragen
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
