@@ -323,8 +323,148 @@ with tab2:
             or any(query in tag.lower() for tag in a.get("tags", []))
         ]
     
-    # Ergebnisse anzeigen
-    st.write(f"**{len(filtered_articles)} Artikel gefunden**")
+    # Ergebnisse und Massenoperationen
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.write(f"**{len(filtered_articles)} Artikel gefunden**")
+    
+    with col2:
+        # Select All / None Buttons
+        if filtered_articles:
+            col_select_1, col_select_2 = st.columns(2)
+            with col_select_1:
+                if st.button("✓ Alle auswählen", key="select_all"):
+                    for article in filtered_articles:
+                        st.session_state.selected_articles.add(article['id'])
+                    st.rerun()
+            
+            with col_select_2:
+                if st.button("✗ Auswahl aufheben", key="select_none"):
+                    st.session_state.selected_articles.clear()
+                    st.rerun()
+    
+    # Bulk Operations Section
+    selected_count = len(st.session_state.selected_articles)
+    if selected_count > 0:
+        st.markdown(f"""
+        <div class="filter-section" style="margin-top: 10px;">
+            <h4>⚡ Massenoperationen ({selected_count} Artikel ausgewählt)</h4>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Quick Actions für ausgewählte Artikel
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            if st.button("🔄 Feeds aktualisieren", use_container_width=True, key="bulk_update_feeds"):
+                with st.spinner("Feeds werden aktualisiert..."):
+                    existing_ids = [a["id"] for a in all_articles]
+                    process_articles(existing_ids)
+                    show_notification("Feeds erfolgreich aktualisiert!")
+                    time.sleep(1)
+                    st.rerun()
+        
+        with col2:
+            # Bulk Status Change
+            bulk_status = st.selectbox(
+                "Status ändern", 
+                ["--Auswählen--"] + ["New", "Rewrite", "Process", "Online", "On Hold", "Trash", "WordPress Pending"],
+                key="bulk_status"
+            )
+            
+            if bulk_status != "--Auswählen--" and st.button("Status anwenden", key="apply_bulk_status"):
+                changed_count = 0
+                for article in all_articles:
+                    if article["id"] in st.session_state.selected_articles:
+                        article["status"] = bulk_status
+                        changed_count += 1
+                
+                if changed_count > 0:
+                    save_articles(all_articles)
+                    show_notification(f"{changed_count} Artikel auf '{bulk_status}' gesetzt!")
+                    st.session_state.selected_articles.clear()
+                    st.rerun()
+        
+        with col3:
+            # Bulk Rewrite
+            rewrite_selected_count = len([a for a in all_articles if a["id"] in st.session_state.selected_articles and a.get("status") != "Rewrite"])
+            if st.button(f"✍️ Artikel umschreiben ({rewrite_selected_count})", use_container_width=True, key="bulk_rewrite"):
+                # Ausgewählte Artikel auf "Rewrite" setzen
+                for article in all_articles:
+                    if article["id"] in st.session_state.selected_articles:
+                        article["status"] = "Rewrite"
+                
+                save_articles(all_articles)
+                
+                # Umschreiben starten
+                with st.spinner(f"{rewrite_selected_count} Artikel werden umgeschrieben..."):
+                    rewrite_articles()
+                    show_notification(f"{rewrite_selected_count} Artikel erfolgreich umgeschrieben!")
+                    st.session_state.selected_articles.clear()
+                    time.sleep(1)
+                    st.rerun()
+        
+        with col4:
+            # Bulk WordPress Upload
+            wp_ready_selected = len([a for a in all_articles if a["id"] in st.session_state.selected_articles and a.get("status") == "Process"])
+            if wp_ready_selected > 0:
+                if st.button(f"📤 WordPress Upload ({wp_ready_selected})", use_container_width=True, key="bulk_wp_upload"):
+                    with st.spinner(f"{wp_ready_selected} Artikel werden zu WordPress hochgeladen..."):
+                        # Nur die ausgewählten "Process" Artikel hochladen
+                        selected_process_articles = [a for a in all_articles if a["id"] in st.session_state.selected_articles and a.get("status") == "Process"]
+                        
+                        if selected_process_articles:
+                            from utils.wordpress_uploader import upload_articles_to_wordpress
+                            upload_results = upload_articles_to_wordpress(selected_process_articles)
+                            
+                            if upload_results.get('error'):
+                                show_notification(f"Fehler beim WordPress-Upload: {upload_results['error']}", "error")
+                            else:
+                                successful = upload_results.get('successful', 0)
+                                failed = upload_results.get('failed', 0)
+                                duplicates = upload_results.get('duplicates', 0)
+                                
+                                # Status der erfolgreich hochgeladenen Artikel ändern
+                                if successful > 0:
+                                    for detail in upload_results.get('details', []):
+                                        if detail.get('success'):
+                                            article_id = detail.get('article_id')
+                                            for article in all_articles:
+                                                if article.get('id') == article_id:
+                                                    article['status'] = "WordPress Pending"
+                                                    article['wp_upload_date'] = datetime.now().isoformat()
+                                                    article['wp_post_id'] = detail.get('wp_post_id')
+                                                    break
+                                    save_articles(all_articles)
+                                
+                                if successful > 0:
+                                    show_notification(f"✅ {successful} Artikel erfolgreich zu WordPress hochgeladen!")
+                                if failed > 0:
+                                    show_notification(f"⚠️ {failed} Artikel konnten nicht hochgeladen werden.", "warning")
+                                if duplicates > 0:
+                                    show_notification(f"ℹ️ {duplicates} Duplikate übersprungen.", "info")
+                        
+                        st.session_state.selected_articles.clear()
+                        time.sleep(2)
+                        st.rerun()
+            else:
+                st.markdown("*Keine Process-Artikel ausgewählt*")
+        
+        with col5:
+            # Bulk Delete/Trash
+            if st.button("🗑️ In Papierkorb", use_container_width=True, key="bulk_trash"):
+                trash_count = 0
+                for article in all_articles:
+                    if article["id"] in st.session_state.selected_articles:
+                        article["status"] = "Trash"
+                        trash_count += 1
+                
+                if trash_count > 0:
+                    save_articles(all_articles)
+                    show_notification(f"{trash_count} Artikel in Papierkorb verschoben!")
+                    st.session_state.selected_articles.clear()
+                    st.rerun()
     
     # Artikel Cards
     for article in filtered_articles:
@@ -336,10 +476,18 @@ with tab2:
         # Article Card
         st.markdown('<div class="article-card">', unsafe_allow_html=True)
         
-        # Header
-        col1, col2 = st.columns([3, 1])
+        # Header with Checkbox
+        col_check, col_content, col_status = st.columns([0.3, 2.7, 1])
         
-        with col1:
+        with col_check:
+            # Checkbox für Artikel-Auswahl
+            is_selected = article["id"] in st.session_state.selected_articles
+            if st.checkbox("", value=is_selected, key=f"check_{article['id']}"):
+                st.session_state.selected_articles.add(article['id'])
+            else:
+                st.session_state.selected_articles.discard(article['id'])
+        
+        with col_content:
             title = article.get("title", "Kein Titel")
             if has_incomplete_images:
                 title += " ⚠️"
@@ -350,7 +498,7 @@ with tab2:
             if article.get("wp_post_id"):
                 st.markdown(f'<div class="article-meta">🔗 WordPress ID: {article.get("wp_post_id")} | Upload: {format_date(article.get("wp_upload_date", ""))}</div>', unsafe_allow_html=True)
             
-        with col2:
+        with col_status:
             st.markdown(get_status_badge(article.get("status", "New")), unsafe_allow_html=True)
         
         # Content Preview

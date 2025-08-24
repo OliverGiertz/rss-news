@@ -10,5 +10,33 @@
   {
     "url": "https://www.promobil.de/rss/ratgeber",
     "name": "Promobil Ratgeber"
+  },
+  {
+    "url": "https://www.presseportal.de/rss/rss2_vts.htx?q=camping&langid=1 ",
+    "name": "Presseportal Camping"
+  },
+  {
+    "url": "https://www.presseportal.de/rss/rss2_vts.htx?q=wohnmobil&langid=1 ",
+    "name": "Presseportal Wohnmobil"
+  },
+  {
+    "url": "https://caravan-news.de/rss/schlagzeilen.php",
+    "name": "Caravan News"
+  },
+  {
+    "url": "https://www.google.de/alerts/feeds/03077836356662926441/16793724126187652294",
+    "name": "Google Campingplatz"
+  },
+  {
+    "url": "https://www.google.de/alerts/feeds/03077836356662926441/987500860911797305",
+    "name": "Google VanLife"
+  },
+  {
+    "url": "https://www.google.de/alerts/feeds/03077836356662926441/4770194054838089856",
+    "name": "Google Camping Termine"
+  },
+  {
+    "url": "https://www.google.com/alerts/feeds/03077836356662926441/14685692393152596493",
+    "name": "Google Camping Messe 2025"
   }
 ]
