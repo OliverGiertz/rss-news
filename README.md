@@ -74,3 +74,16 @@ bash update.sh
 
 streamlit run app.py
 
+---
+
+## 🔐 Konfiguration (.env)
+
+Lege eine `.env` im Projekt an (siehe `.env.example`). Erforderliche Variablen:
+
+- `WP_BASE_URL`: Basis-URL deiner WordPress-Seite (z. B. https://example.com)
+- Authentifizierung (eine Option wählen):
+  - `WP_AUTH_BASE64`: Bevorzugt. Base64 von `username:application_password`
+  - oder `WP_USERNAME` und `WP_PASSWORD`: Benutzer + Anwendungspasswort
+- Optional: `OPENAI_API_KEY` für das Umschreiben von Artikeln
+
+Hinweis: Der Code liest ausschließlich aus `.env`. Es gibt keine hartkodierten Standard-Credentials.

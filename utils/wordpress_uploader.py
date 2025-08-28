@@ -11,17 +11,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# WordPress API Konfiguration
-WP_BASE_URL = os.getenv("WP_BASE_URL", "https://vanityontour.de")
-WP_USERNAME = os.getenv("WP_USERNAME", "ogiertz")
-WP_PASSWORD = os.getenv("WP_PASSWORD", "whNEx9aZCIUXViV89Z3e7Z03")
-WP_AUTH_BASE64 = os.getenv("WP_AUTH_BASE64", "b2dpZXJ0ejp3aE5FeDlhWkNJVVhWaVY4OVozZTdaMDM=")
-WP_API_ENDPOINT = f"{WP_BASE_URL}/wp-json/wp/v2"
+# WordPress API Konfiguration – ausschließlich aus .env
+WP_BASE_URL = os.getenv("WP_BASE_URL")
+WP_USERNAME = os.getenv("WP_USERNAME")
+WP_PASSWORD = os.getenv("WP_PASSWORD")
+WP_AUTH_BASE64 = os.getenv("WP_AUTH_BASE64")
 
 # Request-Konfiguration
 REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
-USER_AGENT = 'RSS-Feed-Manager/1.6.1'
+USER_AGENT = 'RSS-Feed-Manager/1.7.x'
 
 class WordPressUploader:
     """
@@ -30,41 +29,43 @@ class WordPressUploader:
     """
     
     def __init__(self):
-        self.base_url = WP_BASE_URL
-        self.api_endpoint = WP_API_ENDPOINT
+        # Basis-URL validieren und Endpunkt bauen
+        if not WP_BASE_URL:
+            raise ValueError("WP_BASE_URL nicht gesetzt. Bitte .env konfigurieren.")
+        self.base_url = WP_BASE_URL.rstrip('/')
+        self.api_endpoint = f"{self.base_url}/wp-json/wp/v2"
+        
+        # Zugangsdaten (aus .env)
         self.username = WP_USERNAME
         self.password = WP_PASSWORD
         self.auth_base64 = WP_AUTH_BASE64
-        
+
+        if not self.auth_base64 and not (self.username and self.password):
+            raise ValueError("WordPress-Authentifizierung nicht konfiguriert. WP_AUTH_BASE64 oder WP_USERNAME + WP_PASSWORD setzen.")
+
         # Session für bessere Performance
         self.session = requests.Session()
-        
+
         # Authentifizierung über Authorization Header mit Base64
         if self.auth_base64:
-            # Verwende bereitgestellten Base64-String
             self.session.headers.update({
                 'Authorization': f'Basic {self.auth_base64}',
                 'User-Agent': USER_AGENT,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             })
-            logging.info("✅ WordPress-Authentifizierung: Verwende bereitgestellten Base64-String")
+            logging.info("✅ WordPress-Authentifizierung: Base64-String verwendet")
         else:
-            # Fallback: Generiere Base64 aus Username/Password
-            if self.username and self.password:
-                credentials = f"{self.username}:{self.password}"
-                encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
-                self.session.headers.update({
-                    'Authorization': f'Basic {encoded_credentials}',
-                    'User-Agent': USER_AGENT,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                })
-                logging.info("✅ WordPress-Authentifizierung: Base64 aus Username/Password generiert")
-            else:
-                logging.error("❌ WordPress-Authentifizierung: Weder Base64-String noch Username/Password verfügbar")
-                raise ValueError("WordPress-Authentifizierung nicht konfiguriert")
-        
+            credentials = f"{self.username}:{self.password}"
+            encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
+            self.session.headers.update({
+                'Authorization': f'Basic {encoded_credentials}',
+                'User-Agent': USER_AGENT,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            })
+            logging.info("✅ WordPress-Authentifizierung: Base64 aus Username/Password generiert")
+
         # Standard-Kategorie ID ermitteln
         self.default_category_id = self._get_default_category_id()
         
@@ -335,11 +336,7 @@ class WordPressUploader:
         Testet die Verbindung zur WordPress API mit Base64-Authentifizierung
         """
         try:
-            logging.info("🔧 Teste WordPress-API-Verbindung mit Base64-Auth...")
-            
-            # Debug: Auth-Header prüfen
-            auth_header = self.session.headers.get('Authorization', 'Nicht gesetzt')
-            logging.info(f"🔑 Authorization Header: {auth_header[:20]}..." if len(auth_header) > 20 else f"🔑 Authorization Header: {auth_header}")
+            logging.info("🔧 Teste WordPress-API-Verbindung...")
             
             # Einfache Abfrage der Kategorien als Test
             response = self.session.get(
@@ -349,7 +346,6 @@ class WordPressUploader:
             )
             
             logging.info(f"📡 API-Response Status: {response.status_code}")
-            logging.info(f"📡 API-Response Headers: {dict(response.headers)}")
             
             if response.status_code == 200:
                 logging.info("✅ WordPress-API-Verbindung erfolgreich")

@@ -14,6 +14,7 @@ from main import (
 from utils.dalle_generator import generate_dalle_image
 from utils.wordpress_uploader import WordPressUploader
 from utils.css_loader import load_css, apply_dark_theme
+from utils.config import validate_env
 import os
 from collections import Counter
 import time
@@ -28,6 +29,19 @@ st.set_page_config(
 # === CSS & Theme laden ===
 load_css()
 apply_dark_theme()
+
+# === Environment-Validierung (.env) ===
+env_check = validate_env()
+if not env_check.get("ok"):
+    st.error("🔒 Sicherheits-/Konfigurationshinweis: Bitte .env korrekt konfigurieren.")
+    for msg in env_check.get("errors", []):
+        st.markdown(f"- ❌ {msg}")
+    for msg in env_check.get("warnings", []):
+        st.markdown(f"- ⚠️ {msg}")
+elif env_check.get("warnings"):
+    st.info("ℹ️ Hinweise zur Konfiguration:")
+    for msg in env_check.get("warnings", []):
+        st.markdown(f"- ⚠️ {msg}")
 
 # === Initialize Session State ===
 if 'selected_articles' not in st.session_state:
@@ -928,20 +942,7 @@ with tab6:
         </div>
         """, unsafe_allow_html=True)
     
-    # WordPress Auth Debug (nur für Entwicklung)
-    if st.checkbox("🔧 Debug-Modus (Auth-Details anzeigen)", value=False):
-        st.warning("⚠️ Nur für Entwicklung - zeigt Auth-Details!")
-        
-        wp_base64 = os.getenv("WP_AUTH_BASE64", "")
-        if wp_base64:
-            try:
-                import base64
-                decoded = base64.b64decode(wp_base64).decode('utf-8')
-                st.code(f"Base64: {wp_base64}\nDecoded: {decoded}")
-            except Exception as e:
-                st.error(f"Fehler beim Dekodieren: {e}")
-        else:
-            st.info("Kein Base64-String konfiguriert")
+    # Sicherheit: Kein Anzeigen sensibler Auth-Details mehr
     
     # Bulk Upload
     st.subheader("📦 Massenupload")
@@ -1062,15 +1063,16 @@ with tab6:
     with st.expander("📋 .env-Datei Vorlage", expanded=False):
         st.code("""
 # WordPress-Konfiguration
-WP_BASE_URL=https://vanityontour.de
-WP_USERNAME=ogiertz
-WP_PASSWORD=whNEx9aZCIUXViV89Z3e7Z03
+WP_BASE_URL=https://your-site.tld
 
-# WordPress Base64-Authentifizierung (bevorzugte Methode)
-WP_AUTH_BASE64=b2dpZXJ0ejp3aE5FeDlhWkNJVVhWaVY4OVozZTdaMDM=
+# Entweder Base64 (empfohlen) ODER Benutzername/Passwort (Application Password)
+WP_AUTH_BASE64=
+# Oder alternativ:
+WP_USERNAME=
+WP_PASSWORD=
 
-# OpenAI-Konfiguration (für Artikel-Umschreibung)
-OPENAI_API_KEY=sk-...
+# OpenAI-Konfiguration (optional für Umschreibung)
+OPENAI_API_KEY=
         """, language="bash")
     
     with st.expander("🔑 Base64-Authentifizierung verstehen", expanded=False):
@@ -1078,21 +1080,10 @@ OPENAI_API_KEY=sk-...
         <div class="article-card">
             <h3 class="article-title">WordPress REST API Authentifizierung:</h3>
             <div class="article-summary">
-                Die WordPress REST API erfordert eine Base64-kodierte Authentifizierung im Format:<br>
-                <code>Authorization: Basic &lt;base64_encoded_credentials&gt;</code>
-                <br><br>
-                <strong>Ihr bereitgestellter Base64-String:</strong><br>
-                • <code>b2dpZXJ0ejp3aE5FeDlhWkNJVVhWaVY4OVozZTdaMDM=</code><br>
-                • Dekodiert: <code>ogiertz:whNEx9aZCIUXViV89Z3e7Z03</code>
-                <br><br>
-                <strong>So funktioniert es:</strong><br>
-                1. Benutzername und Anwendungspasswort werden kombiniert: <code>username:password</code><br>
-                2. Dieser String wird Base64-kodiert<br>
-                3. Im Authorization-Header verwendet: <code>Basic &lt;base64_string&gt;</code>
-                <br><br>
-                <strong>Fallback-Verhalten:</strong><br>
-                • Wenn <code>WP_AUTH_BASE64</code> gesetzt ist → Direkter Base64-String verwendet<br>
-                • Wenn nicht gesetzt → Base64 wird aus <code>WP_USERNAME:WP_PASSWORD</code> generiert
+                Die WordPress REST API nutzt <code>Basic</code>-Auth mit Base64-kodierten Zugangsdaten:<br>
+                <code>Authorization: Basic &lt;base64(username:password)&gt;</code><br><br>
+                Empfehlung: In der .env <code>WP_AUTH_BASE64</code> setzen (aus <code>username:application_password</code> erzeugt).<br>
+                Alternativ können <code>WP_USERNAME</code> und <code>WP_PASSWORD</code> gesetzt werden; dann wird Base64 zur Laufzeit generiert.
             </div>
         </div>
         """, unsafe_allow_html=True)
