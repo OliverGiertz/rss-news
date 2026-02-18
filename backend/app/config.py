@@ -1,5 +1,7 @@
 from functools import lru_cache
+from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,4 +33,13 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    # Prefer shared legacy env from the original rss-news workspace if present.
+    env_candidates = (
+        Path("/Users/oliver/Documents/rss-news/.env"),
+        Path("backend/.env"),
+        Path(".env"),
+    )
+    for env_path in env_candidates:
+        if env_path.exists():
+            load_dotenv(env_path, override=False)
     return Settings()
