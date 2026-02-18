@@ -1,10 +1,42 @@
-## [1.7.1] - 2025-08-28
+## [1.7.1] - 2025-08-24
 
-- Beschreibung...
+###  ✨ Security angepasst
+  - alle Credentials in die .env Datei verschoben
+  - beim Start der App werden die Credentials geprüft und beim fehlen entsprechende Meldungen ausgegeben
+
+---
 
 ## [1.7.0] - 2025-08-24
 
-- Beschreibung...
+###  Multi-Select & Massenoperationen:
+  - ✅ Checkboxes für Artikel-Auswahl im "Artikel verwalten" Bereich
+  - ✅ "Alle auswählen" / "Auswahl aufheben" Buttons
+  - ✅ Massenoperationen für ausgewählte Artikel:
+    - Bulk Status-Änderung für mehrere Artikel gleichzeitig
+    - Bulk Artikel-Umschreibung mit automatischer Status-Verwaltung
+    - Bulk WordPress-Upload nur für "Process"-Artikel
+    - Bulk Papierkorb-Funktion
+
+###  Schnellaktionen Integration:
+  - ✅ Feed-Aktualisierung direkt im Artikel-Tab verfügbar
+  - ✅ Alle Dashboard-Schnellaktionen in Artikel-Verwaltung integriert
+  - ✅ Intelligente Anzeige nur relevanter Operationen (z.B. WordPress-Upload nur bei Process-Artikeln)
+
+###  🔧 Verbesserungen
+
+  - UI/UX: Verbesserte Artikel-Card-Layouts mit Checkbox-Integration
+  - Workflow: Streamlined Artikel-Management ohne Tab-Wechsel nötig
+  - Feedback: Detaillierte Statusmeldungen bei Massenoperationen
+  - Performance: Optimierte Session-State-Verwaltung für Artikel-Auswahl
+
+###  🏗️ Technische Änderungen
+
+  - Session State Erweiterung um selected_articles Set
+  - Neue Bulk-Operation-Funktionen in app.py:326-467
+  - Überarbeitetes Artikel-Card-Layout mit 3-Spalten-Design
+  - Integration bestehender WordPress-Upload und Rewrite-Funktionen
+
+---
 
 ## [1.6.3] - 2025-08-18
 

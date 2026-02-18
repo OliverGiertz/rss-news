@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/admin/static/admin.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>rss-news Admin Dashboard</h1>
+      <p>Angemeldet als <strong>{{ user }}</strong></p>
+    </div>
+    <form method="post" action="/admin/logout">
+      <button type="submit" class="secondary">Logout</button>
+    </form>
+  </header>
+
+  <main class="container">
+    {% if flash_msg %}
+    <section class="card flash {{ 'flash-error' if flash_type == 'error' else 'flash-success' }}">
+      {{ flash_msg }}
+    </section>
+    {% endif %}
+
+    <section class="stats">
+      <article class="stat">
+        <div class="label">Quellen</div>
+        <div class="value">{{ sources|length }}</div>
+      </article>
+      <article class="stat">
+        <div class="label">Feeds</div>
+        <div class="value">{{ feeds|length }}</div>
+      </article>
+      <article class="stat">
+        <div class="label">Artikel</div>
+        <div class="value">{{ articles|length }}</div>
+      </article>
+      <article class="stat">
+        <div class="label">Runs</div>
+        <div class="value">{{ runs|length }}</div>
+      </article>
+    </section>
+
+    <section class="grid two">
+      <article class="card">
+        <h2>Quelle anlegen</h2>
+        <form method="post" action="/admin/sources/create" class="stack">
+          <input name="name" placeholder="Name" required />
+          <input name="base_url" placeholder="Base URL" />
+          <input name="terms_url" placeholder="Terms URL" />
+          <input name="license_name" placeholder="Lizenzname" />
+          <select name="risk_level">
+            <option value="green">green</option>
+            <option value="yellow" selected>yellow</option>
+            <option value="red">red</option>
+          </select>
+          <input name="last_reviewed_at" placeholder="last_reviewed_at (ISO)" />
+          <button type="submit">Quelle speichern</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h2>Feed anlegen</h2>
+        <form method="post" action="/admin/feeds/create" class="stack">
+          <input name="name" placeholder="Feed Name" required />
+          <input name="url" placeholder="https://..." required />
+          <label>Quelle</label>
+          <select name="source_id">
+            <option value="">-- keine --</option>
+            {% for s in sources %}
+            <option value="{{ s.id }}">{{ s.name }} (#{{ s.id }})</option>
+            {% endfor %}
+          </select>
+          <button type="submit">Feed speichern</button>
+        </form>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>Ingestion starten</h2>
+      <form method="post" action="/admin/ingestion/run" class="row">
+        <select name="feed_id">
+          <option value="">Alle aktivierten Feeds</option>
+          {% for f in feeds %}
+          <option value="{{ f.id }}">{{ f.name }} (#{{ f.id }})</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Ingestion starten</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Quellen + Policy</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Risk</th><th>Lizenz</th><th>Terms</th><th>Policy</th></tr>
+        </thead>
+        <tbody>
+          {% for s in sources %}
+          <tr>
+            <td>{{ s.id }}</td>
+            <td>{{ s.name }}</td>
+            <td>{{ s.risk_level }}</td>
+            <td>{{ s.license_name or "-" }}</td>
+            <td>{{ s.terms_url or "-" }}</td>
+            <td>
+              {% if source_policy[s.id] %}
+                <span class="badge bad">BLOCKED ({{ source_policy[s.id]|length }})</span>
+                <div class="subtle">{{ source_policy[s.id]|join(", ") }}</div>
+              {% else %}
+                <span class="badge ok">OK</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Artikel (Review)</h2>
+      <form method="get" action="/admin/dashboard" class="row filter-row">
+        <label>Status-Filter</label>
+        <select name="status_filter">
+          <option value="" {% if not status_filter %}selected{% endif %}>alle</option>
+          {% for s in status_options %}
+          <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="secondary">Filtern</button>
+        <a href="/admin/dashboard" class="linkbtn">Reset</a>
+      </form>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Artikel</th><th>Status</th><th>Details</th><th>Review</th><th>Transition</th></tr>
+        </thead>
+        <tbody>
+          {% for a in articles %}
+          <tr>
+            <td>{{ a.id }}</td>
+            <td>
+              <strong>{{ a.title }}</strong><br />
+              <span class="subtle">Autor: {{ a.author or "-" }}</span><br />
+              <a href="{{ a.source_url }}" target="_blank" rel="noopener">Original öffnen</a>
+              {% if a.canonical_url and a.canonical_url != a.source_url %}
+              <br /><a href="{{ a.canonical_url }}" target="_blank" rel="noopener">Canonical öffnen</a>
+              {% endif %}
+            </td>
+            <td><span class="badge">{{ a.status }}</span></td>
+            <td>
+              {% if a.summary %}
+              <div><strong>Summary:</strong> {{ a.summary }}</div>
+              {% endif %}
+              {% if a.content_raw %}
+              <details>
+                <summary>Volltext anzeigen</summary>
+                <div class="pre">{{ a.content_raw }}</div>
+              </details>
+              {% endif %}
+              <div class="subtle">Bilder: {{ a.extracted_images|length }}</div>
+              {% if a.extracted_images %}
+              <details>
+                <summary>Bild-URLs</summary>
+                <ul>
+                  {% for img in a.extracted_images %}
+                  <li><a href="{{ img }}" target="_blank" rel="noopener">{{ img }}</a></li>
+                  {% endfor %}
+                </ul>
+              </details>
+              {% endif %}
+              {% if a.press_contact %}
+              <details>
+                <summary>Pressekontakt</summary>
+                <div class="pre">{{ a.press_contact }}</div>
+              </details>
+              {% endif %}
+              {% if a.extraction_error %}
+              <div class="subtle">Extraktionsfehler: {{ a.extraction_error }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {% if a.status == "review" %}
+              <form method="post" action="/admin/articles/{{ a.id }}/review" class="inline">
+                <input name="note" placeholder="Notiz" />
+                <button name="decision" value="approve" type="submit">Approve</button>
+                <button name="decision" value="reject" type="submit" class="secondary">Reject</button>
+              </form>
+              {% else %}
+              -
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="/admin/articles/{{ a.id }}/transition" class="inline">
+                <select name="target_status">
+                  {% for s in allowed_transitions.get(a.status, []) %}
+                  <option value="{{ s }}">{{ s }}</option>
+                  {% endfor %}
+                </select>
+                {% if allowed_transitions.get(a.status, []) %}
+                <button type="submit" class="secondary">Setzen</button>
+                {% else %}
+                <span class="subtle">keine Aktion</span>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Runs</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Typ</th><th>Status</th><th>Start</th><th>Ende</th></tr>
+        </thead>
+        <tbody>
+          {% for r in runs %}
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.run_type }}</td>
+            <td>{{ r.status }}</td>
+            <td>{{ r.started_at }}</td>
+            <td>{{ r.finished_at or "-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

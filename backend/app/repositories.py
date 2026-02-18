@@ -1,0 +1,416 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+import json
+from datetime import datetime, timezone
+from typing import Any
+
+from .db import get_conn, rows_to_dicts
+
+
+@dataclass(frozen=True)
+class SourceCreate:
+    name: str
+    base_url: str | None
+    terms_url: str | None
+    license_name: str | None
+    risk_level: str
+    is_enabled: bool
+    notes: str | None
+    last_reviewed_at: str | None
+
+
+@dataclass(frozen=True)
+class FeedCreate:
+    name: str
+    url: str
+    source_id: int | None
+    is_enabled: bool
+
+
+@dataclass(frozen=True)
+class RunCreate:
+    run_type: str
+    status: str
+    details: str | None = None
+
+
+@dataclass(frozen=True)
+class ArticleUpsert:
+    feed_id: int | None
+    source_article_id: str | None
+    source_hash: str | None
+    title: str
+    source_url: str
+    canonical_url: str | None
+    published_at: str | None
+    author: str | None
+    summary: str | None
+    content_raw: str | None
+    content_rewritten: str | None
+    word_count: int
+    status: str
+    meta_json: str | None
+
+
+def create_source(payload: SourceCreate) -> int:
+    with get_conn() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO sources (name, base_url, terms_url, license_name, risk_level, is_enabled, notes, last_reviewed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                payload.name.strip(),
+                payload.base_url,
+                payload.terms_url,
+                payload.license_name,
+                payload.risk_level,
+                1 if payload.is_enabled else 0,
+                payload.notes,
+                payload.last_reviewed_at,
+            ),
+        )
+        return int(cur.lastrowid)
+
+
+def list_sources() -> list[dict[str, Any]]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, name, base_url, terms_url, license_name, risk_level, is_enabled, notes, last_reviewed_at, created_at, updated_at
+            FROM sources
+            ORDER BY id DESC
+            """
+        ).fetchall()
+    return rows_to_dicts(rows)
+
+
+def get_source_by_id(source_id: int) -> dict[str, Any] | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT id, name, base_url, terms_url, license_name, risk_level, is_enabled, notes, last_reviewed_at, created_at, updated_at
+            FROM sources
+            WHERE id = ?
+            """,
+            (source_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def create_feed(payload: FeedCreate) -> int:
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO feeds (name, url, source_id, is_enabled) VALUES (?, ?, ?, ?)",
+            (payload.name.strip(), payload.url.strip(), payload.source_id, 1 if payload.is_enabled else 0),
+        )
+        return int(cur.lastrowid)
+
+
+def list_feeds() -> list[dict[str, Any]]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT f.id, f.name, f.url, f.source_id, f.is_enabled, f.etag, f.last_modified, f.last_checked_at,
+                   f.created_at, f.updated_at, s.name AS source_name, s.license_name AS source_license_name,
+                   s.terms_url AS source_terms_url, s.risk_level AS source_risk_level, s.base_url AS source_base_url,
+                   s.last_reviewed_at AS source_last_reviewed_at, s.is_enabled AS source_is_enabled
+            FROM feeds f
+            LEFT JOIN sources s ON s.id = f.source_id
+            ORDER BY f.id DESC
+            """
+        ).fetchall()
+    return rows_to_dicts(rows)
+
+
+def list_enabled_feeds() -> list[dict[str, Any]]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT f.id, f.name, f.url, f.source_id, f.is_enabled, f.etag, f.last_modified, f.last_checked_at,
+                   s.name AS source_name, s.license_name AS source_license_name, s.terms_url AS source_terms_url,
+                   s.risk_level AS source_risk_level, s.base_url AS source_base_url,
+                   s.last_reviewed_at AS source_last_reviewed_at, s.is_enabled AS source_is_enabled
+            FROM feeds f
+            LEFT JOIN sources s ON s.id = f.source_id
+            WHERE f.is_enabled = 1
+            ORDER BY f.id ASC
+            """
+        ).fetchall()
+    return rows_to_dicts(rows)
+
+
+def get_feed_by_id(feed_id: int) -> dict[str, Any] | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT f.id, f.name, f.url, f.source_id, f.is_enabled, f.etag, f.last_modified, f.last_checked_at,
+                   s.name AS source_name, s.license_name AS source_license_name, s.terms_url AS source_terms_url,
+                   s.risk_level AS source_risk_level, s.base_url AS source_base_url,
+                   s.last_reviewed_at AS source_last_reviewed_at, s.is_enabled AS source_is_enabled
+            FROM feeds f
+            LEFT JOIN sources s ON s.id = f.source_id
+            WHERE f.id = ?
+            """,
+            (feed_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def update_feed_fetch_state(feed_id: int, etag: str | None, last_modified: str | None) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE feeds
+            SET etag = ?, last_modified = ?, last_checked_at = datetime('now')
+            WHERE id = ?
+            """,
+            (etag, last_modified, feed_id),
+        )
+
+
+def create_run(payload: RunCreate) -> int:
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO runs (run_type, status, details) VALUES (?, ?, ?)",
+            (payload.run_type, payload.status, payload.details),
+        )
+        return int(cur.lastrowid)
+
+
+def finish_run(run_id: int, status: str, details: str | None = None) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE runs
+            SET status = ?, details = ?, finished_at = datetime('now')
+            WHERE id = ?
+            """,
+            (status, details, run_id),
+        )
+
+
+def list_runs(limit: int = 50) -> list[dict[str, Any]]:
+    safe_limit = max(1, min(limit, 500))
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, run_type, status, started_at, finished_at, details
+            FROM runs
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+    return rows_to_dicts(rows)
+
+
+def get_run_by_id(run_id: int) -> dict[str, Any] | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT id, run_type, status, started_at, finished_at, details
+            FROM runs
+            WHERE id = ?
+            """,
+            (run_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def get_article_by_id(article_id: int) -> dict[str, Any] | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT a.id, a.feed_id, a.source_article_id, a.source_hash, a.title, a.source_url, a.canonical_url, a.published_at, a.author,
+                   a.summary, a.content_raw, a.content_rewritten, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at
+            FROM articles a
+            WHERE a.id = ?
+            """,
+            (article_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def _merge_review_event(meta_json: str | None, event: dict[str, Any]) -> str:
+    meta: dict[str, Any] = {}
+    if meta_json:
+        try:
+            meta = json.loads(meta_json)
+            if not isinstance(meta, dict):
+                meta = {}
+        except Exception:
+            meta = {}
+
+    events = meta.get("review_events")
+    if not isinstance(events, list):
+        events = []
+    events.append(event)
+    meta["review_events"] = events
+    return json.dumps(meta, ensure_ascii=False)
+
+
+def update_article_status(
+    article_id: int,
+    new_status: str,
+    *,
+    actor: str | None = None,
+    note: str | None = None,
+    decision: str | None = None,
+) -> bool:
+    article = get_article_by_id(article_id)
+    if not article:
+        return False
+
+    event = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "from_status": article.get("status"),
+        "to_status": new_status,
+        "actor": actor or "system",
+        "note": note,
+        "decision": decision,
+    }
+    merged_meta = _merge_review_event(article.get("meta_json"), event)
+
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE articles SET status = ?, meta_json = ? WHERE id = ?",
+            (new_status, merged_meta, article_id),
+        )
+    return True
+
+
+def _resolve_existing_article_id(payload: ArticleUpsert) -> int | None:
+    with get_conn() as conn:
+        # 1) strongest key: source_url
+        row = conn.execute(
+            "SELECT id FROM articles WHERE source_url = ?",
+            (payload.source_url.strip(),),
+        ).fetchone()
+        if row:
+            return int(row["id"])
+
+        # 2) stable feed+guid combo
+        if payload.feed_id is not None and payload.source_article_id:
+            row = conn.execute(
+                "SELECT id FROM articles WHERE feed_id = ? AND source_article_id = ?",
+                (payload.feed_id, payload.source_article_id),
+            ).fetchone()
+            if row:
+                return int(row["id"])
+
+        # 3) content hash fallback
+        if payload.source_hash:
+            row = conn.execute(
+                "SELECT id FROM articles WHERE source_hash = ?",
+                (payload.source_hash,),
+            ).fetchone()
+            if row:
+                return int(row["id"])
+
+    return None
+
+
+def upsert_article(payload: ArticleUpsert) -> int:
+    existing_id = _resolve_existing_article_id(payload)
+    with get_conn() as conn:
+        if existing_id is None:
+            conn.execute(
+                """
+                INSERT INTO articles (
+                    feed_id, source_article_id, source_hash, title, source_url, canonical_url, published_at, author,
+                    summary, content_raw, content_rewritten, word_count, status, meta_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload.feed_id,
+                    payload.source_article_id,
+                    payload.source_hash,
+                    payload.title.strip(),
+                    payload.source_url.strip(),
+                    payload.canonical_url,
+                    payload.published_at,
+                    payload.author,
+                    payload.summary,
+                    payload.content_raw,
+                    payload.content_rewritten,
+                    payload.word_count,
+                    payload.status,
+                    payload.meta_json,
+                ),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE articles
+                SET
+                    feed_id = ?,
+                    source_article_id = ?,
+                    source_hash = ?,
+                    title = ?,
+                    source_url = ?,
+                    canonical_url = ?,
+                    published_at = ?,
+                    author = ?,
+                    summary = ?,
+                    content_raw = ?,
+                    content_rewritten = ?,
+                    word_count = ?,
+                    status = ?,
+                    meta_json = ?
+                WHERE id = ?
+                """,
+                (
+                    payload.feed_id,
+                    payload.source_article_id,
+                    payload.source_hash,
+                    payload.title.strip(),
+                    payload.source_url.strip(),
+                    payload.canonical_url,
+                    payload.published_at,
+                    payload.author,
+                    payload.summary,
+                    payload.content_raw,
+                    payload.content_rewritten,
+                    payload.word_count,
+                    payload.status,
+                    payload.meta_json,
+                    existing_id,
+                ),
+            )
+        row = conn.execute("SELECT id FROM articles WHERE source_url = ?", (payload.source_url.strip(),)).fetchone()
+        if row:
+            return int(row["id"])
+    return int(existing_id) if existing_id else 0
+
+
+def list_articles(limit: int = 100, status_filter: str | None = None) -> list[dict[str, Any]]:
+    safe_limit = max(1, min(limit, 500))
+    with get_conn() as conn:
+        if status_filter:
+            rows = conn.execute(
+                """
+                SELECT a.id, a.feed_id, a.source_article_id, a.source_hash, a.title, a.source_url, a.canonical_url, a.published_at, a.author,
+                       a.summary, a.content_raw, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name
+                FROM articles a
+                LEFT JOIN feeds f ON f.id = a.feed_id
+                WHERE a.status = ?
+                ORDER BY a.id DESC
+                LIMIT ?
+                """,
+                (status_filter, safe_limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT a.id, a.feed_id, a.source_article_id, a.source_hash, a.title, a.source_url, a.canonical_url, a.published_at, a.author,
+                       a.summary, a.content_raw, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name
+                FROM articles a
+                LEFT JOIN feeds f ON f.id = a.feed_id
+                ORDER BY a.id DESC
+                LIMIT ?
+                """,
+                (safe_limit,),
+            ).fetchall()
+    return rows_to_dicts(rows)

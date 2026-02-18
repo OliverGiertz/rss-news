@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/admin/static/admin.css" />
+</head>
+<body>
+  <main class="container login">
+    <h1>rss-news Admin</h1>
+    <p>Bitte anmelden, um das Tool zu verwalten.</p>
+    {% if error %}
+    <div class="alert">Login fehlgeschlagen. Bitte pruefen.</div>
+    {% endif %}
+    <form method="post" action="/admin/login" class="card">
+      <label>Benutzername
+        <input type="text" name="username" required />
+      </label>
+      <label>Passwort
+        <input type="password" name="password" required />
+      </label>
+      <button type="submit">Anmelden</button>
+    </form>
+  </main>
+</body>
+</html>
