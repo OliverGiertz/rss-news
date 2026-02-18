@@ -156,6 +156,19 @@ def _build_image_entries(article: dict, extraction: dict, meta: dict) -> list[di
     return entries
 
 
+def _publish_readiness(article: dict, meta: dict) -> tuple[bool, list[str]]:
+    reasons: list[str] = []
+    if article.get("status") not in {"approved", "published"}:
+        reasons.append("Status ist nicht 'approved'")
+    if int(article.get("legal_checked", 0)) != 1:
+        reasons.append("Rechtsfreigabe fehlt")
+    image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
+    selected_image = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
+    if not selected_image:
+        reasons.append("Hauptbild nicht ausgewählt")
+    return len(reasons) == 0, reasons
+
+
 def _legal_checklist(article: dict, feed: dict | None) -> list[dict[str, str]]:
     meta = article.get("meta", {})
     extraction = meta.get("extraction") if isinstance(meta.get("extraction"), dict) else {}
@@ -287,6 +300,9 @@ def admin_dashboard(request: Request):
         extraction = meta.get("extraction") if isinstance(meta.get("extraction"), dict) else {}
         images = _read_article_images(article, extraction)
         article["meta"] = meta
+        ready, reasons = _publish_readiness(article, meta)
+        article["publish_ready"] = ready
+        article["publish_blockers"] = reasons
         article["extracted_images"] = images
         article["image_entries"] = _build_image_entries(article, extraction, meta)
         image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
@@ -339,6 +355,9 @@ def admin_article_detail(request: Request, article_id: int):
     if not article.get("press_contact") and isinstance(extraction.get("press_contact"), str):
         article["press_contact"] = extraction.get("press_contact")
     article["extraction"] = extraction
+    publish_ready, publish_blockers = _publish_readiness(article, meta)
+    article["publish_ready"] = publish_ready
+    article["publish_blockers"] = publish_blockers
     article["image_selection"] = extraction.get("image_selection") if isinstance(extraction.get("image_selection"), dict) else {}
     article["image_entries"] = _build_image_entries(article, extraction, meta)
     image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}

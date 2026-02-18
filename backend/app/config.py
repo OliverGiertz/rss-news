@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from dotenv import load_dotenv
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,9 +26,9 @@ class Settings(BaseSettings):
 
     app_db_path: str = "backend/data/rss_news.db"
 
-    wordpress_base_url: str | None = None
-    wordpress_username: str | None = None
-    wordpress_app_password: str | None = None
+    wordpress_base_url: str | None = Field(default=None, validation_alias=AliasChoices("WORDPRESS_BASE_URL", "WP_BASE_URL"))
+    wordpress_username: str | None = Field(default=None, validation_alias=AliasChoices("WORDPRESS_USERNAME", "WP_USERNAME"))
+    wordpress_app_password: str | None = Field(default=None, validation_alias=AliasChoices("WORDPRESS_APP_PASSWORD", "WP_PASSWORD"))
     wordpress_default_status: str = "draft"
 
 

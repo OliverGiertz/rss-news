@@ -203,10 +203,21 @@
 
     <section class="card">
       <h2>WordPress Publish Queue</h2>
-      <p class="subtle">Voraussetzungen: Status `approved`, Rechtsfreigabe aktiv, Hauptbild gesetzt.</p>
+      {% if article.publish_ready %}
+      <p><span class="badge ok">Publish bereit</span></p>
+      {% else %}
+      <p><span class="badge bad">Publish blockiert</span></p>
+      {% if article.publish_blockers %}
+      <ul>
+        {% for reason in article.publish_blockers %}
+        <li class="subtle">{{ reason }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% endif %}
       <form method="post" action="/admin/articles/{{ article.id }}/publish-enqueue" class="row">
         <input name="max_attempts" value="3" />
-        <button type="submit">In Queue einreihen</button>
+        <button type="submit" {% if not article.publish_ready %}disabled{% endif %}>In Queue einreihen</button>
       </form>
     </section>
   </main>
