@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -138,6 +139,37 @@ class TestAdminUi(unittest.TestCase):
         article = get_article_by_id(article_id)
         self.assertIsNotNone(article)
         self.assertIn("selected_url", article.get("meta_json", ""))
+
+    @patch("backend.app.admin_ui.urlopen")
+    def test_image_proxy_returns_image_data(self, mock_urlopen) -> None:
+        class _FakeHeaders:
+            def get(self, key: str, default=None):
+                if key.lower() == "content-type":
+                    return "image/jpeg"
+                return default
+
+        class _FakeResponse:
+            headers = _FakeHeaders()
+
+            def read(self):
+                return b"\xff\xd8\xff\xd9"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                return False
+
+        mock_urlopen.return_value = _FakeResponse()
+
+        self.client.post(
+            "/admin/login",
+            data={"username": "admin", "password": "secret"},
+            follow_redirects=True,
+        )
+        res = self.client.get("/admin/images/proxy?url=https%3A%2F%2Fexample.org%2Fimg.jpg")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("image/jpeg", res.headers.get("content-type", ""))
 
 
 if __name__ == "__main__":

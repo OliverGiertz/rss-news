@@ -157,7 +157,7 @@
               <div class="subtle">Legal: {{ "OK" if a.legal_checked else "offen" }}</div>
               {% if a.selected_image_url %}
               <div class="subtle">Hauptbild gesetzt</div>
-              <a href="{{ a.selected_image_url }}" target="_blank" rel="noopener"><img src="{{ a.selected_image_url }}" alt="Hauptbild" class="thumb" loading="lazy" /></a>
+              <a href="{{ a.selected_image_url }}" target="_blank" rel="noopener"><img src="{{ a.selected_image_proxy_url }}" alt="Hauptbild" class="thumb" loading="lazy" /></a>
               {% endif %}
               {% if a.summary %}
               <div><strong>Summary:</strong> {{ a.summary }}</div>

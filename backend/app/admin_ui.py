@@ -4,9 +4,10 @@ import json
 from pathlib import Path
 import re
 from urllib.parse import urlencode
+from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from .auth import create_session_token, verify_credentials, verify_session_token
@@ -41,6 +42,7 @@ ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
     "published": ("error",),
     "error": ("review", "rewrite"),
 }
+IMAGE_PROXY_USER_AGENT = "rss-news-admin/1.0"
 
 
 def _admin_user(request: Request) -> str | None:
@@ -134,6 +136,7 @@ def _build_image_entries(article: dict, extraction: dict, meta: dict) -> list[di
         entries.append(
             {
                 "url": url,
+                "proxy_url": f"/admin/images/proxy?{urlencode({'url': url})}",
                 "is_selected": selected_url == url,
                 "is_excluded": url in excluded_set,
                 "is_irrelevant_hint": _is_probably_irrelevant_image(url),
@@ -276,6 +279,9 @@ def admin_dashboard(request: Request):
         article["image_entries"] = _build_image_entries(article, extraction, meta)
         image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
         article["selected_image_url"] = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
+        article["selected_image_proxy_url"] = (
+            f"/admin/images/proxy?{urlencode({'url': article['selected_image_url']})}" if article.get("selected_image_url") else None
+        )
         if not article.get("press_contact") and isinstance(extraction.get("press_contact"), str):
             article["press_contact"] = extraction.get("press_contact")
         article["extraction_error"] = extraction.get("extraction_error") if isinstance(extraction.get("extraction_error"), str) else None
@@ -323,6 +329,9 @@ def admin_article_detail(request: Request, article_id: int):
     article["image_entries"] = _build_image_entries(article, extraction, meta)
     image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
     article["selected_image_url"] = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
+    article["selected_image_proxy_url"] = (
+        f"/admin/images/proxy?{urlencode({'url': article['selected_image_url']})}" if article.get("selected_image_url") else None
+    )
     article["days_old"] = article_age_days(article.get("published_at"))
     article["relevance"] = article_relevance(article.get("published_at"))
     feed = get_feed_by_id(int(article["feed_id"])) if article.get("feed_id") else None
@@ -358,6 +367,28 @@ def admin_article_image_decision(
     if not ok:
         return _dashboard_redirect(msg=f"Bildaktion fehlgeschlagen fuer Artikel #{article_id}", msg_type="error")
     return RedirectResponse(url=f"/admin/articles/{article_id}", status_code=303)
+
+
+@router.get("/admin/images/proxy")
+def admin_image_proxy(request: Request, url: str):
+    user = _admin_user(request)
+    if not user:
+        return Response(status_code=401)
+
+    if not (url.startswith("http://") or url.startswith("https://")):
+        return Response(status_code=400)
+
+    try:
+        req = UrlRequest(url=url, headers={"User-Agent": IMAGE_PROXY_USER_AGENT, "Referer": url})
+        with urlopen(req, timeout=10) as resp:
+            body = resp.read()
+            content_type = resp.headers.get("Content-Type", "application/octet-stream")
+    except Exception:
+        return Response(status_code=404)
+
+    if not content_type.lower().startswith("image/"):
+        return Response(status_code=415)
+    return Response(content=body, media_type=content_type)
 
 
 @router.post("/admin/articles/{article_id}/legal-review")

@@ -70,13 +70,16 @@
       <p><strong>Bilder:</strong> {{ article.image_entries|length if article.image_entries else 0 }}</p>
       {% if article.selected_image_url %}
       <p><strong>Ausgewähltes Hauptbild:</strong> <a href="{{ article.selected_image_url }}" target="_blank" rel="noopener">{{ article.selected_image_url }}</a></p>
+      {% if article.selected_image_proxy_url %}
+      <img src="{{ article.selected_image_proxy_url }}" alt="Ausgewähltes Hauptbild" class="thumb" loading="lazy" />
+      {% endif %}
       {% endif %}
       {% if article.image_entries %}
       <div class="image-grid">
         {% for image in article.image_entries %}
         <article class="image-card {{ 'image-selected' if image.is_selected else '' }} {{ 'image-excluded' if image.is_excluded else '' }}">
           <a href="{{ image.url }}" target="_blank" rel="noopener">
-            <img src="{{ image.url }}" alt="Artikelbild" loading="lazy" />
+            <img src="{{ image.proxy_url }}" alt="Artikelbild" loading="lazy" />
           </a>
           <div class="image-meta">
             {% if image.is_selected %}<span class="badge ok">Ausgewählt</span>{% endif %}
