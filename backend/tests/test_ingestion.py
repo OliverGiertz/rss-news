@@ -85,6 +85,7 @@ class TestIngestion(unittest.TestCase):
         self.assertEqual(article["author"], "Autorin A")
         self.assertIn("Original Volltext", article["content_raw"] or "")
         self.assertIn("Pressekontakt", article["meta_json"] or "")
+        self.assertIsNotNone(article["image_urls_json"])
 
     @patch("backend.app.ingestion.extract_article")
     @patch("backend.app.ingestion.feedparser.parse")

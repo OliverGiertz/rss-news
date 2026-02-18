@@ -23,19 +23,19 @@
   <main class="container">
     <section class="card">
       <h2>{{ article.title }}</h2>
-      <p><strong>Status:</strong> <span class="badge">{{ article.status }}</span></p>
-      <p><strong>Artikel-Datum:</strong> {{ article.published_at or "-" }}</p>
-      <p><strong>Alter:</strong> {{ article.days_old if article.days_old is not none else "-" }} Tage</p>
-      <p><strong>Relevanz:</strong> {{ article.relevance }}</p>
-      <p><strong>Autor:</strong> {{ article.author or "-" }}</p>
-      <p><strong>Feed:</strong> {{ feed.name if feed else "-" }}</p>
-      <p><strong>Quelle Snapshot:</strong> {{ article.source_name_snapshot or "-" }}</p>
-      <p><strong>Lizenz Snapshot:</strong> {{ article.source_license_name_snapshot or "-" }}</p>
-      <p><strong>Terms Snapshot:</strong> {{ article.source_terms_url_snapshot or "-" }}</p>
+      <div class="detail-grid">
+        <div class="detail-item"><span class="k">Status</span><span><span class="badge">{{ article.status }}</span></span></div>
+        <div class="detail-item"><span class="k">Artikel-Datum</span><span>{{ article.published_at or "-" }}</span></div>
+        <div class="detail-item"><span class="k">Alter</span><span>{{ article.days_old if article.days_old is not none else "-" }} Tage</span></div>
+        <div class="detail-item"><span class="k">Relevanz</span><span>{{ article.relevance }}</span></div>
+        <div class="detail-item"><span class="k">Autor</span><span>{{ article.author or "-" }}</span></div>
+        <div class="detail-item"><span class="k">Feed</span><span>{{ feed.name if feed else "-" }}</span></div>
+        <div class="detail-item"><span class="k">Quelle Snapshot</span><span>{{ article.source_name_snapshot or "-" }}</span></div>
+        <div class="detail-item"><span class="k">Lizenz Snapshot</span><span>{{ article.source_license_name_snapshot or "-" }}</span></div>
+        <div class="detail-item"><span class="k">Terms Snapshot</span><span>{{ article.source_terms_url_snapshot or "-" }}</span></div>
+      </div>
       <p><strong>Quelle:</strong> <a href="{{ article.source_url }}" target="_blank" rel="noopener">{{ article.source_url }}</a></p>
-      {% if article.canonical_url %}
-      <p><strong>Canonical:</strong> <a href="{{ article.canonical_url }}" target="_blank" rel="noopener">{{ article.canonical_url }}</a></p>
-      {% endif %}
+      {% if article.canonical_url %}<p><strong>Canonical:</strong> <a href="{{ article.canonical_url }}" target="_blank" rel="noopener">{{ article.canonical_url }}</a></p>{% endif %}
       {% if article.summary %}
       <p><strong>Summary:</strong> {{ article.summary }}</p>
       {% endif %}

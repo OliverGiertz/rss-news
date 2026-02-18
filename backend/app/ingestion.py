@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import re
 import time
 from typing import Any
+from urllib.parse import unquote, urlparse
 
 import feedparser
 
@@ -65,6 +67,72 @@ def _parsed_get(parsed: object, key: str, default: object = None) -> object:
     if isinstance(parsed, dict):
         return parsed.get(key, default)
     return getattr(parsed, key, default)
+
+
+def _normalize_tokens(text: str) -> set[str]:
+    normalized = re.sub(r"[^a-z0-9]+", " ", text.lower())
+    return {token for token in normalized.split() if len(token) >= 4}
+
+
+def _rank_image_candidates(source_url: str, title: str, images: list[str]) -> list[dict[str, Any]]:
+    source_host = (urlparse(source_url).hostname or "").lower()
+    is_presseportal = "presseportal.de" in source_host
+    title_tokens = _normalize_tokens(title)
+    blocked_patterns = ("logo", "badge", "app-store", "google-play", "na-logo", "sprite", "icon", "favicon", "tracking", "pixel")
+
+    ranked: list[dict[str, Any]] = []
+    for url in images:
+        parsed = urlparse(url)
+        path = unquote(parsed.path.lower())
+        full = f"{parsed.netloc.lower()}{path}"
+        score = 0
+        reasons: list[str] = []
+
+        if any(token in full for token in blocked_patterns):
+            score -= 150
+            reasons.append("blocked-pattern")
+
+        if is_presseportal and "/thumbnail/story_big/" in path:
+            score += 120
+            reasons.append("presseportal-story-big")
+        elif is_presseportal and "/thumbnail/highlight/" in path:
+            score += 45
+            reasons.append("presseportal-highlight")
+        elif is_presseportal and "/thumbnail/liste/" in path:
+            score -= 40
+            reasons.append("presseportal-list")
+
+        if "crop=" in (parsed.query or "").lower():
+            score -= 10
+            reasons.append("cropped-preview")
+
+        path_tokens = _normalize_tokens(path.replace("-", " "))
+        overlap = len(title_tokens.intersection(path_tokens))
+        if overlap > 0:
+            score += min(30, overlap * 6)
+            reasons.append(f"title-match:{overlap}")
+
+        ranked.append({"url": url, "score": score, "reasons": reasons})
+
+    ranked.sort(key=lambda item: item["score"], reverse=True)
+    return ranked
+
+
+def _select_relevant_images(source_url: str, title: str, images: list[str], max_keep: int = 3) -> tuple[list[str], str | None, list[dict[str, Any]]]:
+    # dedupe incoming order first
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for image in images:
+        if image and image not in seen:
+            seen.add(image)
+            deduped.append(image)
+
+    ranked = _rank_image_candidates(source_url, title, deduped)
+    kept = [item["url"] for item in ranked if item["score"] > 0][:max_keep]
+    if not kept and ranked:
+        kept = [ranked[0]["url"]]
+    primary = kept[0] if kept else None
+    return kept, primary, ranked
 
 
 def run_ingestion(feed_id: int | None = None) -> IngestionStats:
@@ -167,6 +235,12 @@ def run_ingestion(feed_id: int | None = None) -> IngestionStats:
                 final_summary = extracted.summary or (summary[:1000] if summary else None)
                 final_content_raw = extracted.content_text or content_raw
                 final_canonical = extracted.canonical_url or entry.get("link")
+                selected_images, primary_image, ranked_images = _select_relevant_images(
+                    link,
+                    final_title,
+                    extracted.images,
+                    max_keep=3,
+                )
 
                 source_hash = _entry_hash(
                     entry,
@@ -188,6 +262,12 @@ def run_ingestion(feed_id: int | None = None) -> IngestionStats:
                 }
                 extraction_meta: dict[str, Any] = extracted_article_to_meta(extracted)
                 extraction_meta["fetched_from"] = link
+                extraction_meta["image_selection"] = {
+                    "primary": primary_image,
+                    "selected_count": len(selected_images),
+                    "total_candidates": len(extracted.images),
+                    "ranked": ranked_images,
+                }
                 article_id = upsert_article(
                     ArticleUpsert(
                         feed_id=int(feed["id"]),
@@ -201,7 +281,7 @@ def run_ingestion(feed_id: int | None = None) -> IngestionStats:
                         summary=final_summary,
                         content_raw=final_content_raw,
                         content_rewritten=None,
-                        image_urls_json=json.dumps(extracted.images, ensure_ascii=False) if extracted.images else None,
+                        image_urls_json=json.dumps(selected_images, ensure_ascii=False) if selected_images else None,
                         press_contact=extracted.press_contact,
                         source_name_snapshot=feed.get("source_name"),
                         source_terms_url_snapshot=feed.get("source_terms_url"),
