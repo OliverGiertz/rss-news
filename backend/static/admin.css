@@ -210,6 +210,11 @@ button.secondary {
   background: #f8fafc;
 }
 
+.img-failed {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
 .image-meta {
   margin-top: 6px;
   display: flex;

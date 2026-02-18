@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+from urllib.parse import urlparse
 from urllib.parse import urlencode
 from urllib.request import Request as UrlRequest, urlopen
 
@@ -122,6 +123,14 @@ def _is_probably_irrelevant_image(url: str) -> bool:
         r"banner",
     )
     return any(re.search(pattern, lowered) for pattern in patterns)
+
+
+def _is_http_image_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def _build_image_entries(article: dict, extraction: dict, meta: dict) -> list[dict[str, object]]:
@@ -371,15 +380,19 @@ def admin_article_image_decision(
 
 @router.get("/admin/images/proxy")
 def admin_image_proxy(request: Request, url: str):
-    user = _admin_user(request)
-    if not user:
-        return Response(status_code=401)
-
-    if not (url.startswith("http://") or url.startswith("https://")):
+    if not _is_http_image_url(url):
         return Response(status_code=400)
 
     try:
-        req = UrlRequest(url=url, headers={"User-Agent": IMAGE_PROXY_USER_AGENT, "Referer": url})
+        referer = request.headers.get("referer", "")
+        req = UrlRequest(
+            url=url,
+            headers={
+                "User-Agent": IMAGE_PROXY_USER_AGENT,
+                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                "Referer": referer or url,
+            },
+        )
         with urlopen(req, timeout=10) as resp:
             body = resp.read()
             content_type = resp.headers.get("Content-Type", "application/octet-stream")

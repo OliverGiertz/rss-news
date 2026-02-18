@@ -79,7 +79,7 @@
         {% for image in article.image_entries %}
         <article class="image-card {{ 'image-selected' if image.is_selected else '' }} {{ 'image-excluded' if image.is_excluded else '' }}">
           <a href="{{ image.url }}" target="_blank" rel="noopener">
-            <img src="{{ image.proxy_url }}" alt="Artikelbild" loading="lazy" />
+            <img src="{{ image.proxy_url }}" data-fallback-src="{{ image.url }}" alt="Artikelbild" loading="lazy" onerror="if(!this.dataset.fallbackUsed){this.dataset.fallbackUsed='1';this.src=this.dataset.fallbackSrc;}else{this.classList.add('img-failed');}" />
           </a>
           <div class="image-meta">
             {% if image.is_selected %}<span class="badge ok">Ausgewählt</span>{% endif %}
