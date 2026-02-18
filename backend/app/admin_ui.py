@@ -335,6 +335,7 @@ def admin_article_detail(request: Request, article_id: int):
     if not article.get("press_contact") and isinstance(extraction.get("press_contact"), str):
         article["press_contact"] = extraction.get("press_contact")
     article["extraction"] = extraction
+    article["image_selection"] = extraction.get("image_selection") if isinstance(extraction.get("image_selection"), dict) else {}
     article["image_entries"] = _build_image_entries(article, extraction, meta)
     image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
     article["selected_image_url"] = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None

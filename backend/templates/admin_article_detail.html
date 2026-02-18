@@ -75,6 +75,29 @@
       {% endif %}
       {% endif %}
       {% if article.image_entries %}
+      {% if article.image_selection %}
+      <details>
+        <summary>Automatische Bildauswahl (Score + Gründe)</summary>
+        <div class="subtle">Primärbild (Auto): {{ article.image_selection.primary or "-" }}</div>
+        <div class="subtle">Ausgewählt: {{ article.image_selection.selected_count or 0 }} / Kandidaten: {{ article.image_selection.total_candidates or 0 }}</div>
+        {% if article.image_selection.ranked %}
+        <table>
+          <thead>
+            <tr><th>Bild</th><th>Score</th><th>Gründe</th></tr>
+          </thead>
+          <tbody>
+            {% for r in article.image_selection.ranked %}
+            <tr>
+              <td><a href="{{ r.url }}" target="_blank" rel="noopener">{{ r.url }}</a></td>
+              <td>{{ r.score }}</td>
+              <td>{{ r.reasons|join(", ") if r.reasons else "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </details>
+      {% endif %}
       <div class="image-grid">
         {% for image in article.image_entries %}
         <article class="image-card {{ 'image-selected' if image.is_selected else '' }} {{ 'image-excluded' if image.is_excluded else '' }}">
