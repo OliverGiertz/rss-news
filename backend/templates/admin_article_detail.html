@@ -26,6 +26,9 @@
       <p><strong>Status:</strong> <span class="badge">{{ article.status }}</span></p>
       <p><strong>Autor:</strong> {{ article.author or "-" }}</p>
       <p><strong>Feed:</strong> {{ feed.name if feed else "-" }}</p>
+      <p><strong>Quelle Snapshot:</strong> {{ article.source_name_snapshot or "-" }}</p>
+      <p><strong>Lizenz Snapshot:</strong> {{ article.source_license_name_snapshot or "-" }}</p>
+      <p><strong>Terms Snapshot:</strong> {{ article.source_terms_url_snapshot or "-" }}</p>
       <p><strong>Quelle:</strong> <a href="{{ article.source_url }}" target="_blank" rel="noopener">{{ article.source_url }}</a></p>
       {% if article.canonical_url %}
       <p><strong>Canonical:</strong> <a href="{{ article.canonical_url }}" target="_blank" rel="noopener">{{ article.canonical_url }}</a></p>
@@ -69,9 +72,9 @@
         {% endfor %}
       </ul>
       {% endif %}
-      {% if article.extraction.press_contact %}
+      {% if article.press_contact or article.extraction.press_contact %}
       <p><strong>Pressekontakt</strong></p>
-      <div class="pre">{{ article.extraction.press_contact }}</div>
+      <div class="pre">{{ article.press_contact or article.extraction.press_contact }}</div>
       {% endif %}
       {% if article.extraction.extraction_error %}
       <p class="subtle">Extraktionsfehler: {{ article.extraction.extraction_error }}</p>
@@ -84,7 +87,31 @@
     </section>
 
     <section class="card">
+      <h2>Rechtsfreigabe</h2>
+      <p><strong>Freigabe:</strong>
+        {% if article.legal_checked %}
+        <span class="badge ok">Freigegeben</span>
+        {% else %}
+        <span class="badge bad">Nicht freigegeben</span>
+        {% endif %}
+      </p>
+      <p><strong>Zeitpunkt:</strong> {{ article.legal_checked_at or "-" }}</p>
+      <p><strong>Notiz:</strong> {{ article.legal_note or "-" }}</p>
+      <form method="post" action="/admin/articles/{{ article.id }}/legal-review" class="row">
+        <select name="approved">
+          <option value="1">Freigeben</option>
+          <option value="0">Zurücksetzen</option>
+        </select>
+        <input name="note" placeholder="Rechtsnotiz" />
+        <button type="submit">Speichern</button>
+      </form>
+    </section>
+
+    <section class="card">
       <h2>Status ändern</h2>
+      {% if not article.legal_checked %}
+      <p class="subtle">Hinweis: `published` ist erst nach manueller Rechtsfreigabe erlaubt.</p>
+      {% endif %}
       <form method="post" action="/admin/articles/{{ article.id }}/transition" class="row">
         <select name="target_status">
           {% for s in allowed_transitions %}

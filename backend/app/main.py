@@ -28,6 +28,7 @@ from .repositories import (
     list_feeds as repo_list_feeds,
     list_runs,
     list_sources as repo_list_sources,
+    set_article_legal_review,
     update_article_status,
     upsert_article as repo_upsert_article,
 )
@@ -96,6 +97,14 @@ class ArticleUpsertRequest(BaseModel):
     summary: str | None = None
     content_raw: str | None = None
     content_rewritten: str | None = None
+    image_urls_json: str | None = None
+    press_contact: str | None = None
+    source_name_snapshot: str | None = None
+    source_terms_url_snapshot: str | None = None
+    source_license_name_snapshot: str | None = None
+    legal_checked: bool = False
+    legal_checked_at: str | None = None
+    legal_note: str | None = None
     word_count: int = 0
     status: str = Field(default="new", pattern="^(new|rewrite|review|approved|published|error)$")
     meta_json: str | None = None
@@ -112,6 +121,11 @@ class ArticleTransitionRequest(BaseModel):
 
 class ArticleReviewRequest(BaseModel):
     decision: str = Field(pattern="^(approve|reject)$")
+    note: str | None = None
+
+
+class ArticleLegalReviewRequest(BaseModel):
+    approved: bool
     note: str | None = None
 
 
@@ -330,6 +344,14 @@ def api_upsert_article(payload: ArticleUpsertRequest, username: str = Depends(re
             summary=payload.summary,
             content_raw=payload.content_raw,
             content_rewritten=payload.content_rewritten,
+            image_urls_json=payload.image_urls_json,
+            press_contact=payload.press_contact,
+            source_name_snapshot=payload.source_name_snapshot,
+            source_terms_url_snapshot=payload.source_terms_url_snapshot,
+            source_license_name_snapshot=payload.source_license_name_snapshot,
+            legal_checked=payload.legal_checked,
+            legal_checked_at=payload.legal_checked_at,
+            legal_note=payload.legal_note,
             word_count=payload.word_count,
             status=payload.status,
             meta_json=payload.meta_json,
@@ -351,11 +373,32 @@ def api_article_transition(article_id: int, payload: ArticleTransitionRequest, u
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Ungueltiger Statuswechsel: {current_status} -> {payload.target_status}",
         )
+    if payload.target_status == "published" and int(article.get("legal_checked", 0)) != 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Publish gesperrt: Rechtscheck wurde noch nicht freigegeben",
+        )
 
     updated = update_article_status(article_id, payload.target_status, actor=username, note=payload.note)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
     return {"ok": True, "id": article_id, "from_status": current_status, "to_status": payload.target_status}
+
+
+@app.post("/api/articles/{article_id}/legal-review")
+def api_article_legal_review(article_id: int, payload: ArticleLegalReviewRequest, username: str = Depends(require_auth)) -> dict:
+    article = get_article_by_id(article_id)
+    if not article:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
+
+    updated = set_article_legal_review(article_id, approved=payload.approved, note=payload.note, actor=username)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
+    return {
+        "ok": True,
+        "id": article_id,
+        "legal_checked": payload.approved,
+    }
 
 
 @app.post("/api/articles/{article_id}/review")

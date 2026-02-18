@@ -48,6 +48,14 @@ class ArticleUpsert:
     summary: str | None
     content_raw: str | None
     content_rewritten: str | None
+    image_urls_json: str | None
+    press_contact: str | None
+    source_name_snapshot: str | None
+    source_terms_url_snapshot: str | None
+    source_license_name_snapshot: str | None
+    legal_checked: bool
+    legal_checked_at: str | None
+    legal_note: str | None
     word_count: int
     status: str
     meta_json: str | None
@@ -224,7 +232,10 @@ def get_article_by_id(article_id: int) -> dict[str, Any] | None:
         row = conn.execute(
             """
             SELECT a.id, a.feed_id, a.source_article_id, a.source_hash, a.title, a.source_url, a.canonical_url, a.published_at, a.author,
-                   a.summary, a.content_raw, a.content_rewritten, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at
+                   a.summary, a.content_raw, a.content_rewritten, a.image_urls_json, a.press_contact,
+                   a.source_name_snapshot, a.source_terms_url_snapshot, a.source_license_name_snapshot,
+                   a.legal_checked, a.legal_checked_at, a.legal_note,
+                   a.word_count, a.status, a.meta_json, a.created_at, a.updated_at
             FROM articles a
             WHERE a.id = ?
             """,
@@ -281,6 +292,31 @@ def update_article_status(
     return True
 
 
+def set_article_legal_review(article_id: int, approved: bool, note: str | None, actor: str | None = None) -> bool:
+    article = get_article_by_id(article_id)
+    if not article:
+        return False
+
+    event = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event": "legal_review",
+        "approved": approved,
+        "actor": actor or "system",
+        "note": note,
+    }
+    merged_meta = _merge_review_event(article.get("meta_json"), event)
+    with get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE articles
+            SET legal_checked = ?, legal_checked_at = datetime('now'), legal_note = ?, meta_json = ?
+            WHERE id = ?
+            """,
+            (1 if approved else 0, note, merged_meta, article_id),
+        )
+    return True
+
+
 def _resolve_existing_article_id(payload: ArticleUpsert) -> int | None:
     with get_conn() as conn:
         # 1) strongest key: source_url
@@ -320,8 +356,11 @@ def upsert_article(payload: ArticleUpsert) -> int:
                 """
                 INSERT INTO articles (
                     feed_id, source_article_id, source_hash, title, source_url, canonical_url, published_at, author,
-                    summary, content_raw, content_rewritten, word_count, status, meta_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    summary, content_raw, content_rewritten, image_urls_json, press_contact,
+                    source_name_snapshot, source_terms_url_snapshot, source_license_name_snapshot,
+                    legal_checked, legal_checked_at, legal_note,
+                    word_count, status, meta_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.feed_id,
@@ -335,6 +374,14 @@ def upsert_article(payload: ArticleUpsert) -> int:
                     payload.summary,
                     payload.content_raw,
                     payload.content_rewritten,
+                    payload.image_urls_json,
+                    payload.press_contact,
+                    payload.source_name_snapshot,
+                    payload.source_terms_url_snapshot,
+                    payload.source_license_name_snapshot,
+                    1 if payload.legal_checked else 0,
+                    payload.legal_checked_at,
+                    payload.legal_note,
                     payload.word_count,
                     payload.status,
                     payload.meta_json,
@@ -356,6 +403,14 @@ def upsert_article(payload: ArticleUpsert) -> int:
                     summary = ?,
                     content_raw = ?,
                     content_rewritten = ?,
+                    image_urls_json = ?,
+                    press_contact = ?,
+                    source_name_snapshot = ?,
+                    source_terms_url_snapshot = ?,
+                    source_license_name_snapshot = ?,
+                    legal_checked = ?,
+                    legal_checked_at = ?,
+                    legal_note = ?,
                     word_count = ?,
                     status = ?,
                     meta_json = ?
@@ -373,6 +428,14 @@ def upsert_article(payload: ArticleUpsert) -> int:
                     payload.summary,
                     payload.content_raw,
                     payload.content_rewritten,
+                    payload.image_urls_json,
+                    payload.press_contact,
+                    payload.source_name_snapshot,
+                    payload.source_terms_url_snapshot,
+                    payload.source_license_name_snapshot,
+                    1 if payload.legal_checked else 0,
+                    payload.legal_checked_at,
+                    payload.legal_note,
                     payload.word_count,
                     payload.status,
                     payload.meta_json,
@@ -392,7 +455,9 @@ def list_articles(limit: int = 100, status_filter: str | None = None) -> list[di
             rows = conn.execute(
                 """
                 SELECT a.id, a.feed_id, a.source_article_id, a.source_hash, a.title, a.source_url, a.canonical_url, a.published_at, a.author,
-                       a.summary, a.content_raw, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name
+                       a.summary, a.content_raw, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name,
+                       a.image_urls_json, a.press_contact, a.source_name_snapshot, a.source_terms_url_snapshot,
+                       a.source_license_name_snapshot, a.legal_checked, a.legal_checked_at, a.legal_note
                 FROM articles a
                 LEFT JOIN feeds f ON f.id = a.feed_id
                 WHERE a.status = ?
@@ -405,7 +470,9 @@ def list_articles(limit: int = 100, status_filter: str | None = None) -> list[di
             rows = conn.execute(
                 """
                 SELECT a.id, a.feed_id, a.source_article_id, a.source_hash, a.title, a.source_url, a.canonical_url, a.published_at, a.author,
-                       a.summary, a.content_raw, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name
+                       a.summary, a.content_raw, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name,
+                       a.image_urls_json, a.press_contact, a.source_name_snapshot, a.source_terms_url_snapshot,
+                       a.source_license_name_snapshot, a.legal_checked, a.legal_checked_at, a.legal_note
                 FROM articles a
                 LEFT JOIN feeds f ON f.id = a.feed_id
                 ORDER BY a.id DESC

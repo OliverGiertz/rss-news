@@ -81,6 +81,14 @@ def init_db() -> None:
                 summary TEXT,
                 content_raw TEXT,
                 content_rewritten TEXT,
+                image_urls_json TEXT,
+                press_contact TEXT,
+                source_name_snapshot TEXT,
+                source_terms_url_snapshot TEXT,
+                source_license_name_snapshot TEXT,
+                legal_checked INTEGER NOT NULL DEFAULT 0,
+                legal_checked_at TEXT,
+                legal_note TEXT,
                 word_count INTEGER DEFAULT 0,
                 status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'rewrite', 'review', 'approved', 'published', 'error')),
                 meta_json TEXT,
@@ -130,8 +138,20 @@ def init_db() -> None:
         existing_columns = {
             row["name"] for row in conn.execute("PRAGMA table_info(articles)").fetchall()
         }
-        if "source_hash" not in existing_columns:
-            conn.execute("ALTER TABLE articles ADD COLUMN source_hash TEXT")
+        migration_columns = {
+            "source_hash": "ALTER TABLE articles ADD COLUMN source_hash TEXT",
+            "image_urls_json": "ALTER TABLE articles ADD COLUMN image_urls_json TEXT",
+            "press_contact": "ALTER TABLE articles ADD COLUMN press_contact TEXT",
+            "source_name_snapshot": "ALTER TABLE articles ADD COLUMN source_name_snapshot TEXT",
+            "source_terms_url_snapshot": "ALTER TABLE articles ADD COLUMN source_terms_url_snapshot TEXT",
+            "source_license_name_snapshot": "ALTER TABLE articles ADD COLUMN source_license_name_snapshot TEXT",
+            "legal_checked": "ALTER TABLE articles ADD COLUMN legal_checked INTEGER NOT NULL DEFAULT 0",
+            "legal_checked_at": "ALTER TABLE articles ADD COLUMN legal_checked_at TEXT",
+            "legal_note": "ALTER TABLE articles ADD COLUMN legal_note TEXT",
+        }
+        for column, ddl in migration_columns.items():
+            if column not in existing_columns:
+                conn.execute(ddl)
 
 
 def rows_to_dicts(rows: list[sqlite3.Row]) -> list[dict[str, Any]]:
