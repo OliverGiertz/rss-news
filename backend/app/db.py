@@ -68,6 +68,21 @@ def init_db() -> None:
                 details TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS publish_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_id INTEGER NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'success', 'failed')),
+                attempts INTEGER NOT NULL DEFAULT 0,
+                max_attempts INTEGER NOT NULL DEFAULT 3,
+                error_message TEXT,
+                wp_post_id INTEGER,
+                wp_post_url TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                started_at TEXT,
+                finished_at TEXT,
+                FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE
+            );
+
             CREATE TABLE IF NOT EXISTS articles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 feed_id INTEGER,
@@ -89,6 +104,11 @@ def init_db() -> None:
                 legal_checked INTEGER NOT NULL DEFAULT 0,
                 legal_checked_at TEXT,
                 legal_note TEXT,
+                wp_post_id INTEGER,
+                wp_post_url TEXT,
+                publish_attempts INTEGER NOT NULL DEFAULT 0,
+                publish_last_error TEXT,
+                published_to_wp_at TEXT,
                 word_count INTEGER DEFAULT 0,
                 status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'rewrite', 'review', 'approved', 'published', 'error')),
                 meta_json TEXT,
@@ -110,6 +130,7 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_feeds_source_id ON feeds(source_id);
             CREATE INDEX IF NOT EXISTS idx_runs_started_at ON runs(started_at);
             CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at);
+            CREATE INDEX IF NOT EXISTS idx_publish_jobs_status_created_at ON publish_jobs(status, created_at);
 
             CREATE TRIGGER IF NOT EXISTS trg_sources_updated_at
             AFTER UPDATE ON sources
@@ -148,10 +169,39 @@ def init_db() -> None:
             "legal_checked": "ALTER TABLE articles ADD COLUMN legal_checked INTEGER NOT NULL DEFAULT 0",
             "legal_checked_at": "ALTER TABLE articles ADD COLUMN legal_checked_at TEXT",
             "legal_note": "ALTER TABLE articles ADD COLUMN legal_note TEXT",
+            "wp_post_id": "ALTER TABLE articles ADD COLUMN wp_post_id INTEGER",
+            "wp_post_url": "ALTER TABLE articles ADD COLUMN wp_post_url TEXT",
+            "publish_attempts": "ALTER TABLE articles ADD COLUMN publish_attempts INTEGER NOT NULL DEFAULT 0",
+            "publish_last_error": "ALTER TABLE articles ADD COLUMN publish_last_error TEXT",
+            "published_to_wp_at": "ALTER TABLE articles ADD COLUMN published_to_wp_at TEXT",
         }
         for column, ddl in migration_columns.items():
             if column not in existing_columns:
                 conn.execute(ddl)
+
+        table_rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'publish_jobs'"
+        ).fetchall()
+        if not table_rows:
+            conn.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS publish_jobs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    article_id INTEGER NOT NULL,
+                    status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'success', 'failed')),
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    max_attempts INTEGER NOT NULL DEFAULT 3,
+                    error_message TEXT,
+                    wp_post_id INTEGER,
+                    wp_post_url TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    started_at TEXT,
+                    finished_at TEXT,
+                    FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_publish_jobs_status_created_at ON publish_jobs(status, created_at);
+                """
+            )
 
 
 def rows_to_dicts(rows: list[sqlite3.Row]) -> list[dict[str, Any]]:

@@ -21,6 +21,12 @@
   </header>
 
   <main class="container">
+    {% if flash_msg %}
+    <section class="card flash {{ 'flash-error' if flash_type == 'error' else 'flash-success' }}">
+      {{ flash_msg }}
+    </section>
+    {% endif %}
+
     <section class="card">
       <h2>{{ article.title }}</h2>
       <div class="detail-grid">
@@ -39,6 +45,16 @@
       {% if article.summary %}
       <p><strong>Summary:</strong> {{ article.summary }}</p>
       {% endif %}
+      <p><strong>WordPress Post:</strong>
+        {% if article.wp_post_url %}
+        <a href="{{ article.wp_post_url }}" target="_blank" rel="noopener">#{{ article.wp_post_id }}</a>
+        {% elif article.wp_post_id %}
+        #{{ article.wp_post_id }}
+        {% else %}
+        -
+        {% endif %}
+      </p>
+      <p><strong>Publish Attempts:</strong> {{ article.publish_attempts or 0 }} | <strong>Letzter Fehler:</strong> {{ article.publish_last_error or "-" }}</p>
     </section>
 
     <section class="card">
@@ -182,6 +198,15 @@
         </select>
         <input name="note" placeholder="Notiz" />
         <button type="submit" class="secondary">Setzen</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>WordPress Publish Queue</h2>
+      <p class="subtle">Voraussetzungen: Status `approved`, Rechtsfreigabe aktiv, Hauptbild gesetzt.</p>
+      <form method="post" action="/admin/articles/{{ article.id }}/publish-enqueue" class="row">
+        <input name="max_attempts" value="3" />
+        <button type="submit">In Queue einreihen</button>
       </form>
     </section>
   </main>

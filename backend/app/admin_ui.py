@@ -15,6 +15,7 @@ from .auth import create_session_token, verify_credentials, verify_session_token
 from .config import get_settings
 from .ingestion import run_ingestion
 from .policy import evaluate_source_policy
+from .publisher import enqueue_publish, run_publisher
 from .relevance import article_age_days, article_relevance
 from .repositories import (
     FeedCreate,
@@ -25,6 +26,7 @@ from .repositories import (
     get_feed_by_id,
     list_articles,
     list_feeds,
+    list_publish_jobs,
     list_runs,
     list_sources,
     set_article_image_decision,
@@ -273,6 +275,7 @@ def admin_dashboard(request: Request):
     source_policy = {s["id"]: evaluate_source_policy(s) for s in sources}
     feeds = list_feeds()
     runs = list_runs(limit=30)
+    publish_jobs = list_publish_jobs(limit=30)
     status_filter = request.query_params.get("status_filter")
     if status_filter in {"new", "rewrite", "review", "approved", "published", "error"}:
         articles = list_articles(limit=100, status_filter=status_filter)
@@ -308,6 +311,7 @@ def admin_dashboard(request: Request):
             "source_policy": source_policy,
             "feeds": feeds,
             "runs": runs,
+            "publish_jobs": publish_jobs,
             "articles": articles,
             "status_options": ["new", "rewrite", "review", "approved", "published", "error"],
             "allowed_transitions": ALLOWED_TRANSITIONS,
@@ -358,6 +362,8 @@ def admin_article_detail(request: Request, article_id: int):
             "feed": feed,
             "checklist": checklist,
             "allowed_transitions": ALLOWED_TRANSITIONS.get(article.get("status"), ()),
+            "flash_msg": request.query_params.get("msg", ""),
+            "flash_type": request.query_params.get("type", "success"),
         },
     )
 
@@ -377,6 +383,32 @@ def admin_article_image_decision(
     if not ok:
         return _dashboard_redirect(msg=f"Bildaktion fehlgeschlagen fuer Artikel #{article_id}", msg_type="error")
     return RedirectResponse(url=f"/admin/articles/{article_id}", status_code=303)
+
+
+@router.post("/admin/articles/{article_id}/publish-enqueue")
+def admin_enqueue_publish(request: Request, article_id: int, max_attempts: str = Form("3")):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    try:
+        job_id = enqueue_publish(article_id=article_id, max_attempts=max(1, int(max_attempts)))
+    except Exception as exc:
+        return _dashboard_redirect(msg=f"Publish Queue Fehler fuer Artikel #{article_id}: {exc}", msg_type="error")
+    return RedirectResponse(url=f"/admin/articles/{article_id}?msg=Publish-Job%20#{job_id}%20erstellt&type=success", status_code=303)
+
+
+@router.post("/admin/publisher/run")
+def admin_run_publisher(request: Request, max_jobs: str = Form("10")):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    try:
+        stats = run_publisher(max_jobs=max(1, int(max_jobs)))
+    except Exception as exc:
+        return _dashboard_redirect(msg=f"Publisher Fehler: {exc}", msg_type="error")
+    return _dashboard_redirect(
+        msg=f"Publisher: processed={stats.processed}, success={stats.success}, failed={stats.failed}, requeued={stats.requeued}"
+    )
 
 
 @router.get("/admin/images/proxy")

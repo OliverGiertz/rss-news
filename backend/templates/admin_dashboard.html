@@ -92,6 +92,14 @@
     </section>
 
     <section class="card">
+      <h2>Publisher ausführen</h2>
+      <form method="post" action="/admin/publisher/run" class="row">
+        <input name="max_jobs" value="10" />
+        <button type="submit">Publisher Run starten</button>
+      </form>
+    </section>
+
+    <section class="card">
       <h2>Quellen + Policy</h2>
       <table>
         <thead>
@@ -234,6 +242,35 @@
             <td>{{ r.status }}</td>
             <td>{{ r.started_at }}</td>
             <td>{{ r.finished_at or "-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Publish Jobs</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Artikel</th><th>Status</th><th>Attempts</th><th>WP Post</th><th>Fehler</th></tr>
+        </thead>
+        <tbody>
+          {% for j in publish_jobs %}
+          <tr>
+            <td>{{ j.id }}</td>
+            <td>#{{ j.article_id }} {{ j.article_title or "-" }}</td>
+            <td>{{ j.status }}</td>
+            <td>{{ j.attempts }}/{{ j.max_attempts }}</td>
+            <td>
+              {% if j.wp_post_url %}
+              <a href="{{ j.wp_post_url }}" target="_blank" rel="noopener">#{{ j.wp_post_id }}</a>
+              {% elif j.wp_post_id %}
+              #{{ j.wp_post_id }}
+              {% else %}
+              -
+              {% endif %}
+            </td>
+            <td>{{ j.error_message or "-" }}</td>
           </tr>
           {% endfor %}
         </tbody>

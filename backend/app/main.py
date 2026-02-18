@@ -16,6 +16,7 @@ from .config import get_settings
 from .db import init_db
 from .ingestion import run_ingestion
 from .policy import evaluate_source_policy, is_source_allowed
+from .publisher import enqueue_publish, run_publisher
 from .relevance import article_age_days, article_relevance
 from .repositories import (
     ArticleUpsert,
@@ -30,6 +31,7 @@ from .repositories import (
     get_feed_by_id,
     get_run_by_id,
     get_source_by_id,
+    list_publish_jobs,
     list_articles as repo_list_articles,
     list_feeds as repo_list_feeds,
     list_runs,
@@ -111,6 +113,11 @@ class ArticleUpsertRequest(BaseModel):
     legal_checked: bool = False
     legal_checked_at: str | None = None
     legal_note: str | None = None
+    wp_post_id: int | None = None
+    wp_post_url: str | None = None
+    publish_attempts: int = 0
+    publish_last_error: str | None = None
+    published_to_wp_at: str | None = None
     word_count: int = 0
     status: str = Field(default="new", pattern="^(new|rewrite|review|approved|published|error)$")
     meta_json: str | None = None
@@ -133,6 +140,15 @@ class ArticleReviewRequest(BaseModel):
 class ArticleLegalReviewRequest(BaseModel):
     approved: bool
     note: str | None = None
+
+
+class PublisherEnqueueRequest(BaseModel):
+    article_id: int
+    max_attempts: int = 3
+
+
+class PublisherRunRequest(BaseModel):
+    max_jobs: int = 10
 
 
 ALLOWED_ARTICLE_TRANSITIONS: dict[str, set[str]] = {
@@ -446,6 +462,11 @@ def api_upsert_article(payload: ArticleUpsertRequest, username: str = Depends(re
             legal_checked=payload.legal_checked,
             legal_checked_at=payload.legal_checked_at,
             legal_note=payload.legal_note,
+            wp_post_id=payload.wp_post_id,
+            wp_post_url=payload.wp_post_url,
+            publish_attempts=payload.publish_attempts,
+            publish_last_error=payload.publish_last_error,
+            published_to_wp_at=payload.published_to_wp_at,
             word_count=payload.word_count,
             status=payload.status,
             meta_json=payload.meta_json,
@@ -492,6 +513,35 @@ def api_article_legal_review(article_id: int, payload: ArticleLegalReviewRequest
         "ok": True,
         "id": article_id,
         "legal_checked": payload.approved,
+    }
+
+
+@app.get("/api/publisher/jobs")
+def api_publisher_jobs(limit: int = 100, username: str = Depends(require_auth)) -> dict:
+    return {"ok": True, "items": list_publish_jobs(limit=limit), "requested_by": username}
+
+
+@app.post("/api/publisher/enqueue")
+def api_publisher_enqueue(payload: PublisherEnqueueRequest, username: str = Depends(require_auth)) -> dict:
+    article = get_article_by_id(payload.article_id)
+    if not article:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
+    job_id = enqueue_publish(article_id=payload.article_id, max_attempts=payload.max_attempts)
+    return {"ok": True, "job_id": job_id, "article_id": payload.article_id, "requested_by": username}
+
+
+@app.post("/api/publisher/run")
+def api_publisher_run(payload: PublisherRunRequest, username: str = Depends(require_auth)) -> dict:
+    stats = run_publisher(max_jobs=payload.max_jobs)
+    return {
+        "ok": True,
+        "requested_by": username,
+        "stats": {
+            "processed": stats.processed,
+            "success": stats.success,
+            "failed": stats.failed,
+            "requeued": stats.requeued,
+        },
     }
 
 
