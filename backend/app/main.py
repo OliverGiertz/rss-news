@@ -1,7 +1,12 @@
 from contextlib import asynccontextmanager
+import csv
+from datetime import datetime, timezone
+import io
+import json
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from fastapi.staticfiles import StaticFiles
 
@@ -11,6 +16,7 @@ from .config import get_settings
 from .db import init_db
 from .ingestion import run_ingestion
 from .policy import evaluate_source_policy, is_source_allowed
+from .relevance import article_age_days, article_relevance
 from .repositories import (
     ArticleUpsert,
     FeedCreate,
@@ -319,6 +325,81 @@ def api_finish_run(run_id: int, payload: RunFinishRequest, username: str = Depen
 @app.get("/api/articles")
 def api_list_articles(limit: int = 100, status_filter: str | None = None, username: str = Depends(require_auth)) -> dict:
     return {"ok": True, "items": repo_list_articles(limit=limit, status_filter=status_filter), "requested_by": username}
+
+
+@app.get("/api/articles/export")
+def api_export_articles(
+    format: str = "json",
+    status_filter: str | None = None,
+    username: str = Depends(require_auth),
+):
+    articles = repo_list_articles(limit=500, status_filter=status_filter)
+    rows = []
+    for article in articles:
+        days_old = article_age_days(article.get("published_at"))
+        rows.append(
+            {
+                "id": article.get("id"),
+                "title": article.get("title"),
+                "status": article.get("status"),
+                "published_at": article.get("published_at"),
+                "days_old": days_old,
+                "relevance": article_relevance(article.get("published_at")),
+                "author": article.get("author"),
+                "source_url": article.get("source_url"),
+                "canonical_url": article.get("canonical_url"),
+                "source_name_snapshot": article.get("source_name_snapshot"),
+                "source_license_name_snapshot": article.get("source_license_name_snapshot"),
+                "source_terms_url_snapshot": article.get("source_terms_url_snapshot"),
+                "press_contact": article.get("press_contact"),
+                "image_urls_json": article.get("image_urls_json"),
+                "legal_checked": bool(int(article.get("legal_checked", 0))),
+                "legal_checked_at": article.get("legal_checked_at"),
+                "legal_note": article.get("legal_note"),
+            }
+        )
+
+    generated_at = datetime.now(timezone.utc).isoformat()
+    if format == "csv":
+        out = io.StringIO()
+        fieldnames = [
+            "id",
+            "title",
+            "status",
+            "published_at",
+            "days_old",
+            "relevance",
+            "author",
+            "source_url",
+            "canonical_url",
+            "source_name_snapshot",
+            "source_license_name_snapshot",
+            "source_terms_url_snapshot",
+            "press_contact",
+            "image_urls_json",
+            "legal_checked",
+            "legal_checked_at",
+            "legal_note",
+        ]
+        writer = csv.DictWriter(out, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+        return Response(
+            content=out.getvalue(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="articles_export.csv"'},
+        )
+
+    return JSONResponse(
+        {
+            "ok": True,
+            "count": len(rows),
+            "generated_at": generated_at,
+            "status_filter": status_filter,
+            "items": rows,
+            "requested_by": username,
+        }
+    )
 
 
 @app.get("/api/articles/{article_id}")

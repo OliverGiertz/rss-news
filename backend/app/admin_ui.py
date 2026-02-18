@@ -12,6 +12,7 @@ from .auth import create_session_token, verify_credentials, verify_session_token
 from .config import get_settings
 from .ingestion import run_ingestion
 from .policy import evaluate_source_policy
+from .relevance import article_age_days, article_relevance
 from .repositories import (
     FeedCreate,
     SourceCreate,
@@ -216,6 +217,8 @@ def admin_dashboard(request: Request):
         if not article.get("press_contact") and isinstance(extraction.get("press_contact"), str):
             article["press_contact"] = extraction.get("press_contact")
         article["extraction_error"] = extraction.get("extraction_error") if isinstance(extraction.get("extraction_error"), str) else None
+        article["days_old"] = article_age_days(article.get("published_at"))
+        article["relevance"] = article_relevance(article.get("published_at"))
 
     return templates.TemplateResponse(
         request,
@@ -261,6 +264,8 @@ def admin_article_detail(request: Request, article_id: int):
     if not article.get("press_contact") and isinstance(extraction.get("press_contact"), str):
         article["press_contact"] = extraction.get("press_contact")
     article["extraction"] = extraction
+    article["days_old"] = article_age_days(article.get("published_at"))
+    article["relevance"] = article_relevance(article.get("published_at"))
     feed = get_feed_by_id(int(article["feed_id"])) if article.get("feed_id") else None
     checklist = _legal_checklist(article, feed)
 

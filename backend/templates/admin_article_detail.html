@@ -24,6 +24,9 @@
     <section class="card">
       <h2>{{ article.title }}</h2>
       <p><strong>Status:</strong> <span class="badge">{{ article.status }}</span></p>
+      <p><strong>Artikel-Datum:</strong> {{ article.published_at or "-" }}</p>
+      <p><strong>Alter:</strong> {{ article.days_old if article.days_old is not none else "-" }} Tage</p>
+      <p><strong>Relevanz:</strong> {{ article.relevance }}</p>
       <p><strong>Autor:</strong> {{ article.author or "-" }}</p>
       <p><strong>Feed:</strong> {{ feed.name if feed else "-" }}</p>
       <p><strong>Quelle Snapshot:</strong> {{ article.source_name_snapshot or "-" }}</p>
