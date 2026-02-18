@@ -8,7 +8,15 @@ from fastapi.testclient import TestClient
 from backend.app import config as config_module
 from backend.app.db import init_db
 from backend.app.main import app
-from backend.app.repositories import ArticleUpsert, FeedCreate, SourceCreate, create_feed, create_source, upsert_article
+from backend.app.repositories import (
+    ArticleUpsert,
+    FeedCreate,
+    SourceCreate,
+    create_feed,
+    create_source,
+    get_article_by_id,
+    upsert_article,
+)
 
 
 class TestAdminUi(unittest.TestCase):
@@ -118,6 +126,18 @@ class TestAdminUi(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn("Artikel-Detail", res.text)
         self.assertIn("Rechts-Checkliste", res.text)
+
+        decision = self.client.post(
+            f"/admin/articles/{article_id}/images/decision",
+            data={"image_url": "https://example.org/img.jpg", "action": "select"},
+            follow_redirects=True,
+        )
+        self.assertEqual(decision.status_code, 200)
+        self.assertIn("Ausgewähltes Hauptbild", decision.text)
+
+        article = get_article_by_id(article_id)
+        self.assertIsNotNone(article)
+        self.assertIn("selected_url", article.get("meta_json", ""))
 
 
 if __name__ == "__main__":

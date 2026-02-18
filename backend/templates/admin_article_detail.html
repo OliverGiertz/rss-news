@@ -67,13 +67,46 @@
 
     <section class="card">
       <h2>Extrahierte Daten</h2>
-      <p><strong>Bilder:</strong> {{ article.extraction.images|length if article.extraction.images else 0 }}</p>
-      {% if article.extraction.images %}
-      <ul>
-        {% for img in article.extraction.images %}
-        <li><a href="{{ img }}" target="_blank" rel="noopener">{{ img }}</a></li>
+      <p><strong>Bilder:</strong> {{ article.image_entries|length if article.image_entries else 0 }}</p>
+      {% if article.selected_image_url %}
+      <p><strong>Ausgewähltes Hauptbild:</strong> <a href="{{ article.selected_image_url }}" target="_blank" rel="noopener">{{ article.selected_image_url }}</a></p>
+      {% endif %}
+      {% if article.image_entries %}
+      <div class="image-grid">
+        {% for image in article.image_entries %}
+        <article class="image-card {{ 'image-selected' if image.is_selected else '' }} {{ 'image-excluded' if image.is_excluded else '' }}">
+          <a href="{{ image.url }}" target="_blank" rel="noopener">
+            <img src="{{ image.url }}" alt="Artikelbild" loading="lazy" />
+          </a>
+          <div class="image-meta">
+            {% if image.is_selected %}<span class="badge ok">Ausgewählt</span>{% endif %}
+            {% if image.is_excluded %}<span class="badge bad">Ausgeblendet</span>{% endif %}
+            {% if image.is_irrelevant_hint %}<span class="badge">evtl. irrelevant</span>{% endif %}
+          </div>
+          <div class="image-actions">
+            <form method="post" action="/admin/articles/{{ article.id }}/images/decision">
+              <input type="hidden" name="image_url" value="{{ image.url }}" />
+              <input type="hidden" name="action" value="select" />
+              <button type="submit">Als Hauptbild</button>
+            </form>
+            {% if not image.is_excluded %}
+            <form method="post" action="/admin/articles/{{ article.id }}/images/decision">
+              <input type="hidden" name="image_url" value="{{ image.url }}" />
+              <input type="hidden" name="action" value="exclude" />
+              <button type="submit" class="secondary">Ausblenden</button>
+            </form>
+            {% else %}
+            <form method="post" action="/admin/articles/{{ article.id }}/images/decision">
+              <input type="hidden" name="image_url" value="{{ image.url }}" />
+              <input type="hidden" name="action" value="restore" />
+              <button type="submit" class="secondary">Einblenden</button>
+            </form>
+            {% endif %}
+          </div>
+          <div class="subtle"><a href="{{ image.url }}" target="_blank" rel="noopener">{{ image.url }}</a></div>
+        </article>
         {% endfor %}
-      </ul>
+      </div>
       {% endif %}
       {% if article.press_contact or article.extraction.press_contact %}
       <p><strong>Pressekontakt</strong></p>

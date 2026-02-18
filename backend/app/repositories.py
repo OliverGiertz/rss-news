@@ -262,6 +262,16 @@ def _merge_review_event(meta_json: str | None, event: dict[str, Any]) -> str:
     return json.dumps(meta, ensure_ascii=False)
 
 
+def _load_meta(meta_json: str | None) -> dict[str, Any]:
+    if not meta_json:
+        return {}
+    try:
+        parsed = json.loads(meta_json)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
 def update_article_status(
     article_id: int,
     new_status: str,
@@ -313,6 +323,54 @@ def set_article_legal_review(article_id: int, approved: bool, note: str | None, 
             WHERE id = ?
             """,
             (1 if approved else 0, note, merged_meta, article_id),
+        )
+    return True
+
+
+def set_article_image_decision(article_id: int, image_url: str, action: str, actor: str | None = None) -> bool:
+    article = get_article_by_id(article_id)
+    if not article:
+        return False
+    url = (image_url or "").strip()
+    if not url:
+        return False
+    if action not in {"select", "exclude", "restore"}:
+        return False
+
+    meta = _load_meta(article.get("meta_json"))
+    image_review = meta.get("image_review")
+    if not isinstance(image_review, dict):
+        image_review = {}
+
+    excluded = image_review.get("excluded_urls")
+    if not isinstance(excluded, list):
+        excluded = []
+    excluded_set = {str(item) for item in excluded if item}
+
+    selected_url = image_review.get("selected_url")
+    if not isinstance(selected_url, str):
+        selected_url = None
+
+    if action == "select":
+        selected_url = url
+        excluded_set.discard(url)
+    elif action == "exclude":
+        excluded_set.add(url)
+        if selected_url == url:
+            selected_url = None
+    elif action == "restore":
+        excluded_set.discard(url)
+
+    image_review["selected_url"] = selected_url
+    image_review["excluded_urls"] = sorted(excluded_set)
+    image_review["updated_at"] = datetime.now(timezone.utc).isoformat()
+    image_review["updated_by"] = actor or "system"
+    meta["image_review"] = image_review
+
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE articles SET meta_json = ? WHERE id = ?",
+            (json.dumps(meta, ensure_ascii=False), article_id),
         )
     return True
 

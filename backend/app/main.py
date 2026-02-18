@@ -336,6 +336,17 @@ def api_export_articles(
     articles = repo_list_articles(limit=500, status_filter=status_filter)
     rows = []
     for article in articles:
+        meta: dict = {}
+        if article.get("meta_json"):
+            try:
+                parsed = json.loads(article["meta_json"])
+                if isinstance(parsed, dict):
+                    meta = parsed
+            except Exception:
+                meta = {}
+        image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
+        selected_image_url = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
+
         days_old = article_age_days(article.get("published_at"))
         rows.append(
             {
@@ -353,6 +364,7 @@ def api_export_articles(
                 "source_terms_url_snapshot": article.get("source_terms_url_snapshot"),
                 "press_contact": article.get("press_contact"),
                 "image_urls_json": article.get("image_urls_json"),
+                "selected_image_url": selected_image_url,
                 "legal_checked": bool(int(article.get("legal_checked", 0))),
                 "legal_checked_at": article.get("legal_checked_at"),
                 "legal_note": article.get("legal_note"),
@@ -377,6 +389,7 @@ def api_export_articles(
             "source_terms_url_snapshot",
             "press_contact",
             "image_urls_json",
+            "selected_image_url",
             "legal_checked",
             "legal_checked_at",
             "legal_note",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Form, Request
@@ -24,6 +25,7 @@ from .repositories import (
     list_feeds,
     list_runs,
     list_sources,
+    set_article_image_decision,
     set_article_legal_review,
     update_article_status,
 )
@@ -83,6 +85,63 @@ def _parse_meta_json(raw: str | None) -> dict:
         return {}
 
 
+def _read_article_images(article: dict, extraction: dict) -> list[str]:
+    images: list[str] = []
+    if article.get("image_urls_json"):
+        try:
+            parsed_images = json.loads(article["image_urls_json"])
+            if isinstance(parsed_images, list):
+                images = [str(item) for item in parsed_images if item]
+        except Exception:
+            images = []
+    if not images and isinstance(extraction.get("images"), list):
+        images = [str(item) for item in extraction.get("images") if item]
+    # deduplicate preserving order
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for image in images:
+        if image not in seen:
+            seen.add(image)
+            deduped.append(image)
+    return deduped
+
+
+def _is_probably_irrelevant_image(url: str) -> bool:
+    lowered = url.lower()
+    patterns = (
+        r"logo",
+        r"icon",
+        r"sprite",
+        r"avatar",
+        r"favicon",
+        r"/ads/",
+        r"tracking",
+        r"pixel",
+        r"banner",
+    )
+    return any(re.search(pattern, lowered) for pattern in patterns)
+
+
+def _build_image_entries(article: dict, extraction: dict, meta: dict) -> list[dict[str, object]]:
+    all_images = _read_article_images(article, extraction)
+    image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
+    selected_url = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
+    excluded_urls = image_review.get("excluded_urls") if isinstance(image_review.get("excluded_urls"), list) else []
+    excluded_set = {str(item) for item in excluded_urls if item}
+
+    entries: list[dict[str, object]] = []
+    for url in all_images:
+        entries.append(
+            {
+                "url": url,
+                "is_selected": selected_url == url,
+                "is_excluded": url in excluded_set,
+                "is_irrelevant_hint": _is_probably_irrelevant_image(url),
+            }
+        )
+    return entries
+
+
 def _legal_checklist(article: dict, feed: dict | None) -> list[dict[str, str]]:
     meta = article.get("meta", {})
     extraction = meta.get("extraction") if isinstance(meta.get("extraction"), dict) else {}
@@ -136,6 +195,15 @@ def _legal_checklist(article: dict, feed: dict | None) -> list[dict[str, str]]:
             "label": "Manuelle Rechtsfreigabe",
             "status": "ok" if int(article.get("legal_checked", 0)) == 1 else "missing",
             "value": article.get("legal_checked_at") or "-",
+        }
+    )
+    image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
+    selected_image = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
+    checks.append(
+        {
+            "label": "Hauptbild ausgewählt",
+            "status": "ok" if selected_image else "missing",
+            "value": selected_image or "-",
         }
     )
     return checks
@@ -202,18 +270,12 @@ def admin_dashboard(request: Request):
     for article in articles:
         meta = _parse_meta_json(article.get("meta_json"))
         extraction = meta.get("extraction") if isinstance(meta.get("extraction"), dict) else {}
-        images = []
-        if article.get("image_urls_json"):
-            try:
-                parsed_images = json.loads(article["image_urls_json"])
-                if isinstance(parsed_images, list):
-                    images = [str(item) for item in parsed_images if item]
-            except Exception:
-                images = []
-        if not images and isinstance(extraction.get("images"), list):
-            images = extraction.get("images")
+        images = _read_article_images(article, extraction)
         article["meta"] = meta
         article["extracted_images"] = images
+        article["image_entries"] = _build_image_entries(article, extraction, meta)
+        image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
+        article["selected_image_url"] = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
         if not article.get("press_contact") and isinstance(extraction.get("press_contact"), str):
             article["press_contact"] = extraction.get("press_contact")
         article["extraction_error"] = extraction.get("extraction_error") if isinstance(extraction.get("extraction_error"), str) else None
@@ -254,16 +316,13 @@ def admin_article_detail(request: Request, article_id: int):
     meta = _parse_meta_json(article.get("meta_json"))
     article["meta"] = meta
     extraction = meta.get("extraction") if isinstance(meta.get("extraction"), dict) else {}
-    if article.get("image_urls_json"):
-        try:
-            parsed_images = json.loads(article["image_urls_json"])
-            if isinstance(parsed_images, list):
-                extraction["images"] = [str(item) for item in parsed_images if item]
-        except Exception:
-            pass
+    extraction["images"] = _read_article_images(article, extraction)
     if not article.get("press_contact") and isinstance(extraction.get("press_contact"), str):
         article["press_contact"] = extraction.get("press_contact")
     article["extraction"] = extraction
+    article["image_entries"] = _build_image_entries(article, extraction, meta)
+    image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
+    article["selected_image_url"] = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
     article["days_old"] = article_age_days(article.get("published_at"))
     article["relevance"] = article_relevance(article.get("published_at"))
     feed = get_feed_by_id(int(article["feed_id"])) if article.get("feed_id") else None
@@ -282,6 +341,23 @@ def admin_article_detail(request: Request, article_id: int):
             "allowed_transitions": ALLOWED_TRANSITIONS.get(article.get("status"), ()),
         },
     )
+
+
+@router.post("/admin/articles/{article_id}/images/decision")
+def admin_article_image_decision(
+    request: Request,
+    article_id: int,
+    image_url: str = Form(...),
+    action: str = Form(...),
+):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    ok = set_article_image_decision(article_id=article_id, image_url=image_url, action=action, actor=user)
+    if not ok:
+        return _dashboard_redirect(msg=f"Bildaktion fehlgeschlagen fuer Artikel #{article_id}", msg_type="error")
+    return RedirectResponse(url=f"/admin/articles/{article_id}", status_code=303)
 
 
 @router.post("/admin/articles/{article_id}/legal-review")
