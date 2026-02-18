@@ -144,6 +144,7 @@
               <strong>{{ a.title }}</strong><br />
               <span class="subtle">Autor: {{ a.author or "-" }}</span><br />
               <a href="{{ a.source_url }}" target="_blank" rel="noopener">Original öffnen</a>
+              <br /><a href="/admin/articles/{{ a.id }}">Details anzeigen</a>
               {% if a.canonical_url and a.canonical_url != a.source_url %}
               <br /><a href="{{ a.canonical_url }}" target="_blank" rel="noopener">Canonical öffnen</a>
               {% endif %}

@@ -18,6 +18,7 @@ from .repositories import (
     create_feed,
     create_source,
     get_article_by_id,
+    get_feed_by_id,
     list_articles,
     list_feeds,
     list_runs,
@@ -78,6 +79,57 @@ def _parse_meta_json(raw: str | None) -> dict:
         return parsed if isinstance(parsed, dict) else {}
     except Exception:
         return {}
+
+
+def _legal_checklist(article: dict, feed: dict | None) -> list[dict[str, str]]:
+    meta = article.get("meta", {})
+    extraction = meta.get("extraction") if isinstance(meta.get("extraction"), dict) else {}
+    attribution = meta.get("attribution") if isinstance(meta.get("attribution"), dict) else {}
+
+    checks: list[dict[str, str]] = []
+    checks.append(
+        {
+            "label": "Original-Link vorhanden",
+            "status": "ok" if article.get("source_url") else "missing",
+            "value": article.get("source_url") or "-",
+        }
+    )
+    checks.append(
+        {
+            "label": "Autor vorhanden",
+            "status": "ok" if article.get("author") else "missing",
+            "value": article.get("author") or "-",
+        }
+    )
+    checks.append(
+        {
+            "label": "Bilder extrahiert",
+            "status": "ok" if extraction.get("images") else "missing",
+            "value": str(len(extraction.get("images", []))) if isinstance(extraction.get("images"), list) else "0",
+        }
+    )
+    checks.append(
+        {
+            "label": "Pressekontakt",
+            "status": "ok" if extraction.get("press_contact") else "missing",
+            "value": extraction.get("press_contact") or "-",
+        }
+    )
+    checks.append(
+        {
+            "label": "Lizenz/Terms",
+            "status": "ok" if attribution.get("source_license_name") and attribution.get("source_terms_url") else "missing",
+            "value": f"{attribution.get('source_license_name') or '-'} | {attribution.get('source_terms_url') or '-'}",
+        }
+    )
+    checks.append(
+        {
+            "label": "Risiko-Status Quelle",
+            "status": "ok" if (feed and feed.get("source_risk_level") == "green") else "missing",
+            "value": feed.get("source_risk_level") if feed else "-",
+        }
+    )
+    return checks
 
 
 @router.get("/admin", response_class=HTMLResponse)
@@ -163,6 +215,38 @@ def admin_dashboard(request: Request):
             "status_filter": status_filter,
             "flash_msg": request.query_params.get("msg", ""),
             "flash_type": request.query_params.get("type", "success"),
+        },
+    )
+
+
+@router.get("/admin/articles/{article_id}", response_class=HTMLResponse)
+def admin_article_detail(request: Request, article_id: int):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    article = get_article_by_id(article_id)
+    if not article:
+        return _dashboard_redirect(msg=f"Artikel #{article_id} nicht gefunden", msg_type="error")
+
+    meta = _parse_meta_json(article.get("meta_json"))
+    article["meta"] = meta
+    extraction = meta.get("extraction") if isinstance(meta.get("extraction"), dict) else {}
+    article["extraction"] = extraction
+    feed = get_feed_by_id(int(article["feed_id"])) if article.get("feed_id") else None
+    checklist = _legal_checklist(article, feed)
+
+    return templates.TemplateResponse(
+        request,
+        "admin_article_detail.html",
+        {
+            "request": request,
+            "title": f"Artikel #{article_id}",
+            "user": user,
+            "article": article,
+            "feed": feed,
+            "checklist": checklist,
+            "allowed_transitions": ALLOWED_TRANSITIONS.get(article.get("status"), ()),
         },
     )
 

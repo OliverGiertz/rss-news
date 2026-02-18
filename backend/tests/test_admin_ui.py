@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from backend.app import config as config_module
 from backend.app.db import init_db
 from backend.app.main import app
+from backend.app.repositories import ArticleUpsert, FeedCreate, SourceCreate, create_feed, create_source, upsert_article
 
 
 class TestAdminUi(unittest.TestCase):
@@ -59,6 +60,56 @@ class TestAdminUi(unittest.TestCase):
         )
         self.assertEqual(res.status_code, 303)
         self.assertTrue(res.headers.get("location", "").startswith("/admin/dashboard"))
+
+    def test_article_detail_page_renders(self) -> None:
+        source_id = create_source(
+            SourceCreate(
+                name="Test Source",
+                base_url="https://example.org",
+                terms_url="https://example.org/terms",
+                license_name="cc-by",
+                risk_level="green",
+                is_enabled=True,
+                notes=None,
+                last_reviewed_at="2026-02-18T00:00:00Z",
+            )
+        )
+        feed_id = create_feed(
+            FeedCreate(
+                name="Test Feed",
+                url="https://example.org/feed.xml",
+                source_id=source_id,
+                is_enabled=True,
+            )
+        )
+        article_id = upsert_article(
+            ArticleUpsert(
+                feed_id=feed_id,
+                source_article_id="id-1",
+                source_hash="hash-1",
+                title="Titel A",
+                source_url="https://example.org/a",
+                canonical_url="https://example.org/a",
+                published_at=None,
+                author="Autor A",
+                summary="Summary A",
+                content_raw="Volltext A",
+                content_rewritten=None,
+                word_count=2,
+                status="new",
+                meta_json='{"extraction":{"images":["https://example.org/img.jpg"],"press_contact":"Kontakt"}}',
+            )
+        )
+
+        self.client.post(
+            "/admin/login",
+            data={"username": "admin", "password": "secret"},
+            follow_redirects=True,
+        )
+        res = self.client.get(f"/admin/articles/{article_id}", follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("Artikel-Detail", res.text)
+        self.assertIn("Rechts-Checkliste", res.text)
 
 
 if __name__ == "__main__":

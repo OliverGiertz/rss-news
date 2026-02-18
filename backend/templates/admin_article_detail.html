@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/admin/static/admin.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Artikel-Detail #{{ article.id }}</h1>
+      <p>Angemeldet als <strong>{{ user }}</strong></p>
+    </div>
+    <div class="row">
+      <a class="linkbtn" href="/admin/dashboard">Zurück</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit" class="secondary">Logout</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>{{ article.title }}</h2>
+      <p><strong>Status:</strong> <span class="badge">{{ article.status }}</span></p>
+      <p><strong>Autor:</strong> {{ article.author or "-" }}</p>
+      <p><strong>Feed:</strong> {{ feed.name if feed else "-" }}</p>
+      <p><strong>Quelle:</strong> <a href="{{ article.source_url }}" target="_blank" rel="noopener">{{ article.source_url }}</a></p>
+      {% if article.canonical_url %}
+      <p><strong>Canonical:</strong> <a href="{{ article.canonical_url }}" target="_blank" rel="noopener">{{ article.canonical_url }}</a></p>
+      {% endif %}
+      {% if article.summary %}
+      <p><strong>Summary:</strong> {{ article.summary }}</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2>Rechts-Checkliste</h2>
+      <table>
+        <thead>
+          <tr><th>Kriterium</th><th>Status</th><th>Wert</th></tr>
+        </thead>
+        <tbody>
+          {% for c in checklist %}
+          <tr>
+            <td>{{ c.label }}</td>
+            <td>
+              {% if c.status == "ok" %}
+              <span class="badge ok">OK</span>
+              {% else %}
+              <span class="badge bad">Fehlt</span>
+              {% endif %}
+            </td>
+            <td>{{ c.value }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Extrahierte Daten</h2>
+      <p><strong>Bilder:</strong> {{ article.extraction.images|length if article.extraction.images else 0 }}</p>
+      {% if article.extraction.images %}
+      <ul>
+        {% for img in article.extraction.images %}
+        <li><a href="{{ img }}" target="_blank" rel="noopener">{{ img }}</a></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if article.extraction.press_contact %}
+      <p><strong>Pressekontakt</strong></p>
+      <div class="pre">{{ article.extraction.press_contact }}</div>
+      {% endif %}
+      {% if article.extraction.extraction_error %}
+      <p class="subtle">Extraktionsfehler: {{ article.extraction.extraction_error }}</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2>Volltext</h2>
+      <div class="pre">{{ article.content_raw or "-" }}</div>
+    </section>
+
+    <section class="card">
+      <h2>Status ändern</h2>
+      <form method="post" action="/admin/articles/{{ article.id }}/transition" class="row">
+        <select name="target_status">
+          {% for s in allowed_transitions %}
+          <option value="{{ s }}">{{ s }}</option>
+          {% endfor %}
+        </select>
+        <input name="note" placeholder="Notiz" />
+        <button type="submit" class="secondary">Setzen</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
