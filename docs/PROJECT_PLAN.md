@@ -13,7 +13,7 @@ Eine modulare News-Pipeline mit klaren Stufen:
 2. Inhaltsanalyse und Normalisierung
 3. Rewrite/Anreicherung
 4. Legal- und Qualitaetschecks
-5. WordPress-Publikation (`pending`)
+5. WordPress-Publikation (Draft-first, Queue + Retry)
 6. Monitoring/Logging
 
 ## Grobe Zeitplanung (ohne Fixtermine)
@@ -36,18 +36,42 @@ Eine modulare News-Pipeline mit klaren Stufen:
 - Feed-Import mit Duplikaterkennung
 - Admin-Login (ein User)
 - Manuelle Review vor Publish
+- Admin-UI fuer Rechtscheck, Bildauswahl, Relevanzbewertung
 
 ### Phase 2 - Automation
 - Job-Queue (asynchron)
 - Regelbasierte Scheduler
 - Retry/Dead-Letter-Handling
 - Robustes Error-Reporting
+- WordPress-Publisher (Draft) mit Mapping `article_id -> wp_post_id`
 
 ### Phase 3 - Compliance und Skalierung
 - Source-Whitelisting mit Pflichtfeldern
 - Pflicht-Attribution pro Artikel
 - Qualitaetsmetriken und Audit-Logs
 - Optional: Passkey/WebAuthn
+
+## Aktueller Stand (Snapshot)
+- Backend/API + Admin-UI lauffaehig
+- Feed-Ingestion inkl. Originalartikel-Extraktion (Autor, Pressekontakt, Bilder)
+- Bildkuration:
+  - automatische Scoring-Reduktion (u. a. Presseportal `story_big` priorisiert)
+  - manuelle Auswahl/Ausblendung im UI
+- Rechts-/Publish-Gates aktiv:
+  - `legal_checked` Pflicht
+  - Hauptbild-Auswahl Pflicht
+  - Status-Workflow bis `published`
+- WordPress-Publishing:
+  - Queue + Retry + Job-Historie
+  - Draft-Erstellung/Update erfolgreich getestet
+- Exporte:
+  - JSON/CSV inkl. Datum/Alter/Relevanz + Attribution/Legal-Felder
+
+## Naechste Iteration (konkret)
+1. WordPress `featured_media` Upload aus ausgewaehltem Hauptbild
+2. Publish-HTML je Artikel verfeinern (strukturierter Body + konsistenter Quellenblock)
+3. Publisher als periodischen Worker (Timer/Cron/Systemd) auf Hetzner betreiben
+4. Monitoring/Alerting fuer Queue-Fehler + WP-API Fehlercodes
 
 ## Architekturprinzipien
 - Idempotente Jobs

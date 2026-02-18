@@ -1,10 +1,10 @@
 # ToDo (Ein-Entwickler Setup)
 
 ## Jetzt
-- [ ] GitHub Project #3 Felder/Views fuer Neustart vereinheitlichen
-- [ ] Alte/obsolet gewordene Issues kennzeichnen (z. B. User-Verwaltung)
-- [ ] Redirect `news.vanityontour.de -> vanityontour.de` aktiv halten
-- [ ] Wiki-Basis fertigstellen und verlinken
+- [ ] WordPress Beitragsbild-Upload implementieren (`featured_media` aus ausgewaehltem Hauptbild)
+- [ ] WordPress-HTML-Ausgabe pro Artikel weiter verbessern (sauberes Layout, Quellenblock, Shortcodes falls noetig)
+- [ ] Publisher Fehlertexte fuer WP-Auth/Media/API in UI klarer darstellen
+- [ ] End-to-end Publish Smoke-Test dokumentieren (lokal + Hetzner)
 
 ## MVP
 - [x] Neues Backend-Skelett (`backend/`) aufsetzen (FastAPI)
@@ -12,14 +12,18 @@
 - [x] Feed-Ingestion Service bauen (ETag/Last-Modified)
 - [x] Duplikaterkennung ueber `source_url`, `guid`, Hash
 - [x] Login mit 1 Admin-Account implementieren
-- [ ] Artikel-Review-Maske mit Statusworkflow
-- [ ] WordPress-Publisher als separaten Service implementieren
+- [x] Artikel-Review-Maske mit Statusworkflow
+- [x] WordPress-Publisher als separaten Service implementieren (Queue + Retry + Mapping)
+- [x] Bildvorschau + manuelle Bildauswahl im Admin-UI
+- [x] Automatische Bildreduktion/Scoring fuer Presseportal-Quellen
+- [x] Artikel-Datum + Relevanzscore im UI/Export
 
 ## Recht/Qualitaet
-- [ ] Source-Policy in DB + Admin-UI abbilden
-- [ ] Pflichtfelder je Quelle erzwingen (Autor, URL, Lizenz, Hinweise)
-- [ ] Auto-Block bei fehlender Lizenzinfo
-- [ ] Pro Artikel Attribution-Block generieren
+- [x] Source-Policy in DB + Admin-UI abbilden
+- [x] Pflichtfelder je Quelle erzwingen (Autor, URL, Lizenz, Hinweise)
+- [x] Auto-Block bei fehlender Lizenzinfo
+- [x] Pro Artikel Attribution-Block generieren
+- [x] Manuelle Rechtsfreigabe als Publish-Gate
 
 ## Betrieb
 - [ ] Systemd-Service(s) fuer API/Worker erstellen
@@ -31,3 +35,4 @@
 - [ ] Passkey/WebAuthn evaluieren und optional einfuehren
 - [ ] Migration auf PostgreSQL bewerten
 - [ ] Teilautomatische Freigabe-Regeln definieren
+- [ ] KI-Rewrite mit Prompt-Versionierung + Qualitaetsmetriken wieder aktivieren
