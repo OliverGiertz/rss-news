@@ -258,7 +258,6 @@
             </td>
             <td><span class="badge">{{ a.status_ui }}</span></td>
             <td>
-              <div class="subtle">Legal: {{ "OK" if a.legal_checked else "offen" }}</div>
               <div class="subtle">Publish: {{ "bereit" if a.publish_ready else "blockiert" }}</div>
               {% if not a.publish_ready and a.publish_blockers %}
               <div class="subtle">{{ a.publish_blockers|join(", ") }}</div>

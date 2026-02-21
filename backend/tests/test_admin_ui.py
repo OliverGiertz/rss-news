@@ -131,7 +131,7 @@ class TestAdminUi(unittest.TestCase):
         res = self.client.get(f"/admin/articles/{article_id}", follow_redirects=True)
         self.assertEqual(res.status_code, 200)
         self.assertIn("Artikel-Detail", res.text)
-        self.assertIn("Rechts-Checkliste", res.text)
+        self.assertIn("Checkliste", res.text)
 
         decision = self.client.post(
             f"/admin/articles/{article_id}/images/decision",

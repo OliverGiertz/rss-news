@@ -38,7 +38,6 @@ from .repositories import (
     list_runs,
     list_sources,
     set_article_image_decision,
-    set_article_legal_review,
     upsert_article,
     update_feed,
     update_source,
@@ -185,7 +184,7 @@ def _classify_publish_error(error_message: str | None) -> tuple[str, str]:
     if not text.strip():
         return "ok", "-"
     if "rechtsfreigabe fehlt" in text or "hauptbild nicht gesetzt" in text or "status ist nicht" in text:
-        return "policy", "Artikelvoraussetzungen im UI prüfen (Status/Rechtsfreigabe/Hauptbild)."
+        return "policy", "Artikelvoraussetzungen im UI prüfen (Status/Hauptbild)."
     if "401" in text or "403" in text or "authorization" in text or "forbidden" in text or "unauthorized" in text:
         return "auth", "WordPress Nutzer/App-Passwort prüfen."
     if "404" in text and ("media" in text or "posts" in text or "wp-json" in text):
@@ -243,13 +242,6 @@ def _legal_checklist(article: dict, feed: dict | None) -> list[dict[str, str]]:
             "label": "Risiko-Status Quelle",
             "status": "ok" if (feed and feed.get("source_risk_level") == "green") else "missing",
             "value": feed.get("source_risk_level") if feed else "-",
-        }
-    )
-    checks.append(
-        {
-            "label": "Manuelle Rechtsfreigabe",
-            "status": "ok" if int(article.get("legal_checked", 0)) == 1 else "missing",
-            "value": article.get("legal_checked_at") or "-",
         }
     )
     image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
@@ -664,19 +656,6 @@ def admin_image_proxy(request: Request, url: str):
     if not content_type.lower().startswith("image/"):
         return Response(status_code=415)
     return Response(content=body, media_type=content_type)
-
-
-@router.post("/admin/articles/{article_id}/legal-review")
-def admin_article_legal_review(request: Request, article_id: int, approved: str = Form("0"), note: str = Form("")):
-    user = _admin_user(request)
-    if not user:
-        return RedirectResponse(url="/admin/login", status_code=303)
-
-    is_approved = approved == "1"
-    ok = set_article_legal_review(article_id, approved=is_approved, note=note or None, actor=user)
-    if not ok:
-        return _dashboard_redirect(msg=f"Artikel #{article_id} nicht gefunden", msg_type="error")
-    return RedirectResponse(url=f"/admin/articles/{article_id}", status_code=303)
 
 
 @router.post("/admin/sources/create")

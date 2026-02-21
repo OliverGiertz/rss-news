@@ -58,7 +58,7 @@
     </section>
 
     <section class="card">
-      <h2>Rechts-Checkliste</h2>
+      <h2>Checkliste</h2>
       <table>
         <thead>
           <tr><th>Kriterium</th><th>Status</th><th>Wert</th></tr>
@@ -171,27 +171,6 @@
         <button type="submit">Rewrite-Text speichern</button>
       </form>
       <p class="subtle">Dieser Text wird für den WordPress-Entwurf verwendet, falls vorhanden.</p>
-    </section>
-
-    <section class="card">
-      <h2>Rechtsfreigabe</h2>
-      <p><strong>Freigabe:</strong>
-        {% if article.legal_checked %}
-        <span class="badge ok">Freigegeben</span>
-        {% else %}
-        <span class="badge bad">Nicht freigegeben</span>
-        {% endif %}
-      </p>
-      <p><strong>Zeitpunkt:</strong> {{ article.legal_checked_at or "-" }}</p>
-      <p><strong>Notiz:</strong> {{ article.legal_note or "-" }}</p>
-      <form method="post" action="/admin/articles/{{ article.id }}/legal-review" class="row">
-        <select name="approved">
-          <option value="1">Freigeben</option>
-          <option value="0">Zurücksetzen</option>
-        </select>
-        <input name="note" placeholder="Rechtsnotiz" />
-        <button type="submit">Speichern</button>
-      </form>
     </section>
 
     <section class="card">
