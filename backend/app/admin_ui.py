@@ -169,6 +169,23 @@ def _publish_readiness(article: dict, meta: dict) -> tuple[bool, list[str]]:
     return len(reasons) == 0, reasons
 
 
+def _classify_publish_error(error_message: str | None) -> tuple[str, str]:
+    text = (error_message or "").lower()
+    if not text.strip():
+        return "ok", "-"
+    if "rechtsfreigabe fehlt" in text or "hauptbild nicht gesetzt" in text or "status ist nicht" in text:
+        return "policy", "Artikelvoraussetzungen im UI prüfen (Status/Rechtsfreigabe/Hauptbild)."
+    if "401" in text or "403" in text or "authorization" in text or "forbidden" in text or "unauthorized" in text:
+        return "auth", "WordPress Nutzer/App-Passwort prüfen."
+    if "404" in text and ("media" in text or "posts" in text or "wp-json" in text):
+        return "api", "WordPress REST-Endpunkt prüfen (`/wp-json/wp/v2`)."
+    if "timed out" in text or "timeout" in text or "nodename nor servname provided" in text or "name or service not known" in text:
+        return "dns", "DNS/Netzwerk zur WordPress-Domain prüfen."
+    if "media-upload fehlgeschlagen" in text or "liefert kein bild" in text or "featured_media" in text:
+        return "media", "Bild-URL/Format prüfen oder anderes Hauptbild auswählen."
+    return "unknown", "Fehlerdetails prüfen und bei Bedarf Job erneut starten."
+
+
 def _legal_checklist(article: dict, feed: dict | None) -> list[dict[str, str]]:
     meta = article.get("meta", {})
     extraction = meta.get("extraction") if isinstance(meta.get("extraction"), dict) else {}
@@ -289,6 +306,10 @@ def admin_dashboard(request: Request):
     feeds = list_feeds()
     runs = list_runs(limit=30)
     publish_jobs = list_publish_jobs(limit=30)
+    for job in publish_jobs:
+        category, hint = _classify_publish_error(job.get("error_message"))
+        job["error_category"] = category
+        job["error_hint"] = hint
     status_filter = request.query_params.get("status_filter")
     if status_filter in {"new", "rewrite", "review", "approved", "published", "error"}:
         articles = list_articles(limit=100, status_filter=status_filter)

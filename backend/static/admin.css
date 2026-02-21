@@ -131,6 +131,40 @@ button.secondary {
   color: #991b1b;
 }
 
+.badge.errcat {
+  margin-bottom: 4px;
+}
+
+.badge.errcat-policy {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.badge.errcat-auth {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.badge.errcat-dns {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge.errcat-media {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.badge.errcat-api {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.badge.errcat-unknown {
+  background: #e2e8f0;
+  color: #334155;
+}
+
 .alert {
   margin-bottom: 12px;
   padding: 10px;

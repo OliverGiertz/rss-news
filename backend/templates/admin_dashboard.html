@@ -256,7 +256,7 @@
       <h2>Publish Jobs</h2>
       <table>
         <thead>
-          <tr><th>ID</th><th>Artikel</th><th>Status</th><th>Attempts</th><th>WP Post</th><th>Fehler</th></tr>
+          <tr><th>ID</th><th>Artikel</th><th>Status</th><th>Attempts</th><th>WP Post</th><th>Fehler</th><th>Hinweis</th></tr>
         </thead>
         <tbody>
           {% for j in publish_jobs %}
@@ -274,7 +274,15 @@
               -
               {% endif %}
             </td>
-            <td>{{ j.error_message or "-" }}</td>
+            <td>
+              {% if j.error_message %}
+              <span class="badge errcat errcat-{{ j.error_category }}">{{ j.error_category }}</span>
+              <div>{{ j.error_message }}</div>
+              {% else %}
+              -
+              {% endif %}
+            </td>
+            <td>{{ j.error_hint or "-" }}</td>
           </tr>
           {% endfor %}
         </tbody>
