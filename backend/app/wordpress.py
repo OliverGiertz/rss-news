@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import base64
+from html import escape
 import json
 import mimetypes
 from pathlib import Path
+import re
 from typing import Any
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -130,6 +132,75 @@ def _upload_featured_media(
     return media_id
 
 
+def _as_paragraph_html(text: str) -> str:
+    chunks = [chunk.strip() for chunk in re.split(r"\n{2,}", text.strip()) if chunk.strip()]
+    if not chunks:
+        return ""
+    lines = []
+    for chunk in chunks:
+        compact = re.sub(r"\s*\n\s*", " ", chunk)
+        lines.append(f"<p>{escape(compact)}</p>")
+    return "\n".join(lines)
+
+
+def _build_post_content(article: dict[str, Any]) -> tuple[str, str | None]:
+    source_url = article.get("source_url") or ""
+    canonical_url = article.get("canonical_url") or source_url
+    summary = (article.get("summary") or "").strip()
+    body_text = (article.get("content_rewritten") or article.get("content_raw") or "").strip()
+    if not body_text:
+        body_text = summary
+
+    # Keep existing HTML if already present, otherwise wrap plain text into paragraphs.
+    has_html = bool(re.search(r"<[a-zA-Z][^>]*>", body_text))
+    body_html = body_text if has_html else _as_paragraph_html(body_text)
+    if not body_html:
+        body_html = "<p>Kein Inhalt verfügbar.</p>"
+
+    author = (article.get("author") or "").strip()
+    published_at = (article.get("published_at") or "").strip()
+    source_name = (article.get("source_name_snapshot") or "").strip()
+    license_name = (article.get("source_license_name_snapshot") or "").strip()
+    terms_url = (article.get("source_terms_url_snapshot") or "").strip()
+    press_contact = (article.get("press_contact") or "").strip()
+
+    lead_html = f"<p><em>{escape(summary)}</em></p>\n" if summary else ""
+
+    facts: list[str] = []
+    if author:
+        facts.append(f"<li><strong>Autor:</strong> {escape(author)}</li>")
+    if published_at:
+        facts.append(f"<li><strong>Veröffentlicht (Quelle):</strong> {escape(published_at)}</li>")
+    if source_name:
+        facts.append(f"<li><strong>Quelle:</strong> {escape(source_name)}</li>")
+    if license_name:
+        facts.append(f"<li><strong>Lizenz:</strong> {escape(license_name)}</li>")
+    if terms_url:
+        facts.append(f"<li><strong>Lizenzhinweise:</strong> <a href=\"{escape(terms_url)}\">{escape(terms_url)}</a></li>")
+
+    facts_html = (
+        "<h3>Artikeldetails</h3>\n<ul>\n" + "\n".join(facts) + "\n</ul>\n"
+        if facts
+        else ""
+    )
+    press_contact_html = (
+        f"<h3>Pressekontakt</h3>\n<p>{escape(press_contact)}</p>\n" if press_contact else ""
+    )
+    attribution_html = (
+        "<hr />\n<section class=\"rss-news-attribution\">\n"
+        "<h3>Quelle</h3>\n"
+        f"<p>Originalartikel: <a href=\"{escape(source_url)}\">{escape(source_url)}</a></p>\n"
+    )
+    if canonical_url and canonical_url != source_url:
+        attribution_html += f"<p>Canonical: <a href=\"{escape(canonical_url)}\">{escape(canonical_url)}</a></p>\n"
+    attribution_html += "</section>"
+
+    content = f"{lead_html}{body_html}\n\n{facts_html}{press_contact_html}{attribution_html}".strip()
+    excerpt_source = summary or re.sub(r"\s+", " ", body_text).strip()
+    excerpt = excerpt_source[:220] if excerpt_source else None
+    return content, excerpt
+
+
 def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
     settings = get_settings()
     if not settings.wordpress_base_url or not settings.wordpress_username or not settings.wordpress_app_password:
@@ -137,18 +208,9 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
 
     auth = _auth_header(settings.wordpress_username, settings.wordpress_app_password)
 
-    source_url = article.get("source_url") or ""
-    canonical_url = article.get("canonical_url") or source_url
     title = (article.get("title") or "Ohne Titel").strip()
-    body = (article.get("content_rewritten") or article.get("content_raw") or "").strip()
-    if not body:
-        body = article.get("summary") or ""
-
-    footer = "\n\n<hr />\n<p><strong>Quelle:</strong> "
-    footer += f"<a href=\"{source_url}\">{source_url}</a></p>"
-    if canonical_url and canonical_url != source_url:
-        footer += f"\n<p><strong>Canonical:</strong> <a href=\"{canonical_url}\">{canonical_url}</a></p>"
-    content = f"{body}{footer}"
+    content, excerpt = _build_post_content(article)
+    source_url = article.get("source_url") or ""
 
     featured_media_id = None
     selected_image_url = _selected_image_url_from_meta(article.get("meta_json"))
@@ -166,6 +228,8 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
         "content": content,
         "status": settings.wordpress_default_status,
     }
+    if excerpt:
+        payload["excerpt"] = excerpt
     if featured_media_id:
         payload["featured_media"] = featured_media_id
 

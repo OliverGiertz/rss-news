@@ -38,6 +38,9 @@ class TestWordpressPublish(unittest.TestCase):
         self.assertTrue(mock_upload_media.called)
         payload = mock_wp_request.call_args.kwargs["payload"]
         self.assertEqual(payload.get("featured_media"), 456)
+        self.assertIn("<h3>Quelle</h3>", payload.get("content", ""))
+        self.assertIn("Originalartikel", payload.get("content", ""))
+        self.assertEqual(payload.get("excerpt"), "Inhalt")
 
     @patch("backend.app.wordpress._upload_featured_media")
     @patch("backend.app.wordpress._wp_request")
@@ -57,6 +60,7 @@ class TestWordpressPublish(unittest.TestCase):
         self.assertFalse(mock_upload_media.called)
         payload = mock_wp_request.call_args.kwargs["payload"]
         self.assertNotIn("featured_media", payload)
+        self.assertIn("<p>Inhalt</p>", payload.get("content", ""))
 
 
 if __name__ == "__main__":
