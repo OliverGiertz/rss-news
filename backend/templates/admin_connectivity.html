@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/admin/static/admin.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Connectivity Check</h1>
+      <p>Angemeldet als <strong>{{ user }}</strong></p>
+    </div>
+    <div class="row">
+      <a class="linkbtn" href="/admin/dashboard">Zurück</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit" class="secondary">Logout</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="stats">
+      <article class="stat">
+        <div class="label">Checks</div>
+        <div class="value">{{ checks|length }}</div>
+      </article>
+      <article class="stat">
+        <div class="label">OK</div>
+        <div class="value">{{ ok_count }}</div>
+      </article>
+      <article class="stat">
+        <div class="label">Fehler</div>
+        <div class="value">{{ error_count }}</div>
+      </article>
+      <article class="stat">
+        <div class="label">Zeitpunkt</div>
+        <div class="value">Live</div>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>Ziele</h2>
+      <p class="subtle">Geprüft werden DNS-Auflösung, TCP-Erreichbarkeit und bei URLs ein HTTP-Request.</p>
+      <form method="get" action="/admin/connectivity" class="row">
+        <button type="submit">Checks neu ausführen</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Ergebnis</h2>
+      <table>
+        <thead>
+          <tr><th>Status</th><th>Name</th><th>Typ</th><th>Ziel</th><th>DNS</th><th>TCP</th><th>HTTP</th><th>Dauer</th></tr>
+        </thead>
+        <tbody>
+          {% for c in checks %}
+          <tr>
+            <td>{% if c.ok %}<span class="badge ok">OK</span>{% else %}<span class="badge bad">Fehler</span>{% endif %}</td>
+            <td>{{ c.label }}</td>
+            <td>{{ c.kind }}</td>
+            <td><code>{{ c.target }}</code></td>
+            <td>
+              {% if c.dns_ok %}<span class="badge ok">OK</span>{% else %}<span class="badge bad">FAIL</span>{% endif %}
+              <div class="subtle">{{ c.dns_info }}</div>
+            </td>
+            <td>
+              {% if c.tcp_ok %}<span class="badge ok">OK</span>{% else %}<span class="badge bad">FAIL</span>{% endif %}
+              <div class="subtle">{{ c.tcp_info }}</div>
+            </td>
+            <td>
+              {% if c.http_ok %}<span class="badge ok">OK</span>{% else %}<span class="badge bad">FAIL</span>{% endif %}
+              <div class="subtle">{{ c.http_info }}</div>
+            </td>
+            <td>{{ c.duration_ms }} ms</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

@@ -12,9 +12,12 @@
       <h1>rss-news Admin Dashboard</h1>
       <p>Angemeldet als <strong>{{ user }}</strong></p>
     </div>
-    <form method="post" action="/admin/logout">
-      <button type="submit" class="secondary">Logout</button>
-    </form>
+    <div class="row">
+      <a class="linkbtn" href="/admin/connectivity">Connectivity Check</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit" class="secondary">Logout</button>
+      </form>
+    </div>
   </header>
 
   <main class="container">

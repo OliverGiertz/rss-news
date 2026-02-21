@@ -176,6 +176,53 @@ class TestAdminUi(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn("image/jpeg", res.headers.get("content-type", ""))
 
+    @patch("backend.app.admin_ui._run_connectivity_check")
+    @patch("backend.app.admin_ui._build_connectivity_targets")
+    def test_connectivity_page_renders(self, mock_targets, mock_check) -> None:
+        mock_targets.return_value = [
+            {"label": "OpenAI API", "kind": "host", "value": "api.openai.com"},
+            {"label": "WordPress REST", "kind": "url", "value": "https://example.org/wp-json/wp/v2"},
+        ]
+        mock_check.side_effect = [
+            {
+                "label": "OpenAI API",
+                "kind": "host",
+                "target": "api.openai.com",
+                "dns_ok": True,
+                "dns_info": "1.2.3.4",
+                "tcp_ok": True,
+                "tcp_info": "port 443 erreichbar",
+                "http_ok": True,
+                "http_info": "n/a (host-only)",
+                "duration_ms": 12,
+                "ok": True,
+            },
+            {
+                "label": "WordPress REST",
+                "kind": "url",
+                "target": "https://example.org/wp-json/wp/v2",
+                "dns_ok": False,
+                "dns_info": "Name or service not known",
+                "tcp_ok": False,
+                "tcp_info": "-",
+                "http_ok": False,
+                "http_info": "-",
+                "duration_ms": 10,
+                "ok": False,
+            },
+        ]
+
+        self.client.post(
+            "/admin/login",
+            data={"username": "admin", "password": "secret"},
+            follow_redirects=True,
+        )
+        res = self.client.get("/admin/connectivity", follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("Connectivity Check", res.text)
+        self.assertIn("OpenAI API", res.text)
+        self.assertIn("WordPress REST", res.text)
+
 
 if __name__ == "__main__":
     unittest.main()
