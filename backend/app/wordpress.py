@@ -229,6 +229,42 @@ def _as_block_paragraphs(text: str) -> str:
     return "\n".join(lines)
 
 
+def _strip_html_tags(raw: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", raw or "")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _html_to_wp_blocks(html: str) -> str:
+    src = (html or "").strip()
+    if not src:
+        return ""
+    pattern = re.compile(
+        r"<h([2-6])[^>]*>[\s\S]*?</h\1>|<p[^>]*>[\s\S]*?</p>|<ul[^>]*>[\s\S]*?</ul>|<ol[^>]*>[\s\S]*?</ol>",
+        re.IGNORECASE,
+    )
+    blocks: list[str] = []
+    for match in pattern.finditer(src):
+        block_html = match.group(0).strip()
+        if not block_html:
+            continue
+        tag_match = re.match(r"<([a-z0-9]+)", block_html, re.IGNORECASE)
+        tag = (tag_match.group(1).lower() if tag_match else "")
+        if tag == "p":
+            blocks.append(f"<!-- wp:paragraph -->{block_html}<!-- /wp:paragraph -->")
+        elif tag in {"ul", "ol"}:
+            ordered = tag == "ol"
+            if ordered:
+                blocks.append(f'<!-- wp:list {{"ordered":true}} -->{block_html}<!-- /wp:list -->')
+            else:
+                blocks.append(f"<!-- wp:list -->{block_html}<!-- /wp:list -->")
+        elif tag.startswith("h") and len(tag) == 2 and tag[1].isdigit():
+            level = int(tag[1])
+            blocks.append(f'<!-- wp:heading {{"level":{level}}} -->{block_html}<!-- /wp:heading -->')
+    if blocks:
+        return "\n".join(blocks)
+    return _as_block_paragraphs(_strip_html_tags(src))
+
+
 def _as_block_heading(level: int, text: str) -> str:
     safe_level = min(6, max(1, int(level)))
     return f'<!-- wp:heading {{"level":{safe_level}}} --><h{safe_level}>{escape(text)}</h{safe_level}><!-- /wp:heading -->'
@@ -254,60 +290,18 @@ def _sanitize_publish_text(text: str) -> str:
 
 
 def _build_post_content(article: dict[str, Any]) -> tuple[str, str | None]:
-    source_url = article.get("source_url") or ""
-    canonical_url = article.get("canonical_url") or source_url
     summary = (article.get("summary") or "").strip()
     body_text = (article.get("content_rewritten") or article.get("content_raw") or "").strip()
     body_text = _sanitize_publish_text(body_text)
     if not body_text:
         body_text = summary
 
-    # Keep existing HTML if already present, otherwise wrap plain text into block paragraphs.
     has_html = bool(re.search(r"<[a-zA-Z][^>]*>", body_text))
-    body_html = body_text if has_html else _as_block_paragraphs(body_text)
+    body_html = _html_to_wp_blocks(body_text) if has_html else _as_block_paragraphs(body_text)
     if not body_html:
         body_html = "<!-- wp:paragraph --><p>Kein Inhalt verfügbar.</p><!-- /wp:paragraph -->"
-    elif has_html:
-        body_html = f"<!-- wp:html -->\n{body_html}\n<!-- /wp:html -->"
-
-    author = (article.get("author") or "").strip()
-    published_at = (article.get("published_at") or "").strip()
-    source_name = (article.get("source_name_snapshot") or "").strip()
-    license_name = (article.get("source_license_name_snapshot") or "").strip()
-    terms_url = (article.get("source_terms_url_snapshot") or "").strip()
-
-    lead_html = f"<!-- wp:paragraph --><p><em>{escape(summary)}</em></p><!-- /wp:paragraph -->\n" if summary else ""
-
-    facts: list[str] = []
-    if author:
-        facts.append(f"<strong>Autor:</strong> {escape(author)}")
-    if published_at:
-        facts.append(f"<strong>Veröffentlicht (Quelle):</strong> {escape(published_at)}")
-    if source_name:
-        facts.append(f"<strong>Quelle:</strong> {escape(source_name)}")
-    if license_name:
-        facts.append(f"<strong>Lizenz:</strong> {escape(license_name)}")
-    if terms_url:
-        facts.append(f"<strong>Lizenzhinweise:</strong> <a href=\"{escape(terms_url)}\">{escape(terms_url)}</a>")
-
-    facts_html = ""
-    if facts:
-        facts_html = _as_block_heading(3, "Artikeldetails") + "\n" + _as_block_list(facts)
-
-    attribution_parts = [
-        _as_block_heading(3, "Quelle"),
-        f'<!-- wp:paragraph --><p>Originalartikel: <a href="{escape(source_url)}">{escape(source_url)}</a></p><!-- /wp:paragraph -->',
-    ]
-    if canonical_url and canonical_url != source_url:
-        attribution_parts.append(
-            f'<!-- wp:paragraph --><p>Canonical: <a href="{escape(canonical_url)}">{escape(canonical_url)}</a></p><!-- /wp:paragraph -->'
-        )
-    attribution_html = "\n".join(attribution_parts)
-
-    content = f"{lead_html}{body_html}\n\n{facts_html}\n{attribution_html}".strip()
-    excerpt_source = summary or re.sub(r"\s+", " ", body_text).strip()
-    excerpt = excerpt_source[:220] if excerpt_source else None
-    return content, excerpt
+    content = body_html.strip()
+    return content, None
 
 
 def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:

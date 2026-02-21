@@ -38,9 +38,9 @@ class TestWordpressPublish(unittest.TestCase):
         self.assertTrue(mock_upload_media.called)
         payload = mock_wp_request.call_args.kwargs["payload"]
         self.assertEqual(payload.get("featured_media"), 456)
-        self.assertIn("<h3>Quelle</h3>", payload.get("content", ""))
-        self.assertIn("Originalartikel", payload.get("content", ""))
-        self.assertEqual(payload.get("excerpt"), "Inhalt")
+        self.assertIn("<!-- wp:paragraph -->", payload.get("content", ""))
+        self.assertIn("<p>Inhalt</p>", payload.get("content", ""))
+        self.assertNotIn("excerpt", payload)
 
     @patch("backend.app.wordpress._upload_featured_media")
     @patch("backend.app.wordpress._wp_request")
@@ -79,6 +79,7 @@ class TestWordpressPublish(unittest.TestCase):
         self.assertNotIn("Firma GmbH", content)
         self.assertNotIn("Pressekontakt", content)
         self.assertIn("eigentliche Text", content)
+        self.assertNotIn("Artikeldetails", content)
 
     @patch("backend.app.wordpress._upload_featured_media")
     @patch("backend.app.wordpress._wp_request")
@@ -113,6 +114,25 @@ class TestWordpressPublish(unittest.TestCase):
         self.assertEqual(len(post_calls), 1)
         payload = post_calls[0].kwargs.get("payload", {})
         self.assertEqual(payload.get("tags"), [11, 12])
+
+    @patch("backend.app.wordpress._upload_featured_media")
+    @patch("backend.app.wordpress._wp_request")
+    def test_publish_converts_html_to_wp_blocks_without_html_block(self, mock_wp_request, mock_upload_media) -> None:
+        mock_wp_request.return_value = {"id": 111, "link": "https://example.org/?p=111"}
+        article = {
+            "title": "Block Test",
+            "content_rewritten": "<h2>Überschrift</h2><p>Absatz 1</p><ul><li>A</li><li>B</li></ul>",
+            "source_url": "https://example.com/source",
+            "canonical_url": "https://example.com/source",
+            "meta_json": "{}",
+        }
+        publish_article_draft(article)
+        payload = mock_wp_request.call_args.kwargs["payload"]
+        content = payload.get("content", "")
+        self.assertIn("<!-- wp:heading", content)
+        self.assertIn("<!-- wp:paragraph -->", content)
+        self.assertIn("<!-- wp:list -->", content)
+        self.assertNotIn("<!-- wp:html -->", content)
 
 
 if __name__ == "__main__":
