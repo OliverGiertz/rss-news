@@ -170,6 +170,9 @@
         <textarea name="content_rewritten" rows="14" style="width:100%;">{{ article.content_rewritten or "" }}</textarea>
         <button type="submit">Rewrite-Text speichern</button>
       </form>
+      {% if article.meta.generated_tags %}
+      <p><strong>Generierte Tags:</strong> {{ article.meta.generated_tags|join("; ") }}</p>
+      {% endif %}
       <p class="subtle">Dieser Text wird für den WordPress-Entwurf verwendet, falls vorhanden.</p>
     </section>
 

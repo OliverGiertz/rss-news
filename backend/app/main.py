@@ -18,7 +18,7 @@ from .ingestion import run_ingestion
 from .policy import evaluate_source_policy, is_source_allowed
 from .publisher import enqueue_publish, run_publisher
 from .relevance import article_age_days, article_relevance
-from .rewrite import rewrite_article_text
+from .rewrite import generate_article_tags, merge_generated_tags, rewrite_article_text
 from .repositories import (
     ArticleUpsert,
     FeedCreate,
@@ -514,6 +514,12 @@ def api_article_rewrite_run(article_id: int, username: str = Depends(require_aut
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rewrite nur aus Status 'new' oder 'rewrite'")
 
     rewritten = rewrite_article_text(article)
+    tags: list[str] = []
+    try:
+        tags = generate_article_tags(article, rewritten_text=rewritten)
+    except Exception:
+        tags = []
+    merged_meta = merge_generated_tags(article.get("meta_json"), tags)
     # upsert via status update + existing fields by lightweight path:
     repo_upsert_article(
         ArticleUpsert(
@@ -543,10 +549,10 @@ def api_article_rewrite_run(article_id: int, username: str = Depends(require_aut
             published_to_wp_at=article.get("published_to_wp_at"),
             word_count=len(rewritten.split()),
             status="approved",
-            meta_json=article.get("meta_json"),
+            meta_json=merged_meta,
         )
     )
-    return {"ok": True, "id": article_id, "status": "publish"}
+    return {"ok": True, "id": article_id, "status": "publish", "tags": tags}
 
 
 @app.post("/api/articles/{article_id}/legal-review")

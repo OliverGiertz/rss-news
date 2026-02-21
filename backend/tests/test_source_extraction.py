@@ -26,6 +26,25 @@ SAMPLE_HTML = """
 </html>
 """
 
+SAMPLE_HTML_AGENTUR = """
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta property="og:title" content="Demo Meldung Agentur" />
+</head>
+<body>
+  <article>
+    <p>Inhalt der Meldung.</p>
+    <h3>Agentur</h3>
+    <p>Agenturname GmbH</p>
+    <p>presse@agentur.example</p>
+    <p>Original-Content von Beispiel</p>
+  </article>
+</body>
+</html>
+"""
+
 
 class _FakeHeaders:
     @staticmethod
@@ -63,6 +82,14 @@ class TestSourceExtraction(unittest.TestCase):
         self.assertIn("https://www.presseportal.de/images/demo.jpg", extracted.images)
         self.assertIn("Pressekontakt", extracted.press_contact or "")
         self.assertIsNone(extracted.extraction_error)
+
+    @patch("backend.app.source_extraction.urlopen")
+    def test_extract_article_detects_agentur_block_as_press_contact(self, mock_urlopen) -> None:
+        mock_urlopen.return_value = _FakeResponse(SAMPLE_HTML_AGENTUR)
+        extracted = extract_article("https://www.presseportal.de/pm/155103/6210401")
+        self.assertIn("Agentur", extracted.press_contact or "")
+        self.assertIn("Agenturname", extracted.press_contact or "")
+        self.assertIn("presse@agentur.example", extracted.press_contact or "")
 
 
 if __name__ == "__main__":

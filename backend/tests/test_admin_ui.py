@@ -271,6 +271,71 @@ class TestAdminUi(unittest.TestCase):
         self.assertIn("Neu", article.get("content_rewritten") or "")
         self.assertIsNone(article.get("wp_post_id"))
 
+    @patch("backend.app.admin_ui.generate_article_tags")
+    @patch("backend.app.admin_ui.rewrite_article_text")
+    def test_batch_rewrite_run_processes_planned_articles(self, mock_rewrite_text, mock_tags) -> None:
+        mock_rewrite_text.return_value = "<h2>Neu</h2><p>Text</p>"
+        mock_tags.return_value = ["Rheingas", "Monheim"]
+
+        source_id = create_source(
+            SourceCreate(
+                name="Batch Source",
+                base_url="https://example.org",
+                terms_url="https://example.org/terms",
+                license_name="cc-by",
+                risk_level="green",
+                is_enabled=True,
+                notes=None,
+                last_reviewed_at=None,
+            )
+        )
+        feed_id = create_feed(
+            FeedCreate(
+                name="Batch Feed",
+                url="https://example.org/feed.xml",
+                source_id=source_id,
+                is_enabled=True,
+            )
+        )
+        article_id = upsert_article(
+            ArticleUpsert(
+                feed_id=feed_id,
+                source_article_id="batch-1",
+                source_hash="batch-hash-1",
+                title="Batch Titel",
+                source_url="https://example.org/batch",
+                canonical_url="https://example.org/batch",
+                published_at=None,
+                author="Autor",
+                summary="Summary",
+                content_raw="Raw",
+                content_rewritten=None,
+                image_urls_json=None,
+                press_contact=None,
+                source_name_snapshot="Batch Source",
+                source_terms_url_snapshot="https://example.org/terms",
+                source_license_name_snapshot="cc-by",
+                legal_checked=False,
+                legal_checked_at=None,
+                legal_note=None,
+                wp_post_id=None,
+                wp_post_url=None,
+                publish_attempts=0,
+                publish_last_error=None,
+                published_to_wp_at=None,
+                word_count=1,
+                status="rewrite",
+                meta_json="{}",
+            )
+        )
+        self.client.post("/admin/login", data={"username": "admin", "password": "secret"}, follow_redirects=True)
+        res = self.client.post("/admin/rewrite/run", data={"max_jobs": "10"}, follow_redirects=False)
+        self.assertEqual(res.status_code, 303)
+        article = get_article_by_id(article_id)
+        self.assertIsNotNone(article)
+        self.assertEqual(article.get("status"), "approved")
+        self.assertIn("generated_tags", article.get("meta_json", ""))
+
     @patch("backend.app.admin_ui.urlopen")
     def test_image_proxy_returns_image_data(self, mock_urlopen) -> None:
         class _FakeHeaders:

@@ -7,7 +7,7 @@ import mimetypes
 from pathlib import Path
 import re
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 from urllib.request import Request, urlopen
 
 from .config import get_settings
@@ -25,7 +25,7 @@ def _wp_request(
     method: str,
     endpoint: str,
     payload: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+) -> Any:
     url = f"{base_url.rstrip('/')}/wp-json/wp/v2/{endpoint.lstrip('/')}"
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     req = Request(
@@ -41,8 +41,7 @@ def _wp_request(
     )
     with urlopen(req, timeout=20) as resp:
         raw = resp.read().decode("utf-8", errors="replace")
-    parsed = json.loads(raw) if raw else {}
-    return parsed if isinstance(parsed, dict) else {}
+    return json.loads(raw) if raw else {}
 
 
 def _selected_image_url_from_meta(meta_json: str | None) -> str | None:
@@ -59,6 +58,81 @@ def _selected_image_url_from_meta(meta_json: str | None) -> str | None:
         return None
     selected = image_review.get("selected_url")
     return selected if isinstance(selected, str) and selected.strip() else None
+
+
+def _selected_tags_from_meta(meta_json: str | None) -> list[str]:
+    if not meta_json:
+        return []
+    try:
+        meta = json.loads(meta_json)
+    except Exception:
+        return []
+    if not isinstance(meta, dict):
+        return []
+    raw_tags = meta.get("generated_tags")
+    if not isinstance(raw_tags, list):
+        return []
+    tags: list[str] = []
+    seen: set[str] = set()
+    for item in raw_tags:
+        value = str(item or "").strip()
+        if not value:
+            continue
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        tags.append(value)
+        if len(tags) >= 12:
+            break
+    return tags
+
+
+def _resolve_wp_tag_ids(*, base_url: str, auth_header: str, tags: list[str]) -> list[int]:
+    ids: list[int] = []
+    seen: set[int] = set()
+    for tag in tags:
+        name = tag.strip()
+        if not name:
+            continue
+        try:
+            endpoint = f"tags?search={quote_plus(name)}&per_page=20"
+            result = _wp_request(base_url=base_url, auth_header=auth_header, method="GET", endpoint=endpoint)
+            tag_id: int | None = None
+            if isinstance(result, list):
+                for row in result:
+                    if not isinstance(row, dict):
+                        continue
+                    row_name = str(row.get("name") or "")
+                    rid = int(row.get("id", 0) or 0)
+                    if rid <= 0:
+                        continue
+                    if row_name.casefold() == name.casefold():
+                        tag_id = rid
+                        break
+                if tag_id is None:
+                    for row in result:
+                        if isinstance(row, dict) and int(row.get("id", 0) or 0) > 0:
+                            tag_id = int(row.get("id", 0))
+                            break
+            if tag_id is None:
+                created = _wp_request(
+                    base_url=base_url,
+                    auth_header=auth_header,
+                    method="POST",
+                    endpoint="tags",
+                    payload={"name": name},
+                )
+                if isinstance(created, dict):
+                    rid = int(created.get("id", 0) or 0)
+                    if rid > 0:
+                        tag_id = rid
+            if tag_id is not None and tag_id > 0 and tag_id not in seen:
+                seen.add(tag_id)
+                ids.append(tag_id)
+        except Exception:
+            continue
+    return ids
 
 
 def _download_image_bytes(url: str, referer: str | None = None) -> tuple[bytes, str]:
@@ -269,6 +343,14 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
         payload["featured_media"] = featured_media_id
 
     wp_post_id = article.get("wp_post_id")
+    tag_ids = _resolve_wp_tag_ids(
+        base_url=settings.wordpress_base_url,
+        auth_header=auth,
+        tags=_selected_tags_from_meta(article.get("meta_json")),
+    )
+    if tag_ids:
+        payload["tags"] = tag_ids
+
     if wp_post_id:
         result = _wp_request(
             base_url=settings.wordpress_base_url,
@@ -286,6 +368,8 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
             payload=payload,
         )
 
+    if not isinstance(result, dict):
+        raise RuntimeError(f"WordPress Antwort im unerwarteten Format: {result}")
     post_id = int(result.get("id", 0))
     if post_id <= 0:
         raise RuntimeError(f"WordPress Antwort ohne Post-ID: {result}")

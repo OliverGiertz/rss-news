@@ -103,6 +103,15 @@
     </section>
 
     <section class="card">
+      <h2>Rewrite Run (geplante Artikel)</h2>
+      <p class="subtle">Verarbeitet alle Artikel im Status <code>rewrite</code> und setzt sie auf <code>publish</code>.</p>
+      <form method="post" action="/admin/rewrite/run" class="row">
+        <input name="max_jobs" value="10" />
+        <button type="submit">Rewrite Run starten</button>
+      </form>
+    </section>
+
+    <section class="card">
       <h2>Quellen + Policy</h2>
       <table>
         <thead>
@@ -268,6 +277,9 @@
               {% endif %}
               {% if a.summary %}
               <div><strong>Summary:</strong> {{ a.summary }}</div>
+              {% endif %}
+              {% if a.generated_tags %}
+              <div><strong>Tags:</strong> {{ a.generated_tags|join("; ") }}</div>
               {% endif %}
               {% if a.content_raw %}
               <details>

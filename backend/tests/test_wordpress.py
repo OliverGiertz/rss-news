@@ -80,6 +80,40 @@ class TestWordpressPublish(unittest.TestCase):
         self.assertNotIn("Pressekontakt", content)
         self.assertIn("eigentliche Text", content)
 
+    @patch("backend.app.wordpress._upload_featured_media")
+    @patch("backend.app.wordpress._wp_request")
+    def test_publish_resolves_and_sets_tags(self, mock_wp_request, mock_upload_media) -> None:
+        def _fake_wp_request(**kwargs):
+            endpoint = kwargs.get("endpoint", "")
+            method = kwargs.get("method", "")
+            if method == "GET" and endpoint.startswith("tags?search="):
+                if "Rheingas" in endpoint:
+                    return [{"id": 11, "name": "Rheingas"}]
+                return []
+            if method == "POST" and endpoint == "tags":
+                name = (kwargs.get("payload") or {}).get("name")
+                if name == "Gasflasche":
+                    return {"id": 12, "name": "Gasflasche"}
+                return {"id": 13, "name": str(name)}
+            if method == "POST" and endpoint == "posts":
+                return {"id": 900, "link": "https://example.org/?p=900"}
+            return {}
+
+        mock_wp_request.side_effect = _fake_wp_request
+        article = {
+            "title": "Tag Test",
+            "content_raw": "Inhalt",
+            "source_url": "https://example.com/source",
+            "canonical_url": "https://example.com/source",
+            "meta_json": '{"generated_tags":["Rheingas","Gasflasche"]}',
+        }
+        post_id, _ = publish_article_draft(article)
+        self.assertEqual(post_id, 900)
+        post_calls = [call for call in mock_wp_request.call_args_list if call.kwargs.get("endpoint") == "posts"]
+        self.assertEqual(len(post_calls), 1)
+        payload = post_calls[0].kwargs.get("payload", {})
+        self.assertEqual(payload.get("tags"), [11, 12])
+
 
 if __name__ == "__main__":
     unittest.main()

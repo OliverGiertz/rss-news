@@ -20,7 +20,7 @@ from .ingestion import run_ingestion
 from .policy import evaluate_source_policy
 from .publisher import enqueue_publish, run_publisher
 from .relevance import article_age_days, article_relevance
-from .rewrite import rewrite_article_text
+from .rewrite import generate_article_tags, merge_generated_tags, rewrite_article_text
 from .repositories import (
     FeedCreate,
     FeedUpdate,
@@ -373,6 +373,7 @@ def _upsert_article_from_existing(
     publish_attempts: int | object = _UNSET,
     publish_last_error: str | None | object = _UNSET,
     published_to_wp_at: str | None | object = _UNSET,
+    meta_json: str | None | object = _UNSET,
 ) -> None:
     rewritten = article.get("content_rewritten") if content_rewritten is None else content_rewritten
     upsert_article(
@@ -403,7 +404,7 @@ def _upsert_article_from_existing(
             published_to_wp_at=article.get("published_to_wp_at") if published_to_wp_at is _UNSET else published_to_wp_at,
             word_count=len(str(rewritten or "").split()),
             status=article.get("status") if status is None else status,
-            meta_json=article.get("meta_json"),
+            meta_json=article.get("meta_json") if meta_json is _UNSET else meta_json,
         )
     )
 
@@ -493,6 +494,8 @@ def admin_dashboard(request: Request):
         article["days_old"] = article_age_days(article.get("published_at"))
         article["relevance"] = article_relevance(article.get("published_at"))
         article["status_ui"] = internal_to_ui_status(article.get("status"))
+        tags = meta.get("generated_tags") if isinstance(meta.get("generated_tags"), list) else []
+        article["generated_tags"] = [str(t) for t in tags if t]
 
     return templates.TemplateResponse(
         request,
@@ -836,10 +839,38 @@ def admin_rewrite_run(request: Request, article_id: int):
         return _dashboard_redirect(msg=f"Rewrite nur aus new/rewrite fuer Artikel #{article_id}", msg_type="error")
     try:
         rewritten = rewrite_article_text(article)
+        tags = generate_article_tags(article, rewritten_text=rewritten)
     except Exception as exc:
         return _dashboard_redirect(msg=f"Rewrite fehlgeschlagen fuer Artikel #{article_id}: {exc}", msg_type="error")
-    _upsert_article_from_existing(article, content_rewritten=rewritten, status="approved")
+    merged_meta = merge_generated_tags(article.get("meta_json"), tags)
+    _upsert_article_from_existing(article, content_rewritten=rewritten, status="approved", meta_json=merged_meta)
     return _dashboard_redirect(msg=f"Rewrite fertig fuer Artikel #{article_id} -> publish")
+
+
+@router.post("/admin/rewrite/run")
+def admin_rewrite_run_batch(request: Request, max_jobs: str = Form("10")):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    try:
+        limit = max(1, min(int(max_jobs), 100))
+    except Exception:
+        limit = 10
+    planned = list_articles(limit=limit, status_filter="rewrite")
+    processed = 0
+    success = 0
+    failed = 0
+    for article in planned:
+        processed += 1
+        try:
+            rewritten = rewrite_article_text(article)
+            tags = generate_article_tags(article, rewritten_text=rewritten)
+            merged_meta = merge_generated_tags(article.get("meta_json"), tags)
+            _upsert_article_from_existing(article, content_rewritten=rewritten, status="approved", meta_json=merged_meta)
+            success += 1
+        except Exception:
+            failed += 1
+    return _dashboard_redirect(msg=f"Rewrite-Run: processed={processed}, success={success}, failed={failed}")
 
 
 @router.post("/admin/articles/{article_id}/rewrite-save")

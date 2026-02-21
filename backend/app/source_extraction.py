@@ -157,7 +157,7 @@ def _extract_content_text(html: str) -> str | None:
     paragraphs = []
     for match in re.finditer(r"<h[2-4][^>]*>([\s\S]*?)</h[2-4]>", section, re.IGNORECASE):
         text = _clean_text(match.group(1))
-        if text and re.search(r"\b(pressekontakt|press contact|kontakt)\b", text, re.IGNORECASE):
+        if text and re.search(r"\b(pressekontakt|press contact|kontakt|agentur)\b", text, re.IGNORECASE):
             paragraphs.append(text)
 
     for match in re.finditer(r"<p[^>]*>([\s\S]*?)</p>", section, re.IGNORECASE):
@@ -177,18 +177,18 @@ def _extract_press_contact(content_text: str | None) -> str | None:
         return None
 
     lines = [line.strip() for line in content_text.split("\n") if line.strip()]
-    marker_re = re.compile(r"\b(pressekontakt|press contact|presse\-kontakt)\b", re.IGNORECASE)
+    marker_re = re.compile(r"\b(pressekontakt|press contact|presse\-kontakt|agentur)\b", re.IGNORECASE)
     for idx, line in enumerate(lines):
         if marker_re.search(line):
             chunk = [line]
             for nxt in lines[idx + 1 : idx + 6]:
-                if re.search(r"\b(original\-content von|ots:|newsroom:)\b", nxt, re.IGNORECASE):
+                if re.search(r"\b(original\-content von|ots:|newsroom:|alle meldungen|zum newsroom)\b", nxt, re.IGNORECASE):
                     break
                 chunk.append(nxt)
             return _clean_text("\n".join(chunk))
 
     match = re.search(
-        r"(Pressekontakt[\s\S]{0,1200}?)(?:Original-Content von|OTS:|newsroom:|$)",
+        r"((?:Pressekontakt|Agentur)[\s\S]{0,1200}?)(?:Original-Content von|OTS:|newsroom:|Alle Meldungen|Zum Newsroom|$)",
         content_text,
         re.IGNORECASE,
     )
