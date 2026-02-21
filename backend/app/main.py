@@ -18,6 +18,7 @@ from .ingestion import run_ingestion
 from .policy import evaluate_source_policy, is_source_allowed
 from .publisher import enqueue_publish, run_publisher
 from .relevance import article_age_days, article_relevance
+from .rewrite import rewrite_article_text
 from .repositories import (
     ArticleUpsert,
     FeedCreate,
@@ -40,6 +41,7 @@ from .repositories import (
     update_article_status,
     upsert_article as repo_upsert_article,
 )
+from .workflow import ALLOWED_UI_TRANSITIONS, UI_STATUSES, internal_to_ui_status, ui_to_internal_status
 
 settings = get_settings()
 
@@ -119,7 +121,7 @@ class ArticleUpsertRequest(BaseModel):
     publish_last_error: str | None = None
     published_to_wp_at: str | None = None
     word_count: int = 0
-    status: str = Field(default="new", pattern="^(new|rewrite|review|approved|published|error)$")
+    status: str = Field(default="new", pattern="^(new|rewrite|publish|published|close|review|approved|error)$")
     meta_json: str | None = None
 
 
@@ -128,7 +130,7 @@ class IngestionRunRequest(BaseModel):
 
 
 class ArticleTransitionRequest(BaseModel):
-    target_status: str = Field(pattern="^(new|rewrite|review|approved|published|error)$")
+    target_status: str = Field(pattern="^(new|rewrite|publish|published|close|review|approved|error)$")
     note: str | None = None
 
 
@@ -152,12 +154,11 @@ class PublisherRunRequest(BaseModel):
 
 
 ALLOWED_ARTICLE_TRANSITIONS: dict[str, set[str]] = {
-    "new": {"review", "rewrite", "error"},
-    "rewrite": {"review", "error"},
-    "review": {"approved", "rewrite", "error"},
+    "new": {"rewrite", "error"},
+    "rewrite": {"approved", "error"},
     "approved": {"published", "error"},
     "published": {"error"},
-    "error": {"review", "rewrite"},
+    "error": {"rewrite"},
 }
 
 
@@ -340,7 +341,11 @@ def api_finish_run(run_id: int, payload: RunFinishRequest, username: str = Depen
 
 @app.get("/api/articles")
 def api_list_articles(limit: int = 100, status_filter: str | None = None, username: str = Depends(require_auth)) -> dict:
-    return {"ok": True, "items": repo_list_articles(limit=limit, status_filter=status_filter), "requested_by": username}
+    internal_filter = ui_to_internal_status(status_filter) if status_filter else None
+    items = repo_list_articles(limit=limit, status_filter=internal_filter)
+    for item in items:
+        item["status_ui"] = internal_to_ui_status(item.get("status"))
+    return {"ok": True, "items": items, "requested_by": username}
 
 
 @app.get("/api/articles/export")
@@ -349,7 +354,8 @@ def api_export_articles(
     status_filter: str | None = None,
     username: str = Depends(require_auth),
 ):
-    articles = repo_list_articles(limit=500, status_filter=status_filter)
+    internal_filter = ui_to_internal_status(status_filter) if status_filter else None
+    articles = repo_list_articles(limit=500, status_filter=internal_filter)
     rows = []
     for article in articles:
         meta: dict = {}
@@ -436,6 +442,7 @@ def api_get_article(article_id: int, username: str = Depends(require_auth)) -> d
     article = get_article_by_id(article_id)
     if not article:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
+    article["status_ui"] = internal_to_ui_status(article.get("status"))
     return {"ok": True, "item": article, "requested_by": username}
 
 
@@ -468,7 +475,7 @@ def api_upsert_article(payload: ArticleUpsertRequest, username: str = Depends(re
             publish_last_error=payload.publish_last_error,
             published_to_wp_at=payload.published_to_wp_at,
             word_count=payload.word_count,
-            status=payload.status,
+            status=ui_to_internal_status(payload.status),
             meta_json=payload.meta_json,
         )
     )
@@ -482,22 +489,64 @@ def api_article_transition(article_id: int, payload: ArticleTransitionRequest, u
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
 
     current_status = article.get("status")
-    allowed_targets = ALLOWED_ARTICLE_TRANSITIONS.get(current_status, set())
-    if payload.target_status not in allowed_targets:
+    current_ui = internal_to_ui_status(current_status)
+    target_internal = ui_to_internal_status(payload.target_status)
+    target_ui = internal_to_ui_status(target_internal)
+    allowed_targets = ALLOWED_UI_TRANSITIONS.get(current_ui, set())
+    if target_ui not in allowed_targets:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ungueltiger Statuswechsel: {current_status} -> {payload.target_status}",
-        )
-    if payload.target_status == "published" and int(article.get("legal_checked", 0)) != 1:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Publish gesperrt: Rechtscheck wurde noch nicht freigegeben",
+            detail=f"Ungueltiger Statuswechsel: {current_ui} -> {target_ui}",
         )
 
-    updated = update_article_status(article_id, payload.target_status, actor=username, note=payload.note)
+    updated = update_article_status(article_id, target_internal, actor=username, note=payload.note)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
-    return {"ok": True, "id": article_id, "from_status": current_status, "to_status": payload.target_status}
+    return {"ok": True, "id": article_id, "from_status": current_ui, "to_status": target_ui}
+
+
+@app.post("/api/articles/{article_id}/rewrite-run")
+def api_article_rewrite_run(article_id: int, username: str = Depends(require_auth)) -> dict:
+    article = get_article_by_id(article_id)
+    if not article:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
+    if internal_to_ui_status(article.get("status")) not in {"rewrite", "new"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rewrite nur aus Status 'new' oder 'rewrite'")
+
+    rewritten = rewrite_article_text(article)
+    # upsert via status update + existing fields by lightweight path:
+    repo_upsert_article(
+        ArticleUpsert(
+            feed_id=article.get("feed_id"),
+            source_article_id=article.get("source_article_id"),
+            source_hash=article.get("source_hash"),
+            title=article.get("title"),
+            source_url=article.get("source_url"),
+            canonical_url=article.get("canonical_url"),
+            published_at=article.get("published_at"),
+            author=article.get("author"),
+            summary=article.get("summary"),
+            content_raw=article.get("content_raw"),
+            content_rewritten=rewritten,
+            image_urls_json=article.get("image_urls_json"),
+            press_contact=article.get("press_contact"),
+            source_name_snapshot=article.get("source_name_snapshot"),
+            source_terms_url_snapshot=article.get("source_terms_url_snapshot"),
+            source_license_name_snapshot=article.get("source_license_name_snapshot"),
+            legal_checked=bool(int(article.get("legal_checked", 0))),
+            legal_checked_at=article.get("legal_checked_at"),
+            legal_note=article.get("legal_note"),
+            wp_post_id=article.get("wp_post_id"),
+            wp_post_url=article.get("wp_post_url"),
+            publish_attempts=int(article.get("publish_attempts", 0)),
+            publish_last_error=article.get("publish_last_error"),
+            published_to_wp_at=article.get("published_to_wp_at"),
+            word_count=len(rewritten.split()),
+            status="approved",
+            meta_json=article.get("meta_json"),
+        )
+    )
+    return {"ok": True, "id": article_id, "status": "publish"}
 
 
 @app.post("/api/articles/{article_id}/legal-review")
@@ -547,31 +596,7 @@ def api_publisher_run(payload: PublisherRunRequest, username: str = Depends(requ
 
 @app.post("/api/articles/{article_id}/review")
 def api_article_review(article_id: int, payload: ArticleReviewRequest, username: str = Depends(require_auth)) -> dict:
-    article = get_article_by_id(article_id)
-    if not article:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
-    if article.get("status") != "review":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Review nur fuer Status 'review' erlaubt (aktuell: {article.get('status')})",
-        )
-
-    target_status = "approved" if payload.decision == "approve" else "rewrite"
-    updated = update_article_status(
-        article_id,
-        target_status,
-        actor=username,
-        note=payload.note,
-        decision=payload.decision,
-    )
-    if not updated:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
-    return {
-        "ok": True,
-        "id": article_id,
-        "decision": payload.decision,
-        "to_status": target_status,
-    }
+    raise HTTPException(status_code=status.HTTP_410_GONE, detail="Review-Endpoint ersetzt durch Rewrite-Workflow")
 
 
 @app.post("/api/ingestion/run")

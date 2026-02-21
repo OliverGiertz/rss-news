@@ -30,7 +30,7 @@
     <section class="card">
       <h2>{{ article.title }}</h2>
       <div class="detail-grid">
-        <div class="detail-item"><span class="k">Status</span><span><span class="badge">{{ article.status }}</span></span></div>
+        <div class="detail-item"><span class="k">Status</span><span><span class="badge">{{ article.status_ui }}</span></span></div>
         <div class="detail-item"><span class="k">Artikel-Datum</span><span>{{ article.published_at or "-" }}</span></div>
         <div class="detail-item"><span class="k">Alter</span><span>{{ article.days_old if article.days_old is not none else "-" }} Tage</span></div>
         <div class="detail-item"><span class="k">Relevanz</span><span>{{ article.relevance }}</span></div>
@@ -187,8 +187,10 @@
 
     <section class="card">
       <h2>Status ändern</h2>
-      {% if not article.legal_checked %}
-      <p class="subtle">Hinweis: `published` ist erst nach manueller Rechtsfreigabe erlaubt.</p>
+      {% if article.status_ui in ["new", "rewrite"] %}
+      <form method="post" action="/admin/articles/{{ article.id }}/rewrite-run" class="row" style="margin-bottom:8px;">
+        <button type="submit">Rewrite ausführen (OpenAI)</button>
+      </form>
       {% endif %}
       <form method="post" action="/admin/articles/{{ article.id }}/transition" class="row">
         <select name="target_status">
@@ -215,6 +217,7 @@
       </ul>
       {% endif %}
       {% endif %}
+      <p class="subtle">Voraussetzungen: Status `publish` und Hauptbild gesetzt.</p>
       <form method="post" action="/admin/articles/{{ article.id }}/publish-enqueue" class="row">
         <input name="max_attempts" value="3" />
         <button type="submit" {% if not article.publish_ready %}disabled{% endif %}>In Queue einreihen</button>

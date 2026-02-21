@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     wordpress_username: str | None = Field(default=None, validation_alias=AliasChoices("WORDPRESS_USERNAME", "WP_USERNAME"))
     wordpress_app_password: str | None = Field(default=None, validation_alias=AliasChoices("WORDPRESS_APP_PASSWORD", "WP_PASSWORD"))
     wordpress_default_status: str = "draft"
+    openai_api_key: str | None = Field(default=None, validation_alias=AliasChoices("OPENAI_API_KEY"))
+    openai_model: str = "gpt-4o-mini"
 
 
 @lru_cache(maxsize=1)

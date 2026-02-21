@@ -62,6 +62,24 @@ class TestWordpressPublish(unittest.TestCase):
         self.assertNotIn("featured_media", payload)
         self.assertIn("<p>Inhalt</p>", payload.get("content", ""))
 
+    @patch("backend.app.wordpress._upload_featured_media")
+    @patch("backend.app.wordpress._wp_request")
+    def test_publish_strips_feed_header_and_press_contact(self, mock_wp_request, mock_upload_media) -> None:
+        mock_wp_request.return_value = {"id": 100, "link": "https://example.org/?p=100"}
+        article = {
+            "title": "Header Test",
+            "content_raw": "21.02.2026 10:00\nFirma GmbH\n(ots)\nDas ist der eigentliche Text.\nPressekontakt: Test Person",
+            "source_url": "https://example.com/source",
+            "canonical_url": "https://example.com/source",
+            "meta_json": "{}",
+        }
+        publish_article_draft(article)
+        payload = mock_wp_request.call_args.kwargs["payload"]
+        content = payload.get("content", "")
+        self.assertNotIn("Firma GmbH", content)
+        self.assertNotIn("Pressekontakt", content)
+        self.assertIn("eigentliche Text", content)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -144,7 +144,7 @@
       </form>
       <table>
         <thead>
-          <tr><th>ID</th><th>Artikel</th><th>Status</th><th>Details</th><th>Review</th><th>Transition</th></tr>
+          <tr><th>ID</th><th>Artikel</th><th>Status</th><th>Details</th><th>Rewrite</th><th>Transition</th></tr>
         </thead>
         <tbody>
           {% for a in articles %}
@@ -160,7 +160,7 @@
               <br /><a href="{{ a.canonical_url }}" target="_blank" rel="noopener">Canonical öffnen</a>
               {% endif %}
             </td>
-            <td><span class="badge">{{ a.status }}</span></td>
+            <td><span class="badge">{{ a.status_ui }}</span></td>
             <td>
               <div class="subtle">Legal: {{ "OK" if a.legal_checked else "offen" }}</div>
               <div class="subtle">Publish: {{ "bereit" if a.publish_ready else "blockiert" }}</div>
@@ -202,11 +202,9 @@
               {% endif %}
             </td>
             <td>
-              {% if a.status == "review" %}
-              <form method="post" action="/admin/articles/{{ a.id }}/review" class="inline">
-                <input name="note" placeholder="Notiz" />
-                <button name="decision" value="approve" type="submit">Approve</button>
-                <button name="decision" value="reject" type="submit" class="secondary">Reject</button>
+              {% if a.status_ui in ["new", "rewrite"] %}
+              <form method="post" action="/admin/articles/{{ a.id }}/rewrite-run" class="inline">
+                <button type="submit">Rewrite ausführen</button>
               </form>
               {% else %}
               -
@@ -215,11 +213,11 @@
             <td>
               <form method="post" action="/admin/articles/{{ a.id }}/transition" class="inline">
                 <select name="target_status">
-                  {% for s in allowed_transitions.get(a.status, []) %}
+                  {% for s in allowed_transitions.get(a.status_ui, []) %}
                   <option value="{{ s }}">{{ s }}</option>
                   {% endfor %}
                 </select>
-                {% if allowed_transitions.get(a.status, []) %}
+                {% if allowed_transitions.get(a.status_ui, []) %}
                 <button type="submit" class="secondary">Setzen</button>
                 {% else %}
                 <span class="subtle">keine Aktion</span>

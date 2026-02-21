@@ -17,6 +17,7 @@ from .ingestion import run_ingestion
 from .policy import evaluate_source_policy
 from .publisher import enqueue_publish, run_publisher
 from .relevance import article_age_days, article_relevance
+from .rewrite import rewrite_article_text
 from .repositories import (
     FeedCreate,
     SourceCreate,
@@ -31,19 +32,21 @@ from .repositories import (
     list_sources,
     set_article_image_decision,
     set_article_legal_review,
+    upsert_article,
     update_article_status,
+    ArticleUpsert,
 )
+from .workflow import ALLOWED_UI_TRANSITIONS, UI_STATUSES, internal_to_ui_status, ui_to_internal_status
 
 settings = get_settings()
 router = APIRouter(tags=["admin-ui"])
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
-    "new": ("review", "rewrite", "error"),
-    "rewrite": ("review", "error"),
-    "review": ("approved", "rewrite", "error"),
-    "approved": ("published", "error"),
-    "published": ("error",),
-    "error": ("review", "rewrite"),
+    "new": ("rewrite", "close"),
+    "rewrite": ("publish", "close"),
+    "publish": ("published", "close"),
+    "published": ("close",),
+    "close": ("rewrite",),
 }
 IMAGE_PROXY_USER_AGENT = "rss-news-admin/1.0"
 
@@ -158,10 +161,8 @@ def _build_image_entries(article: dict, extraction: dict, meta: dict) -> list[di
 
 def _publish_readiness(article: dict, meta: dict) -> tuple[bool, list[str]]:
     reasons: list[str] = []
-    if article.get("status") not in {"approved", "published"}:
-        reasons.append("Status ist nicht 'approved'")
-    if int(article.get("legal_checked", 0)) != 1:
-        reasons.append("Rechtsfreigabe fehlt")
+    if internal_to_ui_status(article.get("status")) not in {"publish", "published"}:
+        reasons.append("Status ist nicht 'publish'")
     image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
     selected_image = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
     if not selected_image:
@@ -311,8 +312,9 @@ def admin_dashboard(request: Request):
         job["error_category"] = category
         job["error_hint"] = hint
     status_filter = request.query_params.get("status_filter")
-    if status_filter in {"new", "rewrite", "review", "approved", "published", "error"}:
-        articles = list_articles(limit=100, status_filter=status_filter)
+    internal_filter = ui_to_internal_status(status_filter) if status_filter else None
+    if status_filter in set(UI_STATUSES):
+        articles = list_articles(limit=100, status_filter=internal_filter)
     else:
         status_filter = ""
         articles = list_articles(limit=100)
@@ -336,6 +338,7 @@ def admin_dashboard(request: Request):
         article["extraction_error"] = extraction.get("extraction_error") if isinstance(extraction.get("extraction_error"), str) else None
         article["days_old"] = article_age_days(article.get("published_at"))
         article["relevance"] = article_relevance(article.get("published_at"))
+        article["status_ui"] = internal_to_ui_status(article.get("status"))
 
     return templates.TemplateResponse(
         request,
@@ -350,7 +353,7 @@ def admin_dashboard(request: Request):
             "runs": runs,
             "publish_jobs": publish_jobs,
             "articles": articles,
-            "status_options": ["new", "rewrite", "review", "approved", "published", "error"],
+            "status_options": list(UI_STATUSES),
             "allowed_transitions": ALLOWED_TRANSITIONS,
             "status_filter": status_filter,
             "flash_msg": request.query_params.get("msg", ""),
@@ -388,6 +391,7 @@ def admin_article_detail(request: Request, article_id: int):
     )
     article["days_old"] = article_age_days(article.get("published_at"))
     article["relevance"] = article_relevance(article.get("published_at"))
+    article["status_ui"] = internal_to_ui_status(article.get("status"))
     feed = get_feed_by_id(int(article["feed_id"])) if article.get("feed_id") else None
     checklist = _legal_checklist(article, feed)
 
@@ -401,7 +405,7 @@ def admin_article_detail(request: Request, article_id: int):
             "article": article,
             "feed": feed,
             "checklist": checklist,
-            "allowed_transitions": ALLOWED_TRANSITIONS.get(article.get("status"), ()),
+            "allowed_transitions": ALLOWED_TRANSITIONS.get(article.get("status_ui"), ()),
             "flash_msg": request.query_params.get("msg", ""),
             "flash_type": request.query_params.get("type", "success"),
         },
@@ -565,12 +569,56 @@ def admin_review_article(request: Request, article_id: int, decision: str = Form
     if not user:
         return RedirectResponse(url="/admin/login", status_code=303)
 
+    return _dashboard_redirect(msg="Review-Aktion wurde durch Rewrite ersetzt", msg_type="error")
+
+
+@router.post("/admin/articles/{article_id}/rewrite-run")
+def admin_rewrite_run(request: Request, article_id: int):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
     article = get_article_by_id(article_id)
-    if article and article.get("status") == "review" and decision in {"approve", "reject"}:
-        target = "approved" if decision == "approve" else "rewrite"
-        update_article_status(article_id, target, actor=user, note=note or None, decision=decision)
-        return _dashboard_redirect(msg=f"Artikel #{article_id}: {decision}")
-    return _dashboard_redirect(msg=f"Review-Aktion ungueltig fuer Artikel #{article_id}", msg_type="error")
+    if not article:
+        return _dashboard_redirect(msg=f"Artikel #{article_id} nicht gefunden", msg_type="error")
+    if internal_to_ui_status(article.get("status")) not in {"new", "rewrite"}:
+        return _dashboard_redirect(msg=f"Rewrite nur aus new/rewrite fuer Artikel #{article_id}", msg_type="error")
+    try:
+        rewritten = rewrite_article_text(article)
+    except Exception as exc:
+        return _dashboard_redirect(msg=f"Rewrite fehlgeschlagen fuer Artikel #{article_id}: {exc}", msg_type="error")
+
+    upsert_article(
+        ArticleUpsert(
+            feed_id=article.get("feed_id"),
+            source_article_id=article.get("source_article_id"),
+            source_hash=article.get("source_hash"),
+            title=article.get("title"),
+            source_url=article.get("source_url"),
+            canonical_url=article.get("canonical_url"),
+            published_at=article.get("published_at"),
+            author=article.get("author"),
+            summary=article.get("summary"),
+            content_raw=article.get("content_raw"),
+            content_rewritten=rewritten,
+            image_urls_json=article.get("image_urls_json"),
+            press_contact=article.get("press_contact"),
+            source_name_snapshot=article.get("source_name_snapshot"),
+            source_terms_url_snapshot=article.get("source_terms_url_snapshot"),
+            source_license_name_snapshot=article.get("source_license_name_snapshot"),
+            legal_checked=bool(int(article.get("legal_checked", 0))),
+            legal_checked_at=article.get("legal_checked_at"),
+            legal_note=article.get("legal_note"),
+            wp_post_id=article.get("wp_post_id"),
+            wp_post_url=article.get("wp_post_url"),
+            publish_attempts=int(article.get("publish_attempts", 0)),
+            publish_last_error=article.get("publish_last_error"),
+            published_to_wp_at=article.get("published_to_wp_at"),
+            word_count=len(rewritten.split()),
+            status="approved",
+            meta_json=article.get("meta_json"),
+        )
+    )
+    return _dashboard_redirect(msg=f"Rewrite fertig fuer Artikel #{article_id} -> publish")
 
 
 @router.post("/admin/articles/{article_id}/transition")
@@ -581,10 +629,10 @@ def admin_transition_article(request: Request, article_id: int, target_status: s
 
     article = get_article_by_id(article_id)
     if article:
-        current = article.get("status")
-        if target_status in ALLOWED_TRANSITIONS.get(current, ()):
-            if target_status == "published" and int(article.get("legal_checked", 0)) != 1:
-                return _dashboard_redirect(msg=f"Publish blockiert fuer Artikel #{article_id}: Rechtsfreigabe fehlt", msg_type="error")
-            update_article_status(article_id, target_status, actor=user, note=note or None)
-            return _dashboard_redirect(msg=f"Artikel #{article_id}: {current} -> {target_status}")
+        current_ui = internal_to_ui_status(article.get("status"))
+        target_internal = ui_to_internal_status(target_status)
+        target_ui = internal_to_ui_status(target_internal)
+        if target_ui in ALLOWED_TRANSITIONS.get(current_ui, ()):
+            update_article_status(article_id, target_internal, actor=user, note=note or None)
+            return _dashboard_redirect(msg=f"Artikel #{article_id}: {current_ui} -> {target_ui}")
     return _dashboard_redirect(msg=f"Ungueltiger Statuswechsel fuer Artikel #{article_id}", msg_type="error")

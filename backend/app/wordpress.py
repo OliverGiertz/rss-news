@@ -143,11 +143,24 @@ def _as_paragraph_html(text: str) -> str:
     return "\n".join(lines)
 
 
+def _sanitize_publish_text(text: str) -> str:
+    raw = (text or "").strip()
+    if not raw:
+        return ""
+    lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+    if len(lines) > 3:
+        lines = lines[3:]
+    merged = "\n".join(lines)
+    merged = re.sub(r"\n?\s*Pressekontakt[\s\S]*$", "", merged, flags=re.IGNORECASE).strip()
+    return merged
+
+
 def _build_post_content(article: dict[str, Any]) -> tuple[str, str | None]:
     source_url = article.get("source_url") or ""
     canonical_url = article.get("canonical_url") or source_url
     summary = (article.get("summary") or "").strip()
     body_text = (article.get("content_rewritten") or article.get("content_raw") or "").strip()
+    body_text = _sanitize_publish_text(body_text)
     if not body_text:
         body_text = summary
 
@@ -162,7 +175,6 @@ def _build_post_content(article: dict[str, Any]) -> tuple[str, str | None]:
     source_name = (article.get("source_name_snapshot") or "").strip()
     license_name = (article.get("source_license_name_snapshot") or "").strip()
     terms_url = (article.get("source_terms_url_snapshot") or "").strip()
-    press_contact = (article.get("press_contact") or "").strip()
 
     lead_html = f"<p><em>{escape(summary)}</em></p>\n" if summary else ""
 
@@ -183,9 +195,6 @@ def _build_post_content(article: dict[str, Any]) -> tuple[str, str | None]:
         if facts
         else ""
     )
-    press_contact_html = (
-        f"<h3>Pressekontakt</h3>\n<p>{escape(press_contact)}</p>\n" if press_contact else ""
-    )
     attribution_html = (
         "<hr />\n<section class=\"rss-news-attribution\">\n"
         "<h3>Quelle</h3>\n"
@@ -195,7 +204,7 @@ def _build_post_content(article: dict[str, Any]) -> tuple[str, str | None]:
         attribution_html += f"<p>Canonical: <a href=\"{escape(canonical_url)}\">{escape(canonical_url)}</a></p>\n"
     attribution_html += "</section>"
 
-    content = f"{lead_html}{body_html}\n\n{facts_html}{press_contact_html}{attribution_html}".strip()
+    content = f"{lead_html}{body_html}\n\n{facts_html}{attribution_html}".strip()
     excerpt_source = summary or re.sub(r"\s+", " ", body_text).strip()
     excerpt = excerpt_source[:220] if excerpt_source else None
     return content, excerpt

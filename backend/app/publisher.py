@@ -28,9 +28,7 @@ def enqueue_publish(article_id: int, max_attempts: int = 3) -> int:
 
 def _can_publish(article: dict) -> tuple[bool, str | None]:
     if article.get("status") not in {"approved", "published"}:
-        return False, "Artikelstatus muss 'approved' sein"
-    if int(article.get("legal_checked", 0)) != 1:
-        return False, "Rechtsfreigabe fehlt"
+        return False, "Artikelstatus muss 'publish' sein"
     if not selected_image_exists(article):
         return False, "Hauptbild nicht gesetzt"
     return True, None
