@@ -131,6 +131,99 @@
     </section>
 
     <section class="card">
+      <h2>Quellen verwalten</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>URLs</th><th>Meta</th><th>Aktionen</th></tr>
+        </thead>
+        <tbody>
+          {% for s in sources %}
+          {% set source_form_id = 'source-update-' ~ s.id %}
+          <tr>
+            <td>#{{ s.id }}</td>
+            <td>
+              <input form="{{ source_form_id }}" name="name" value="{{ s.name }}" required />
+            </td>
+            <td>
+              <input form="{{ source_form_id }}" name="base_url" value="{{ s.base_url or '' }}" placeholder="Base URL" />
+              <input form="{{ source_form_id }}" name="terms_url" value="{{ s.terms_url or '' }}" placeholder="Terms URL" />
+              <input form="{{ source_form_id }}" name="license_name" value="{{ s.license_name or '' }}" placeholder="Lizenz" />
+            </td>
+            <td>
+              <select form="{{ source_form_id }}" name="risk_level">
+                <option value="green" {% if s.risk_level == 'green' %}selected{% endif %}>green</option>
+                <option value="yellow" {% if s.risk_level == 'yellow' %}selected{% endif %}>yellow</option>
+                <option value="red" {% if s.risk_level == 'red' %}selected{% endif %}>red</option>
+              </select>
+              <select form="{{ source_form_id }}" name="is_enabled">
+                <option value="1" {% if s.is_enabled %}selected{% endif %}>aktiv</option>
+                <option value="0" {% if not s.is_enabled %}selected{% endif %}>inaktiv</option>
+              </select>
+              <input form="{{ source_form_id }}" name="last_reviewed_at" value="{{ s.last_reviewed_at or '' }}" placeholder="last_reviewed_at" />
+              <input form="{{ source_form_id }}" name="notes" value="{{ s.notes or '' }}" placeholder="Notiz" />
+            </td>
+            <td>
+              <div class="inline">
+              <form method="post" action="/admin/sources/{{ s.id }}/update" id="{{ source_form_id }}" class="inline">
+                <button type="submit" class="secondary">Speichern</button>
+              </form>
+              <form method="post" action="/admin/sources/{{ s.id }}/delete" class="inline" onsubmit="return confirm('Quelle wirklich löschen?');">
+                <button type="submit">Löschen</button>
+              </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Feeds verwalten</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>URL</th><th>Quelle</th><th>Status</th><th>Aktionen</th></tr>
+        </thead>
+        <tbody>
+          {% for f in feeds %}
+          {% set feed_form_id = 'feed-update-' ~ f.id %}
+          <tr>
+            <td>#{{ f.id }}</td>
+            <td>
+              <input form="{{ feed_form_id }}" name="name" value="{{ f.name }}" required />
+            </td>
+            <td><input form="{{ feed_form_id }}" name="url" value="{{ f.url }}" required /></td>
+            <td>
+              <select form="{{ feed_form_id }}" name="source_id">
+                <option value="">-- keine --</option>
+                {% for s in sources %}
+                <option value="{{ s.id }}" {% if f.source_id == s.id %}selected{% endif %}>{{ s.name }} (#{{ s.id }})</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <select form="{{ feed_form_id }}" name="is_enabled">
+                <option value="1" {% if f.is_enabled %}selected{% endif %}>aktiv</option>
+                <option value="0" {% if not f.is_enabled %}selected{% endif %}>inaktiv</option>
+              </select>
+            </td>
+            <td>
+              <div class="inline">
+              <form method="post" action="/admin/feeds/{{ f.id }}/update" id="{{ feed_form_id }}" class="inline">
+                <button type="submit" class="secondary">Speichern</button>
+              </form>
+              <form method="post" action="/admin/feeds/{{ f.id }}/delete" class="inline" onsubmit="return confirm('Feed wirklich löschen?');">
+                <button type="submit">Löschen</button>
+              </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
       <h2>Artikel (Review)</h2>
       <form method="get" action="/admin/dashboard" class="row filter-row">
         <label>Status-Filter</label>

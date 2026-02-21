@@ -94,7 +94,7 @@ th, td {
   vertical-align: top;
 }
 
-input, select, button {
+input, select, button, textarea {
   padding: 8px;
   border-radius: 6px;
   border: 1px solid #cbd5e1;

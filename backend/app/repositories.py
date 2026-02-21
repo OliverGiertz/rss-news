@@ -29,6 +29,26 @@ class FeedCreate:
 
 
 @dataclass(frozen=True)
+class SourceUpdate:
+    name: str
+    base_url: str | None
+    terms_url: str | None
+    license_name: str | None
+    risk_level: str
+    is_enabled: bool
+    notes: str | None
+    last_reviewed_at: str | None
+
+
+@dataclass(frozen=True)
+class FeedUpdate:
+    name: str
+    url: str
+    source_id: int | None
+    is_enabled: bool
+
+
+@dataclass(frozen=True)
 class RunCreate:
     run_type: str
     status: str
@@ -118,6 +138,35 @@ def get_source_by_id(source_id: int) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def update_source(source_id: int, payload: SourceUpdate) -> bool:
+    with get_conn() as conn:
+        cur = conn.execute(
+            """
+            UPDATE sources
+            SET name = ?, base_url = ?, terms_url = ?, license_name = ?, risk_level = ?, is_enabled = ?, notes = ?, last_reviewed_at = ?
+            WHERE id = ?
+            """,
+            (
+                payload.name.strip(),
+                payload.base_url,
+                payload.terms_url,
+                payload.license_name,
+                payload.risk_level,
+                1 if payload.is_enabled else 0,
+                payload.notes,
+                payload.last_reviewed_at,
+                source_id,
+            ),
+        )
+    return cur.rowcount > 0
+
+
+def delete_source(source_id: int) -> bool:
+    with get_conn() as conn:
+        cur = conn.execute("DELETE FROM sources WHERE id = ?", (source_id,))
+    return cur.rowcount > 0
+
+
 def create_feed(payload: FeedCreate) -> int:
     with get_conn() as conn:
         cur = conn.execute(
@@ -175,6 +224,31 @@ def get_feed_by_id(feed_id: int) -> dict[str, Any] | None:
             (feed_id,),
         ).fetchone()
     return dict(row) if row else None
+
+
+def update_feed(feed_id: int, payload: FeedUpdate) -> bool:
+    with get_conn() as conn:
+        cur = conn.execute(
+            """
+            UPDATE feeds
+            SET name = ?, url = ?, source_id = ?, is_enabled = ?
+            WHERE id = ?
+            """,
+            (
+                payload.name.strip(),
+                payload.url.strip(),
+                payload.source_id,
+                1 if payload.is_enabled else 0,
+                feed_id,
+            ),
+        )
+    return cur.rowcount > 0
+
+
+def delete_feed(feed_id: int) -> bool:
+    with get_conn() as conn:
+        cur = conn.execute("DELETE FROM feeds WHERE id = ?", (feed_id,))
+    return cur.rowcount > 0
 
 
 def update_feed_fetch_state(feed_id: int, etag: str | None, last_modified: str | None) -> None:

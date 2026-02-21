@@ -23,7 +23,11 @@ from .relevance import article_age_days, article_relevance
 from .rewrite import rewrite_article_text
 from .repositories import (
     FeedCreate,
+    FeedUpdate,
     SourceCreate,
+    SourceUpdate,
+    delete_feed,
+    delete_source,
     create_feed,
     create_source,
     get_article_by_id,
@@ -36,6 +40,8 @@ from .repositories import (
     set_article_image_decision,
     set_article_legal_review,
     upsert_article,
+    update_feed,
+    update_source,
     update_article_status,
     ArticleUpsert,
 )
@@ -48,10 +54,11 @@ ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
     "new": ("rewrite", "close"),
     "rewrite": ("publish", "close"),
     "publish": ("published", "close"),
-    "published": ("close",),
+    "published": ("rewrite", "close"),
     "close": ("rewrite",),
 }
 IMAGE_PROXY_USER_AGENT = "rss-news-admin/1.0"
+_UNSET = object()
 
 
 def _admin_user(request: Request) -> str | None:
@@ -364,6 +371,51 @@ def _run_connectivity_check(target: dict[str, str]) -> dict[str, object]:
         row["duration_ms"] = int((time.perf_counter() - started) * 1000)
 
 
+def _upsert_article_from_existing(
+    article: dict,
+    *,
+    content_rewritten: str | None = None,
+    status: str | None = None,
+    wp_post_id: int | None | object = _UNSET,
+    wp_post_url: str | None | object = _UNSET,
+    publish_attempts: int | object = _UNSET,
+    publish_last_error: str | None | object = _UNSET,
+    published_to_wp_at: str | None | object = _UNSET,
+) -> None:
+    rewritten = article.get("content_rewritten") if content_rewritten is None else content_rewritten
+    upsert_article(
+        ArticleUpsert(
+            feed_id=article.get("feed_id"),
+            source_article_id=article.get("source_article_id"),
+            source_hash=article.get("source_hash"),
+            title=article.get("title"),
+            source_url=article.get("source_url"),
+            canonical_url=article.get("canonical_url"),
+            published_at=article.get("published_at"),
+            author=article.get("author"),
+            summary=article.get("summary"),
+            content_raw=article.get("content_raw"),
+            content_rewritten=rewritten,
+            image_urls_json=article.get("image_urls_json"),
+            press_contact=article.get("press_contact"),
+            source_name_snapshot=article.get("source_name_snapshot"),
+            source_terms_url_snapshot=article.get("source_terms_url_snapshot"),
+            source_license_name_snapshot=article.get("source_license_name_snapshot"),
+            legal_checked=bool(int(article.get("legal_checked", 0))),
+            legal_checked_at=article.get("legal_checked_at"),
+            legal_note=article.get("legal_note"),
+            wp_post_id=article.get("wp_post_id") if wp_post_id is _UNSET else wp_post_id,
+            wp_post_url=article.get("wp_post_url") if wp_post_url is _UNSET else wp_post_url,
+            publish_attempts=int(article.get("publish_attempts", 0)) if publish_attempts is _UNSET else publish_attempts,
+            publish_last_error=article.get("publish_last_error") if publish_last_error is _UNSET else publish_last_error,
+            published_to_wp_at=article.get("published_to_wp_at") if published_to_wp_at is _UNSET else published_to_wp_at,
+            word_count=len(str(rewritten or "").split()),
+            status=article.get("status") if status is None else status,
+            meta_json=article.get("meta_json"),
+        )
+    )
+
+
 @router.get("/admin", response_class=HTMLResponse)
 def admin_index(request: Request):
     user = _admin_user(request)
@@ -427,7 +479,7 @@ def admin_dashboard(request: Request):
         articles = list_articles(limit=100, status_filter=internal_filter)
     else:
         status_filter = ""
-        articles = list_articles(limit=100)
+        articles = [a for a in list_articles(limit=250) if internal_to_ui_status(a.get("status")) != "close"][:100]
     for article in articles:
         meta = _parse_meta_json(article.get("meta_json"))
         extraction = meta.get("extraction") if isinstance(meta.get("extraction"), dict) else {}
@@ -659,6 +711,54 @@ def admin_create_source(
     return _dashboard_redirect(msg="Quelle gespeichert")
 
 
+@router.post("/admin/sources/{source_id}/update")
+def admin_update_source(
+    request: Request,
+    source_id: int,
+    name: str = Form(...),
+    base_url: str = Form(""),
+    terms_url: str = Form(""),
+    license_name: str = Form(""),
+    risk_level: str = Form("yellow"),
+    is_enabled: str = Form("1"),
+    notes: str = Form(""),
+    last_reviewed_at: str = Form(""),
+):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    try:
+        ok = update_source(
+            source_id,
+            SourceUpdate(
+                name=name,
+                base_url=base_url or None,
+                terms_url=terms_url or None,
+                license_name=license_name or None,
+                risk_level=risk_level,
+                is_enabled=is_enabled == "1",
+                notes=notes or None,
+                last_reviewed_at=last_reviewed_at or None,
+            ),
+        )
+    except Exception as exc:
+        return _dashboard_redirect(msg=f"Quelle #{source_id} Update fehlgeschlagen: {exc}", msg_type="error")
+    if not ok:
+        return _dashboard_redirect(msg=f"Quelle #{source_id} nicht gefunden", msg_type="error")
+    return _dashboard_redirect(msg=f"Quelle #{source_id} aktualisiert")
+
+
+@router.post("/admin/sources/{source_id}/delete")
+def admin_delete_source(request: Request, source_id: int):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    ok = delete_source(source_id)
+    if not ok:
+        return _dashboard_redirect(msg=f"Quelle #{source_id} nicht gefunden", msg_type="error")
+    return _dashboard_redirect(msg=f"Quelle #{source_id} gelöscht")
+
+
 @router.post("/admin/feeds/create")
 def admin_create_feed(
     request: Request,
@@ -682,6 +782,46 @@ def admin_create_feed(
     except Exception as exc:
         return _dashboard_redirect(msg=f"Feed konnte nicht gespeichert werden: {exc}", msg_type="error")
     return _dashboard_redirect(msg="Feed gespeichert")
+
+
+@router.post("/admin/feeds/{feed_id}/update")
+def admin_update_feed(
+    request: Request,
+    feed_id: int,
+    name: str = Form(...),
+    url: str = Form(...),
+    source_id: str = Form(""),
+    is_enabled: str = Form("1"),
+):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    try:
+        ok = update_feed(
+            feed_id,
+            FeedUpdate(
+                name=name,
+                url=url,
+                source_id=_to_optional_int(source_id),
+                is_enabled=is_enabled == "1",
+            ),
+        )
+    except Exception as exc:
+        return _dashboard_redirect(msg=f"Feed #{feed_id} Update fehlgeschlagen: {exc}", msg_type="error")
+    if not ok:
+        return _dashboard_redirect(msg=f"Feed #{feed_id} nicht gefunden", msg_type="error")
+    return _dashboard_redirect(msg=f"Feed #{feed_id} aktualisiert")
+
+
+@router.post("/admin/feeds/{feed_id}/delete")
+def admin_delete_feed(request: Request, feed_id: int):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    ok = delete_feed(feed_id)
+    if not ok:
+        return _dashboard_redirect(msg=f"Feed #{feed_id} nicht gefunden", msg_type="error")
+    return _dashboard_redirect(msg=f"Feed #{feed_id} gelöscht")
 
 
 @router.post("/admin/ingestion/run")
@@ -719,39 +859,49 @@ def admin_rewrite_run(request: Request, article_id: int):
         rewritten = rewrite_article_text(article)
     except Exception as exc:
         return _dashboard_redirect(msg=f"Rewrite fehlgeschlagen fuer Artikel #{article_id}: {exc}", msg_type="error")
-
-    upsert_article(
-        ArticleUpsert(
-            feed_id=article.get("feed_id"),
-            source_article_id=article.get("source_article_id"),
-            source_hash=article.get("source_hash"),
-            title=article.get("title"),
-            source_url=article.get("source_url"),
-            canonical_url=article.get("canonical_url"),
-            published_at=article.get("published_at"),
-            author=article.get("author"),
-            summary=article.get("summary"),
-            content_raw=article.get("content_raw"),
-            content_rewritten=rewritten,
-            image_urls_json=article.get("image_urls_json"),
-            press_contact=article.get("press_contact"),
-            source_name_snapshot=article.get("source_name_snapshot"),
-            source_terms_url_snapshot=article.get("source_terms_url_snapshot"),
-            source_license_name_snapshot=article.get("source_license_name_snapshot"),
-            legal_checked=bool(int(article.get("legal_checked", 0))),
-            legal_checked_at=article.get("legal_checked_at"),
-            legal_note=article.get("legal_note"),
-            wp_post_id=article.get("wp_post_id"),
-            wp_post_url=article.get("wp_post_url"),
-            publish_attempts=int(article.get("publish_attempts", 0)),
-            publish_last_error=article.get("publish_last_error"),
-            published_to_wp_at=article.get("published_to_wp_at"),
-            word_count=len(rewritten.split()),
-            status="approved",
-            meta_json=article.get("meta_json"),
-        )
-    )
+    _upsert_article_from_existing(article, content_rewritten=rewritten, status="approved")
     return _dashboard_redirect(msg=f"Rewrite fertig fuer Artikel #{article_id} -> publish")
+
+
+@router.post("/admin/articles/{article_id}/rewrite-save")
+def admin_rewrite_save(request: Request, article_id: int, content_rewritten: str = Form(...)):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    article = get_article_by_id(article_id)
+    if not article:
+        return _dashboard_redirect(msg=f"Artikel #{article_id} nicht gefunden", msg_type="error")
+    text = (content_rewritten or "").strip()
+    if not text:
+        return RedirectResponse(
+            url=f"/admin/articles/{article_id}?msg=Rewrite-Text%20darf%20nicht%20leer%20sein&type=error",
+            status_code=303,
+        )
+    _upsert_article_from_existing(article, content_rewritten=text)
+    return RedirectResponse(url=f"/admin/articles/{article_id}?msg=Rewrite-Text%20gespeichert&type=success", status_code=303)
+
+
+@router.post("/admin/articles/{article_id}/reopen")
+def admin_reopen_article(request: Request, article_id: int):
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    article = get_article_by_id(article_id)
+    if not article:
+        return _dashboard_redirect(msg=f"Artikel #{article_id} nicht gefunden", msg_type="error")
+    _upsert_article_from_existing(
+        article,
+        status="rewrite",
+        wp_post_id=None,
+        wp_post_url=None,
+        publish_attempts=0,
+        publish_last_error=None,
+        published_to_wp_at=None,
+    )
+    return RedirectResponse(
+        url=f"/admin/articles/{article_id}?msg=Artikel%20zurueck%20in%20Rewrite-Workflow%20gesetzt&type=success",
+        status_code=303,
+    )
 
 
 @router.post("/admin/articles/{article_id}/transition")

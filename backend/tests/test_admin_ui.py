@@ -145,6 +145,132 @@ class TestAdminUi(unittest.TestCase):
         self.assertIsNotNone(article)
         self.assertIn("selected_url", article.get("meta_json", ""))
 
+    def test_manage_source_and_feed(self) -> None:
+        source_id = create_source(
+            SourceCreate(
+                name="Edit Source",
+                base_url="https://example.org",
+                terms_url="https://example.org/terms",
+                license_name="cc-by",
+                risk_level="yellow",
+                is_enabled=True,
+                notes=None,
+                last_reviewed_at=None,
+            )
+        )
+        feed_id = create_feed(
+            FeedCreate(
+                name="Edit Feed",
+                url="https://example.org/feed.xml",
+                source_id=source_id,
+                is_enabled=True,
+            )
+        )
+        self.client.post("/admin/login", data={"username": "admin", "password": "secret"}, follow_redirects=True)
+
+        update_source_res = self.client.post(
+            f"/admin/sources/{source_id}/update",
+            data={
+                "name": "Edit Source 2",
+                "base_url": "https://example.org/new",
+                "terms_url": "https://example.org/new-terms",
+                "license_name": "cc0",
+                "risk_level": "green",
+                "is_enabled": "1",
+                "notes": "ok",
+                "last_reviewed_at": "2026-02-21T12:00:00Z",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(update_source_res.status_code, 303)
+
+        update_feed_res = self.client.post(
+            f"/admin/feeds/{feed_id}/update",
+            data={
+                "name": "Edit Feed 2",
+                "url": "https://example.org/feed2.xml",
+                "source_id": str(source_id),
+                "is_enabled": "0",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(update_feed_res.status_code, 303)
+
+        delete_feed_res = self.client.post(f"/admin/feeds/{feed_id}/delete", follow_redirects=False)
+        self.assertEqual(delete_feed_res.status_code, 303)
+        delete_source_res = self.client.post(f"/admin/sources/{source_id}/delete", follow_redirects=False)
+        self.assertEqual(delete_source_res.status_code, 303)
+
+    def test_rewrite_save_and_reopen(self) -> None:
+        source_id = create_source(
+            SourceCreate(
+                name="Test Source",
+                base_url="https://example.org",
+                terms_url="https://example.org/terms",
+                license_name="cc-by",
+                risk_level="green",
+                is_enabled=True,
+                notes=None,
+                last_reviewed_at="2026-02-18T00:00:00Z",
+            )
+        )
+        feed_id = create_feed(
+            FeedCreate(
+                name="Test Feed",
+                url="https://example.org/feed.xml",
+                source_id=source_id,
+                is_enabled=True,
+            )
+        )
+        article_id = upsert_article(
+            ArticleUpsert(
+                feed_id=feed_id,
+                source_article_id="id-published",
+                source_hash="hash-published",
+                title="Titel Published",
+                source_url="https://example.org/published",
+                canonical_url="https://example.org/published",
+                published_at=None,
+                author="Autor A",
+                summary="Summary",
+                content_raw="Raw",
+                content_rewritten="<p>Alt</p>",
+                image_urls_json=None,
+                press_contact=None,
+                source_name_snapshot="Test Source",
+                source_terms_url_snapshot="https://example.org/terms",
+                source_license_name_snapshot="cc-by",
+                legal_checked=True,
+                legal_checked_at="2026-02-21T10:00:00Z",
+                legal_note=None,
+                wp_post_id=123,
+                wp_post_url="https://example.org/?p=123",
+                publish_attempts=2,
+                publish_last_error=None,
+                published_to_wp_at="2026-02-21T10:10:00Z",
+                word_count=1,
+                status="published",
+                meta_json="{}",
+            )
+        )
+        self.client.post("/admin/login", data={"username": "admin", "password": "secret"}, follow_redirects=True)
+
+        save_res = self.client.post(
+            f"/admin/articles/{article_id}/rewrite-save",
+            data={"content_rewritten": "<h2>Neu</h2><p>Text</p>"},
+            follow_redirects=False,
+        )
+        self.assertEqual(save_res.status_code, 303)
+
+        reopen_res = self.client.post(f"/admin/articles/{article_id}/reopen", follow_redirects=False)
+        self.assertEqual(reopen_res.status_code, 303)
+
+        article = get_article_by_id(article_id)
+        self.assertIsNotNone(article)
+        self.assertEqual(article.get("status"), "rewrite")
+        self.assertIn("Neu", article.get("content_rewritten") or "")
+        self.assertIsNone(article.get("wp_post_id"))
+
     @patch("backend.app.admin_ui.urlopen")
     def test_image_proxy_returns_image_data(self, mock_urlopen) -> None:
         class _FakeHeaders:

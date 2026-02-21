@@ -76,10 +76,13 @@ class TestArticleWorkflow(unittest.TestCase):
         t3 = self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "published"})
         self.assertEqual(t3.status_code, 200)
 
+        t4 = self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "rewrite"})
+        self.assertEqual(t4.status_code, 200)
+
         final = self.client.get(f"/api/articles/{article_id}")
         self.assertEqual(final.status_code, 200)
-        self.assertEqual(final.json()["item"]["status"], "published")
-        self.assertEqual(final.json()["item"]["status_ui"], "published")
+        self.assertEqual(final.json()["item"]["status"], "rewrite")
+        self.assertEqual(final.json()["item"]["status_ui"], "rewrite")
 
     def test_invalid_transition_rejected(self) -> None:
         article_id = self._create_article()

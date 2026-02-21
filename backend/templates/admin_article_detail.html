@@ -165,6 +165,15 @@
     </section>
 
     <section class="card">
+      <h2>Rewrite-Text (editierbar)</h2>
+      <form method="post" action="/admin/articles/{{ article.id }}/rewrite-save" class="stack">
+        <textarea name="content_rewritten" rows="14" style="width:100%;">{{ article.content_rewritten or "" }}</textarea>
+        <button type="submit">Rewrite-Text speichern</button>
+      </form>
+      <p class="subtle">Dieser Text wird für den WordPress-Entwurf verwendet, falls vorhanden.</p>
+    </section>
+
+    <section class="card">
       <h2>Rechtsfreigabe</h2>
       <p><strong>Freigabe:</strong>
         {% if article.legal_checked %}
@@ -190,6 +199,11 @@
       {% if article.status_ui in ["new", "rewrite"] %}
       <form method="post" action="/admin/articles/{{ article.id }}/rewrite-run" class="row" style="margin-bottom:8px;">
         <button type="submit">Rewrite ausführen (OpenAI)</button>
+      </form>
+      {% endif %}
+      {% if article.status_ui == "published" %}
+      <form method="post" action="/admin/articles/{{ article.id }}/reopen" class="row" style="margin-bottom:8px;">
+        <button type="submit">Zurück in Rewrite-Workflow</button>
       </form>
       {% endif %}
       <form method="post" action="/admin/articles/{{ article.id }}/transition" class="row">

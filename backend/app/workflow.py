@@ -33,7 +33,6 @@ ALLOWED_UI_TRANSITIONS: dict[str, set[str]] = {
     "new": {"rewrite", "close"},
     "rewrite": {"publish", "close"},
     "publish": {"published", "close"},
-    "published": {"close"},
+    "published": {"rewrite", "close"},
     "close": {"rewrite"},
 }
-
