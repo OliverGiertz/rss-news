@@ -7,7 +7,16 @@ from unittest.mock import patch
 from backend.app import config as config_module
 from backend.app.db import init_db
 from backend.app.ingestion import run_ingestion
-from backend.app.repositories import FeedCreate, SourceCreate, create_feed, create_source, list_articles
+from backend.app.repositories import (
+    ArticleUpsert,
+    FeedCreate,
+    SourceCreate,
+    create_feed,
+    create_source,
+    get_article_by_id,
+    list_articles,
+    upsert_article,
+)
 from backend.app.source_extraction import ExtractedArticle
 
 
@@ -117,6 +126,114 @@ class TestIngestion(unittest.TestCase):
         self.assertEqual(stats.articles_upserted, 0)
         mock_parse.assert_not_called()
         mock_extract_article.assert_not_called()
+
+    @patch("backend.app.ingestion.extract_article")
+    @patch("backend.app.ingestion.feedparser.parse")
+    def test_ingestion_preserves_existing_work_and_skips_closed(self, mock_parse, mock_extract_article) -> None:
+        existing_closed_id = upsert_article(
+            ArticleUpsert(
+                feed_id=self.feed_id,
+                source_article_id="closed-1",
+                source_hash="closed-hash-1",
+                title="Alt Closed",
+                source_url="https://example.org/closed-article",
+                canonical_url="https://example.org/closed-article",
+                published_at=None,
+                author="Autor",
+                summary="Alt",
+                content_raw="Alt Raw",
+                content_rewritten="<p>Alt Rewrite Closed</p>",
+                image_urls_json=None,
+                press_contact="Kontakt Alt",
+                source_name_snapshot="Test Source",
+                source_terms_url_snapshot="https://example.org/terms",
+                source_license_name_snapshot="cc-by",
+                legal_checked=False,
+                legal_checked_at=None,
+                legal_note=None,
+                wp_post_id=42,
+                wp_post_url="https://wp.local/?p=42",
+                publish_attempts=2,
+                publish_last_error=None,
+                published_to_wp_at="2026-02-21T12:00:00Z",
+                word_count=3,
+                status="error",  # UI: close
+                meta_json='{"generated_tags":["AltTag"]}',
+            )
+        )
+        existing_published_id = upsert_article(
+            ArticleUpsert(
+                feed_id=self.feed_id,
+                source_article_id="published-1",
+                source_hash="published-hash-1",
+                title="Alt Published",
+                source_url="https://example.org/published-article",
+                canonical_url="https://example.org/published-article",
+                published_at=None,
+                author="Autor",
+                summary="Alt",
+                content_raw="Alt Raw",
+                content_rewritten="<p>Alt Rewrite Published</p>",
+                image_urls_json=None,
+                press_contact="Kontakt Alt",
+                source_name_snapshot="Test Source",
+                source_terms_url_snapshot="https://example.org/terms",
+                source_license_name_snapshot="cc-by",
+                legal_checked=False,
+                legal_checked_at=None,
+                legal_note=None,
+                wp_post_id=77,
+                wp_post_url="https://wp.local/?p=77",
+                publish_attempts=3,
+                publish_last_error=None,
+                published_to_wp_at="2026-02-21T12:10:00Z",
+                word_count=3,
+                status="published",
+                meta_json='{"generated_tags":["Rheingas"],"image_review":{"selected_url":"https://img.local/1.jpg"}}',
+            )
+        )
+
+        mock_extract_article.return_value = ExtractedArticle(
+            title="Neu Titel",
+            author="Neu Autor",
+            canonical_url=None,
+            summary="Neu Summary",
+            content_text="Neu Volltext",
+            images=["https://example.org/a.jpg"],
+            press_contact=None,
+            extraction_error=None,
+        )
+        mock_parse.return_value = {
+            "etag": "etag-2",
+            "modified": "Tue, 18 Feb 2026 11:00:00 GMT",
+            "entries": [
+                {
+                    "id": "closed-1",
+                    "title": "Closed Entry",
+                    "link": "https://example.org/closed-article",
+                    "summary": "X",
+                },
+                {
+                    "id": "published-1",
+                    "title": "Published Entry",
+                    "link": "https://example.org/published-article",
+                    "summary": "Y",
+                },
+            ],
+        }
+
+        stats = run_ingestion(feed_id=self.feed_id)
+        self.assertEqual(stats.status, "success")
+        closed_row = get_article_by_id(existing_closed_id) or {}
+        self.assertEqual(closed_row["status"], "error")
+        self.assertIn("Alt Rewrite Closed", closed_row.get("content_rewritten") or "")
+        self.assertEqual(closed_row.get("wp_post_id"), 42)
+
+        published_row = get_article_by_id(existing_published_id) or {}
+        self.assertEqual(published_row["status"], "published")
+        self.assertIn("Alt Rewrite Published", published_row.get("content_rewritten") or "")
+        self.assertEqual(published_row.get("wp_post_id"), 77)
+        self.assertIn("generated_tags", published_row.get("meta_json") or "")
 
 
 if __name__ == "__main__":

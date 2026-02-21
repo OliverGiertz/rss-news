@@ -633,6 +633,13 @@ def _resolve_existing_article_id(payload: ArticleUpsert) -> int | None:
     return None
 
 
+def find_existing_article_for_upsert(payload: ArticleUpsert) -> dict[str, Any] | None:
+    article_id = _resolve_existing_article_id(payload)
+    if article_id is None:
+        return None
+    return get_article_by_id(article_id)
+
+
 def upsert_article(payload: ArticleUpsert) -> int:
     existing_id = _resolve_existing_article_id(payload)
     with get_conn() as conn:
