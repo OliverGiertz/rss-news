@@ -638,14 +638,22 @@ def _require_api_key(request: Request) -> None:
 
 
 @app.post("/api/n8n/pipeline")
-def api_n8n_pipeline(request: Request) -> dict:
-    """Trigger the full auto pipeline. Called by N8N (2x/day or on demand)."""
+async def api_n8n_pipeline(request: Request) -> dict:
+    """Trigger the full auto pipeline in background. Returns immediately.
+    Called by N8N (2x/day or on demand). Results arrive via Telegram."""
     _require_api_key(request)
-    try:
-        result = run_auto_pipeline(trigger="n8n")
-        return {"ok": True, "stats": result}
-    except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    import asyncio
+    import logging
+
+    async def _run():
+        loop = asyncio.get_event_loop()
+        try:
+            await loop.run_in_executor(None, lambda: run_auto_pipeline(trigger="n8n"))
+        except Exception as exc:
+            logging.getLogger(__name__).error("Background pipeline error: %s", exc)
+
+    asyncio.create_task(_run())
+    return {"ok": True, "message": "Pipeline gestartet – Ergebnisse kommen per Telegram"}
 
 
 @app.post("/api/n8n/ingest")
