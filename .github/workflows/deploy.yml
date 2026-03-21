@@ -21,12 +21,13 @@ jobs:
           port: 22
           envs: APP_ADMIN_USERNAME,APP_ADMIN_PASSWORD
           script: |
-            cd rss-news
+            cd /opt/rss-news
             git pull origin main
             source .venv/bin/activate
             pip install -r requirements.txt
             pip install -r backend/requirements.txt || true
-            sudo systemctl restart rss-app
+            sudo systemctl restart rss-news-api
+            sleep 3
             BASE_URL="https://news.vanityontour.de" APP_ADMIN_USERNAME="${APP_ADMIN_USERNAME}" APP_ADMIN_PASSWORD="${APP_ADMIN_PASSWORD}" bash scripts/smoke_backend.sh
         env:
           APP_ADMIN_USERNAME: ${{ secrets.NEWS_APP_ADMIN_USERNAME }}
