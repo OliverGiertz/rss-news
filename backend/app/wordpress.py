@@ -335,6 +335,9 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
         payload["excerpt"] = excerpt
     if featured_media_id:
         payload["featured_media"] = featured_media_id
+    scheduled_at = article.get("scheduled_publish_at")
+    if scheduled_at:
+        payload["date"] = scheduled_at  # e.g. "2026-03-24T09:00:00"
 
     wp_post_id = article.get("wp_post_id")
     tag_ids = _resolve_wp_tag_ids(

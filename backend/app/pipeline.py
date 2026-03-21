@@ -276,15 +276,15 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
     else:
         # Auto-process: rewrite + WP draft
         try:
-            # Reload article to get updated image_review
+            # Reserve publish slot FIRST so it's available when WP draft is created
+            slot = reserve_publish_slot(article_id)
+
+            # Reload article to get updated image_review + scheduled_publish_at
             fresh = get_article_by_id(article_id)
             if not fresh:
                 return
             wp_post_id, wp_post_url = _do_rewrite_and_draft(fresh)
             stats.drafts_created += 1
-
-            # Reserve publish slot
-            slot = reserve_publish_slot(article_id)
 
             # Reload for notification
             final = get_article_by_id(article_id)
@@ -357,8 +357,11 @@ def override_rejected_article(article_id: int) -> None:
     except Exception:
         score = 0
 
-    wp_post_id, wp_post_url = _do_rewrite_and_draft(fresh)
+    # Reserve publish slot FIRST so it's in the DB when WP draft is created
     slot = reserve_publish_slot(article_id)
+    fresh = get_article_by_id(article_id)
+
+    wp_post_id, wp_post_url = _do_rewrite_and_draft(fresh)
 
     final = get_article_by_id(article_id)
     if final:
