@@ -15,10 +15,12 @@ from .auth import create_session_token, verify_credentials, verify_session_token
 from .config import get_settings
 from .db import init_db
 from .ingestion import run_ingestion
+from .pipeline import run_auto_pipeline
 from .policy import evaluate_source_policy, is_source_allowed
 from .publisher import enqueue_publish, run_publisher
 from .relevance import article_age_days, article_relevance
 from .rewrite import generate_article_tags, merge_generated_tags, rewrite_article_text
+from .telegram_bot import handle_update, setup_webhook
 from .repositories import (
     ArticleUpsert,
     FeedCreate,
@@ -620,3 +622,81 @@ def api_run_ingestion(payload: IngestionRunRequest, username: str = Depends(requ
         },
         "requested_by": username,
     }
+
+
+# ---------------------------------------------------------------------------
+# N8N Automation endpoint (API-Key auth, no session cookie required)
+# ---------------------------------------------------------------------------
+
+def _require_api_key(request: Request) -> None:
+    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    expected = settings.n8n_api_key
+    if not expected:
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="N8N_API_KEY nicht konfiguriert")
+    if api_key != expected:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Ungültiger API-Key")
+
+
+@app.post("/api/n8n/pipeline")
+def api_n8n_pipeline(request: Request) -> dict:
+    """Trigger the full auto pipeline. Called by N8N (2x/day or on demand)."""
+    _require_api_key(request)
+    try:
+        result = run_auto_pipeline(trigger="n8n")
+        return {"ok": True, "stats": result}
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@app.post("/api/n8n/ingest")
+def api_n8n_ingest(request: Request) -> dict:
+    """Run only the ingestion step (no rewrite/publish). For N8N."""
+    _require_api_key(request)
+    stats = run_ingestion()
+    return {
+        "ok": stats.status == "success",
+        "stats": {
+            "feeds_processed": stats.feeds_processed,
+            "entries_seen": stats.entries_seen,
+            "articles_upserted": stats.articles_upserted,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Telegram Webhook
+# ---------------------------------------------------------------------------
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(request: Request) -> dict:
+    """Receive updates from Telegram Bot API."""
+    # Verify secret token
+    secret = settings.telegram_webhook_secret
+    if secret:
+        incoming = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if incoming != secret:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid secret")
+
+    body = await request.body()
+    try:
+        update = json.loads(body.decode("utf-8"))
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+
+    try:
+        handle_update(update)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error("Telegram update handler error: %s", exc)
+
+    return {"ok": True}
+
+
+@app.post("/api/telegram/setup-webhook")
+def api_setup_telegram_webhook(request: Request) -> dict:
+    """Register the Telegram webhook URL. Call once after deployment."""
+    username = require_auth(request)
+    base_url = str(request.base_url).rstrip("/")
+    webhook_url = f"{base_url}/telegram/webhook"
+    result = setup_webhook(webhook_url)
+    return {"ok": True, "webhook_url": webhook_url, "telegram_response": result, "requested_by": username}

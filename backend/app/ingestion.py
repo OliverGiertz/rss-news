@@ -11,7 +11,6 @@ from urllib.parse import unquote, urlparse
 
 import feedparser
 
-from .policy import evaluate_source_policy
 from .repositories import (
     ArticleUpsert,
     RunCreate,
@@ -168,30 +167,6 @@ def run_ingestion(feed_id: int | None = None) -> IngestionStats:
             if not feed:
                 continue
             feeds_processed += 1
-
-            source_snapshot = {
-                "id": feed.get("source_id"),
-                "name": feed.get("source_name"),
-                "base_url": feed.get("source_base_url"),
-                "terms_url": feed.get("source_terms_url"),
-                "license_name": feed.get("source_license_name"),
-                "risk_level": feed.get("source_risk_level"),
-                "last_reviewed_at": feed.get("source_last_reviewed_at"),
-                "is_enabled": feed.get("source_is_enabled"),
-            }
-            policy_issues = evaluate_source_policy(source_snapshot)
-            if policy_issues:
-                feed_results.append(
-                    {
-                        "feed_id": int(feed["id"]),
-                        "feed_url": feed["url"],
-                        "status": "blocked",
-                        "policy_issues": policy_issues,
-                        "entries_seen": 0,
-                        "upserts": 0,
-                    }
-                )
-                continue
 
             parsed = None
             feed_error = None

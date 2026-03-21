@@ -33,6 +33,20 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, validation_alias=AliasChoices("OPENAI_API_KEY"))
     openai_model: str = "gpt-4o-mini"
 
+    # Telegram Bot
+    telegram_bot_token: str | None = Field(default=None, validation_alias=AliasChoices("TELEGRAM_BOT_TOKEN"))
+    telegram_chat_id: str | None = Field(default=None, validation_alias=AliasChoices("TELEGRAM_CHAT_ID"))
+    telegram_webhook_secret: str | None = Field(default=None, validation_alias=AliasChoices("TELEGRAM_WEBHOOK_SECRET"))
+
+    # N8N API authentication
+    n8n_api_key: str | None = Field(default=None, validation_alias=AliasChoices("N8N_API_KEY"))
+
+    # Pipeline behaviour
+    pipeline_relevance_auto: int = 80    # >= this: auto-process
+    pipeline_relevance_warn: int = 60    # >= this: Telegram warning, else reject
+    pipeline_max_drafts_per_day: int = 2
+    pipeline_publish_hours: str = "9,14"  # comma-separated preferred publish hours (CET)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

@@ -373,3 +373,18 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
 
 def selected_image_exists(article: dict[str, Any]) -> bool:
     return _selected_image_url_from_meta(article.get("meta_json")) is not None
+
+
+def delete_wp_post(wp_post_id: int) -> None:
+    """Permanently delete a WordPress post (moves to trash, then deletes)."""
+    settings = get_settings()
+    if not settings.wordpress_base_url or not settings.wordpress_username or not settings.wordpress_app_password:
+        raise RuntimeError("WordPress Konfiguration fehlt")
+    auth = _auth_header(settings.wordpress_username, settings.wordpress_app_password)
+    # force=true skips trash
+    _wp_request(
+        base_url=settings.wordpress_base_url,
+        auth_header=auth,
+        method="DELETE",
+        endpoint=f"posts/{wp_post_id}?force=true",
+    )

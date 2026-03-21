@@ -146,6 +146,47 @@ def generate_article_tags(article: dict[str, Any], rewritten_text: str | None = 
     return []
 
 
+def score_article_relevance(article: dict[Any, Any]) -> dict[str, Any]:
+    """Score article relevance for VanLife/Camping/Outdoor blog (0-100).
+
+    Returns {"score": int, "reason": str, "topics": list[str]}.
+    Raises RuntimeError on OpenAI failure.
+    """
+    title = (article.get("title") or "").strip()
+    text = _sanitize_source_text(article.get("content_raw") or "")
+    if not text:
+        text = (article.get("summary") or "").strip()
+
+    prompt = (
+        "Bewerte die Relevanz des folgenden Artikels für einen deutschen VanLife-, Camping- und Outdoor-Blog. "
+        "Relevante Themen: Campingplätze, Stellplätze, Wohnmobil, Camper, Van, Roadtrip, "
+        "Outdoor-Ausrüstung, Wandern, Naturreisen, Reise-Tipps für Campende. "
+        "Nicht relevant: allgemeine Nachrichten, Politik, Wirtschaft, Sport (außer Outdoor), Unterhaltung.\n\n"
+        "Antworte NUR mit einem JSON-Objekt:\n"
+        '{"score": <0-100>, "reason": "<kurze Begründung auf Deutsch>", "topics": ["<Thema1>", "<Thema2>"]}\n\n'
+        f"Titel: {title}\n\n"
+        f"Text (Auszug):\n{text[:2000]}"
+    )
+    raw = _openai_chat(
+        "Du bist ein Redakteur für einen VanLife- und Camping-Blog und bewertest Artikelrelevanz.",
+        prompt,
+        temperature=0.1,
+    )
+    try:
+        match = re.search(r"\{[\s\S]*\}", raw)
+        if match:
+            parsed = json.loads(match.group(0))
+            score = max(0, min(100, int(parsed.get("score", 0))))
+            return {
+                "score": score,
+                "reason": str(parsed.get("reason", "")),
+                "topics": [str(t) for t in (parsed.get("topics") or [])],
+            }
+    except Exception:
+        pass
+    return {"score": 0, "reason": "Parsing-Fehler bei Relevanz-Score", "topics": []}
+
+
 def merge_generated_tags(meta_json: str | None, tags: list[str]) -> str:
     meta: dict[str, Any] = {}
     if meta_json:

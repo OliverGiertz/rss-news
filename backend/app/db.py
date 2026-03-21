@@ -160,6 +160,8 @@ def init_db() -> None:
             row["name"] for row in conn.execute("PRAGMA table_info(articles)").fetchall()
         }
         migration_columns = {
+            "relevance_score": "ALTER TABLE articles ADD COLUMN relevance_score INTEGER",
+            "scheduled_publish_at": "ALTER TABLE articles ADD COLUMN scheduled_publish_at TEXT",
             "source_hash": "ALTER TABLE articles ADD COLUMN source_hash TEXT",
             "image_urls_json": "ALTER TABLE articles ADD COLUMN image_urls_json TEXT",
             "press_contact": "ALTER TABLE articles ADD COLUMN press_contact TEXT",
