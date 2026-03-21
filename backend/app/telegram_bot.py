@@ -400,9 +400,19 @@ def _handle_callback(callback_query: dict[str, Any]) -> None:
         answer_callback_query(query_id, "Artikel nicht gefunden")
         return
 
+    # Answer Telegram immediately so the spinning indicator stops
+    action_labels = {
+        "rewrite": "✏️ Artikel wird neu geschrieben …",
+        "discard": "❌ Artikel verworfen",
+        "override": "➕ Artikel wird verarbeitet …",
+        "reject": "🚫 Abgelehnt",
+    }
+    answer_callback_query(query_id, action_labels.get(action, ""))
+    edit_message_reply_markup(chat_id, message_id)
+
+    logger.info("Callback: action=%s article_id=%s", action, article_id)
+
     if action == "rewrite":
-        answer_callback_query(query_id, "✏️ Artikel wird neu geschrieben …")
-        edit_message_reply_markup(chat_id, message_id)
         try:
             _pipeline.rewrite_and_update_draft(article_id)
             updated = get_article_by_id(article_id)
@@ -411,28 +421,25 @@ def _handle_callback(callback_query: dict[str, Any]) -> None:
                 slot = suggest_publish_slot()
                 notify_new_draft(updated, score=_get_relevance_score(updated), suggested_publish_at=slot)
         except Exception as exc:
+            logger.error("Rewrite #%d fehlgeschlagen: %s", article_id, exc)
             notify_error(f"Rewrite #{article_id} fehlgeschlagen: {exc}")
 
     elif action == "discard":
-        answer_callback_query(query_id, "❌ Artikel verworfen")
-        edit_message_reply_markup(chat_id, message_id)
         try:
             _pipeline.discard_article(article_id)
         except Exception as exc:
+            logger.error("Discard #%d fehlgeschlagen: %s", article_id, exc)
             notify_error(f"Verwerfen #{article_id} fehlgeschlagen: {exc}")
 
     elif action == "override":
-        answer_callback_query(query_id, "➕ Artikel wird verarbeitet …")
-        edit_message_reply_markup(chat_id, message_id)
         try:
             _pipeline.override_rejected_article(article_id)
         except Exception as exc:
+            logger.error("Override #%d fehlgeschlagen: %s", article_id, exc)
             notify_error(f"Override #{article_id} fehlgeschlagen: {exc}")
 
     elif action == "reject":
-        answer_callback_query(query_id, "🚫 Abgelehnt")
-        edit_message_reply_markup(chat_id, message_id)
         update_article_status(article_id, "error", actor="telegram", note="Manuell abgelehnt via Telegram")
 
     else:
-        answer_callback_query(query_id, "Unbekannte Aktion")
+        logger.warning("Unbekannte Callback-Aktion: %s", action)

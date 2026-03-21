@@ -677,7 +677,14 @@ def api_n8n_ingest(request: Request) -> dict:
 
 @app.post("/telegram/webhook")
 async def telegram_webhook(request: Request) -> dict:
-    """Receive updates from Telegram Bot API."""
+    """Receive updates from Telegram Bot API.
+
+    Returns 200 immediately so Telegram never retries the same update.
+    Actual processing runs in a background task.
+    """
+    import asyncio
+    import logging
+
     # Verify secret token
     secret = settings.telegram_webhook_secret
     if secret:
@@ -691,12 +698,14 @@ async def telegram_webhook(request: Request) -> dict:
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
 
-    try:
-        handle_update(update)
-    except Exception as exc:
-        import logging
-        logging.getLogger(__name__).error("Telegram update handler error: %s", exc)
+    async def _process():
+        loop = asyncio.get_event_loop()
+        try:
+            await loop.run_in_executor(None, lambda: handle_update(update))
+        except Exception as exc:
+            logging.getLogger(__name__).error("Telegram update handler error: %s", exc)
 
+    asyncio.create_task(_process())
     return {"ok": True}
 
 
