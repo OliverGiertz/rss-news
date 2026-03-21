@@ -98,11 +98,11 @@ class TestIngestion(unittest.TestCase):
 
     @patch("backend.app.ingestion.extract_article")
     @patch("backend.app.ingestion.feedparser.parse")
-    def test_ingestion_blocks_non_green_source(self, mock_parse, mock_extract_article) -> None:
-        # Re-create source/feed with yellow risk to verify enforcement
+    def test_ingestion_processes_any_enabled_source(self, mock_parse, mock_extract_article) -> None:
+        # Ampel/risk-level system removed – all enabled feeds are processed regardless of risk_level
         source_id = create_source(
             SourceCreate(
-                name="Blocked Source",
+                name="Any Risk Source",
                 base_url="https://example.net",
                 terms_url="https://example.net/terms",
                 license_name="custom",
@@ -112,20 +112,25 @@ class TestIngestion(unittest.TestCase):
                 last_reviewed_at="2026-02-18T00:00:00Z",
             )
         )
-        blocked_feed_id = create_feed(
+        feed_id = create_feed(
             FeedCreate(
-                name="Blocked Feed",
+                name="Any Risk Feed",
                 url="https://example.net/feed.xml",
                 source_id=source_id,
                 is_enabled=True,
             )
         )
 
-        stats = run_ingestion(feed_id=blocked_feed_id)
+        mock_parse.return_value = type("FP", (), {"entries": [], "etag": None, "modified": None})()
+        mock_extract_article.return_value = type("E", (), {
+            "title": None, "author": None, "summary": None, "content_text": None,
+            "canonical_url": None, "images": [], "press_contact": None,
+        })()
+
+        stats = run_ingestion(feed_id=feed_id)
         self.assertEqual(stats.status, "success")
-        self.assertEqual(stats.articles_upserted, 0)
-        mock_parse.assert_not_called()
-        mock_extract_article.assert_not_called()
+        # Feed was processed (feedparser was called), even with yellow risk_level
+        mock_parse.assert_called_once()
 
     @patch("backend.app.ingestion.extract_article")
     @patch("backend.app.ingestion.feedparser.parse")
