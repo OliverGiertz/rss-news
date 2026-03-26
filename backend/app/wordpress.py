@@ -318,13 +318,19 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
     featured_media_id = None
     selected_image_url = _selected_image_url_from_meta(article.get("meta_json"))
     if selected_image_url:
-        featured_media_id = _upload_featured_media(
-            base_url=settings.wordpress_base_url,
-            auth_header=auth,
-            image_url=selected_image_url,
-            article_title=title,
-            source_url=source_url,
-        )
+        try:
+            featured_media_id = _upload_featured_media(
+                base_url=settings.wordpress_base_url,
+                auth_header=auth,
+                image_url=selected_image_url,
+                article_title=title,
+                source_url=source_url,
+            )
+        except Exception as img_exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Bild-Upload fehlgeschlagen (wird übersprungen): %s — %s", selected_image_url, img_exc
+            )
 
     payload = {
         "title": title,

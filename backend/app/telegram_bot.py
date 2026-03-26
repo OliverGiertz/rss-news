@@ -435,14 +435,16 @@ def _handle_callback(callback_query: dict[str, Any]) -> None:
 
     if action == "rewrite":
         try:
+            logger.info("Rewrite #%d: starte rewrite_and_update_draft", article_id)
             _pipeline.rewrite_and_update_draft(article_id)
+            logger.info("Rewrite #%d: abgeschlossen, sende Benachrichtigung", article_id)
             updated = get_article_by_id(article_id)
             if updated:
                 from .scheduler import suggest_publish_slot
                 slot = suggest_publish_slot()
                 notify_new_draft(updated, score=_get_relevance_score(updated), suggested_publish_at=slot)
         except Exception as exc:
-            logger.error("Rewrite #%d fehlgeschlagen: %s", article_id, exc)
+            logger.error("Rewrite #%d fehlgeschlagen: %s", article_id, exc, exc_info=True)
             notify_error(f"Rewrite #{article_id} fehlgeschlagen: {exc}")
 
     elif action == "discard":

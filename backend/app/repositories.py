@@ -321,7 +321,8 @@ def get_article_by_id(article_id: int) -> dict[str, Any] | None:
                    a.source_name_snapshot, a.source_terms_url_snapshot, a.source_license_name_snapshot,
                    a.legal_checked, a.legal_checked_at, a.legal_note,
                    a.wp_post_id, a.wp_post_url, a.publish_attempts, a.publish_last_error, a.published_to_wp_at,
-                   a.word_count, a.status, a.meta_json, a.created_at, a.updated_at
+                   a.word_count, a.status, a.meta_json, a.created_at, a.updated_at,
+                   a.scheduled_publish_at
             FROM articles a
             WHERE a.id = ?
             """,

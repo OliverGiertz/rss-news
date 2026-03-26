@@ -110,7 +110,9 @@ def _do_rewrite_and_draft(article: dict[str, Any]) -> tuple[int, str | None]:
     article_id = int(article["id"])
 
     # Rewrite
+    logger.info("_do_rewrite_and_draft #%d: starte OpenAI-Rewrite", article_id)
     rewritten = rewrite_article_text(article)
+    logger.info("_do_rewrite_and_draft #%d: Rewrite fertig (%d Wörter), generiere Tags", article_id, len(rewritten.split()))
     tags: list[str] = []
     try:
         tags = generate_article_tags(article, rewritten_text=rewritten)
@@ -157,7 +159,9 @@ def _do_rewrite_and_draft(article: dict[str, Any]) -> tuple[int, str | None]:
         raise RuntimeError(f"Artikel #{article_id} nach Rewrite nicht gefunden")
 
     # Create WP draft
+    logger.info("_do_rewrite_and_draft #%d: erstelle/aktualisiere WP Draft (wp_post_id=%s)", article_id, fresh.get("wp_post_id"))
     wp_post_id, wp_post_url = publish_article_draft(fresh)
+    logger.info("_do_rewrite_and_draft #%d: WP Draft fertig (post_id=%s)", article_id, wp_post_id)
 
     # Update WP info in DB
     from .repositories import mark_article_publish_result
