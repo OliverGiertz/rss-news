@@ -94,12 +94,16 @@ def rewrite_article_text(article: dict[str, Any]) -> str:
         raise RuntimeError("Kein Quelltext für Rewrite verfügbar")
 
     title = (article.get("title") or "").strip()
+    source_name = (article.get("source_name_snapshot") or article.get("author") or "die Quelle").strip()
     prompt = (
         "Schreibe den folgenden News-Text neu auf Deutsch in persönlicher Du-Form. "
         "Stil: ausführlich, gut lesbar, ohne Einleitung mit Datum/Uhrzeit/Firma/Ort, "
         "ohne Pressekontakt, ohne Quellenblock. "
         "Nutze klare Absätze und Zwischenüberschriften in HTML (<h2>, <p>, <ul><li> falls passend). "
-        "Inhaltlich korrekt bleiben, nichts erfinden.\n\n"
+        "Inhaltlich korrekt bleiben, nichts erfinden. "
+        f"Wichtig: Der Artikel wurde von '{source_name}' veröffentlicht. "
+        "Verwende NIEMALS 'wir' oder 'ich' aus Sicht der Quelle – beziehe Aussagen stets auf die Quelle, "
+        f"z.B. 'laut {source_name}', '{source_name} hat ermittelt', 'die Auswertung zeigt'.\n\n"
         f"Titel: {title}\n\n"
         f"Originaltext:\n{source_text}"
     )
