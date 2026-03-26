@@ -13,6 +13,7 @@ from .config import get_settings
 logger = logging.getLogger(__name__)
 
 _BASE = "https://api.telegram.org/bot{token}/{method}"
+_N8N_APP_RELEASE_WEBHOOK = "https://n8n.vanityontour.de/webhook/tg-app-release-bot-v1/webhook"
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +120,22 @@ def setup_webhook(webhook_url: str) -> dict:
 
 def delete_webhook() -> dict:
     return _call("deleteWebhook", {})
+
+
+def _forward_to_n8n_app_release(update: dict[str, Any]) -> None:
+    """Forward a Telegram update to the N8N App Release webhook."""
+    try:
+        data = json.dumps(update).encode("utf-8")
+        req = Request(
+            url=_N8N_APP_RELEASE_WEBHOOK,
+            data=data,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        with urlopen(req, timeout=5) as _:
+            pass
+    except Exception as exc:
+        logger.debug("N8N App-Release-Forward fehlgeschlagen: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +390,10 @@ def _handle_message(message: dict[str, Any]) -> None:
             "/status — Pipeline-Status\n"
             "/help — Diese Hilfe"
         )
+
+    else:
+        # Unbekannter Befehl → an N8N App-Release-Workflow weiterleiten
+        _forward_to_n8n_app_release({"message": message})
 
 
 def _handle_callback(callback_query: dict[str, Any]) -> None:
