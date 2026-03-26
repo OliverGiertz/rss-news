@@ -266,7 +266,13 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
             stats.rejected_articles.append(updated)
 
     elif score < settings.pipeline_relevance_auto:
-        # Warning zone: inform user, don't auto-process
+        # Warning zone: set status to "review" so repeated /run calls don't re-warn
+        update_article_status(
+            article_id,
+            "review",
+            actor="pipeline",
+            note=f"Niedrige Relevanz: Score {score}/100 — {reason}",
+        )
         stats.warnings += 1
         try:
             tg.notify_relevance_warning(article, score, reason)
@@ -382,7 +388,7 @@ def get_recently_rejected(days: int = 3) -> list[dict[str, Any]]:
             """
             SELECT id, title, meta_json, source_url, created_at
             FROM articles
-            WHERE status = 'error'
+            WHERE status IN ('error', 'review')
             AND json_extract(meta_json, '$.relevance.score') IS NOT NULL
             AND date(updated_at) >= date('now', ?)
             ORDER BY updated_at DESC
