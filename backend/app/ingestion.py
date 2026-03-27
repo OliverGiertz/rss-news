@@ -7,7 +7,7 @@ import json
 import re
 import time
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlencode, urlparse, parse_qs
 
 import feedparser
 
@@ -36,6 +36,31 @@ class IngestionStats:
 
 
 MAX_FEED_FETCH_RETRIES = 3
+
+
+def _resolve_google_redirect(url: str) -> str:
+    """Extract the real article URL from Google redirect URLs.
+
+    Google Alerts feed entries use tracking links like:
+      https://www.google.com/url?rct=j&sa=t&url=<encoded_real_url>&ct=ga&...
+
+    This function returns the decoded real URL if detected, otherwise the
+    original URL unchanged.
+    """
+    try:
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        if host not in ("www.google.com", "google.com"):
+            return url
+        if parsed.path not in ("/url", "/url/"):
+            return url
+        params = parse_qs(parsed.query, keep_blank_values=False)
+        real_urls = params.get("url")
+        if real_urls:
+            return unquote(real_urls[0])
+    except Exception:
+        pass
+    return url
 
 
 def _entry_published_iso(entry: dict) -> str | None:
@@ -215,6 +240,8 @@ def run_ingestion(feed_id: int | None = None) -> IngestionStats:
                 link = entry.get("link")
                 if not link:
                     continue
+                # Resolve Google redirect URLs (google.com/url?...&url=<actual_url>&...)
+                link = _resolve_google_redirect(link)
 
                 summary, content_raw = _entry_text(entry)
                 title = entry.get("title") or "Ohne Titel"
