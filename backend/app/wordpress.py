@@ -322,18 +322,30 @@ def _sanitize_publish_text(text: str) -> str:
 
 def _build_attribution_block(article: dict[str, Any]) -> str:
     """Build a WP Gutenberg attribution block for the bottom of the article."""
+    from urllib.parse import urlparse
     source_url = (article.get("canonical_url") or article.get("source_url") or "").strip()
     source_name = (article.get("source_name_snapshot") or "").strip()
     author = (article.get("author") or "").strip()
 
-    # Get image credit from extraction metadata
+    # If the feed name is "Google Alerts" (or similar generic names), derive the
+    # real source name from the hostname of the canonical URL.
+    if not source_name or source_name.lower() in ("google alerts", "google"):
+        try:
+            hostname = urlparse(source_url).hostname or ""
+            source_name = hostname.removeprefix("www.")
+        except Exception:
+            pass
+
+    # Get image credit from extraction metadata (uses fuzzy URL match)
+    meta_json = article.get("meta_json")
     credit = ""
     try:
-        meta = json.loads(article.get("meta_json") or "{}")
+        meta = json.loads(meta_json or "{}")
         selected_url = (meta.get("image_review") or {}).get("selected_url") or ""
         if selected_url:
-            img_meta = (meta.get("extraction") or {}).get("image_metadata") or {}
-            credit = (img_meta.get(selected_url) or {}).get("credit") or ""
+            img_meta = _get_image_meta_for_url(meta_json, selected_url)
+            # caption already contains embedded credit text (e.g. "Foto: IMAGO/Zoonar")
+            credit = img_meta.get("caption") or img_meta.get("credit") or ""
     except Exception:
         pass
 
