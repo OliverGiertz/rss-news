@@ -166,25 +166,30 @@ def _get_image_meta_for_url(meta_json: str | None, image_url: str) -> dict:
     if not meta_json or not image_url:
         return {}
     try:
+        from urllib.parse import urlparse
         meta = json.loads(meta_json)
         image_metadata = (meta.get("extraction") or {}).get("image_metadata") or {}
-        return image_metadata.get(image_url) or {}
+        # Exact match first
+        if image_url in image_metadata:
+            return image_metadata[image_url]
+        # Fuzzy match: compare without query string (handles ?w=1200 variants)
+        base_url = urlparse(image_url)._replace(query="").geturl()
+        for key, val in image_metadata.items():
+            key_base = urlparse(key)._replace(query="").geturl()
+            if key_base == base_url:
+                return val
+        return {}
     except Exception:
         return {}
 
 
 def _build_image_caption(image_meta: dict, source_url: str) -> str:
     """Build a WP caption string from image metadata and source URL."""
+    # caption from figcaption typically already contains the credit text
     caption = (image_meta.get("caption") or "").strip()
-    credit = (image_meta.get("credit") or "").strip()
-    parts = []
     if caption:
-        parts.append(caption)
-    if credit:
-        parts.append(credit)
-    if not parts:
-        parts.append(f"Quelle: {source_url}")
-    return " | ".join(parts)
+        return caption
+    return f"Quelle: {source_url}"
 
 
 def _upload_featured_media(
