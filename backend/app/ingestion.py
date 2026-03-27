@@ -244,7 +244,9 @@ def run_ingestion(feed_id: int | None = None) -> IngestionStats:
                 link = _resolve_google_redirect(link)
 
                 summary, content_raw = _entry_text(entry)
-                title = entry.get("title") or "Ohne Titel"
+                # Strip HTML tags from title (Google Alerts wraps matched keywords in <b>)
+                raw_title = entry.get("title") or "Ohne Titel"
+                title = re.sub(r"<[^>]+>", "", raw_title).strip() or "Ohne Titel"
                 extracted = extract_article(link)
 
                 final_title = extracted.title or title
