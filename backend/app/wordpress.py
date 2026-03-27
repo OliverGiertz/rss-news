@@ -346,9 +346,10 @@ def _build_attribution_block(article: dict[str, Any]) -> str:
             img_meta = _get_image_meta_for_url(meta_json, selected_url)
             raw_credit = (img_meta.get("credit") or "").strip()
             caption_text = (img_meta.get("caption") or "").strip()
-            # If credit is just a prefix marker (e.g. "Foto:"), extract the credit
-            # portion from the full caption text instead.
-            if raw_credit and not raw_credit.rstrip(":").strip():
+            # If credit is just a bare marker prefix (e.g. "Foto:", "Bild:"),
+            # clear it and extract the full credit from the caption text instead.
+            _BARE_MARKERS = {"foto", "bild", "credit", "fotograf", "fotografie", "photo", "bildnachweis"}
+            if raw_credit.endswith(":") and raw_credit[:-1].strip().lower() in _BARE_MARKERS:
                 raw_credit = ""
             if raw_credit:
                 credit = raw_credit
