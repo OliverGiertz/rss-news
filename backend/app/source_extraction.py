@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from html import unescape
 import re
 from typing import Any
@@ -21,6 +21,7 @@ class ExtractedArticle:
     images: list[str]
     press_contact: str | None
     extraction_error: str | None = None
+    image_metadata: dict[str, dict] = field(default_factory=dict)
 
 
 def _clean_text(raw: str | None) -> str | None:
@@ -197,6 +198,187 @@ def _extract_press_contact(content_text: str | None) -> str | None:
     return None
 
 
+# CSS class keywords that indicate a copyright/credit element inside a figcaption
+_CREDIT_CLASS_RE = re.compile(
+    r"class\s*=\s*[\"'][^\"']*(?:copyright|credit|photographer|photo-credit|image-credit|bildrechte|fotocredit)[^\"']*[\"']",
+    re.IGNORECASE,
+)
+
+# Inline text patterns that signal a credit/copyright notice
+_CREDIT_TEXT_RE = re.compile(
+    r"(©[^<\n\r]{1,100}|(?:Foto|Bild|Credit|Fotograf|Fotografie)\s*:[^<\n\r]{1,100})",
+    re.IGNORECASE,
+)
+
+# data-* attribute names that carry credit/caption information directly on <img>
+_IMG_DATA_CREDIT_ATTRS = ("data-credit", "data-photographer", "data-copyright")
+_IMG_DATA_CAPTION_ATTRS = ("data-caption", "data-description")
+
+# Class keywords for adjacent sibling credit spans/divs after an <img>
+_ADJ_CREDIT_CLASS_RE = re.compile(
+    r"class\s*=\s*[\"'][^\"']*(?:copyright|credit|photographer|photo-credit|image-credit|bildrechte|fotocredit)[^\"']*[\"']",
+    re.IGNORECASE,
+)
+
+
+def _extract_image_metadata(html: str, page_url: str) -> dict[str, dict]:
+    """Return a mapping of absolute image URL → {"caption": ..., "credit": ...}.
+
+    Uses three progressive strategies:
+      1. <figure> with <img> + <figcaption>
+      2. data-* attributes on <img> tags not already covered
+      3. <img> tags whose immediately following HTML contains a credit element
+    """
+    result: dict[str, dict] = {}
+
+    try:
+        # ------------------------------------------------------------------
+        # Strategy 1: <figure> blocks containing <img> and <figcaption>
+        # ------------------------------------------------------------------
+        for fig_match in re.finditer(r"<figure[^>]*>([\s\S]*?)</figure>", html, re.IGNORECASE):
+            fig_html = fig_match.group(1)
+
+            # Locate image src (src or lazy-loaded data-src)
+            img_match = re.search(
+                r"<img[^>]+(?:src|data-src)\s*=\s*[\"']([^\"']+)[\"'][^>]*>",
+                fig_html,
+                re.IGNORECASE,
+            )
+            if not img_match:
+                continue
+            img_src = urljoin(page_url, img_match.group(1).strip())
+
+            # Locate figcaption
+            figcap_match = re.search(
+                r"<figcaption[^>]*>([\s\S]*?)</figcaption>",
+                fig_html,
+                re.IGNORECASE,
+            )
+            if not figcap_match:
+                continue
+            figcap_html = figcap_match.group(1)
+
+            # --- Extract credit ---
+            credit: str | None = None
+
+            # Try credit via class attribute on an inner element
+            credit_elem_match = re.search(
+                r"<(?:span|p|div)[^>]*"
+                + _CREDIT_CLASS_RE.pattern
+                + r"[^>]*>([\s\S]*?)</(?:span|p|div)>",
+                figcap_html,
+                re.IGNORECASE,
+            )
+            if credit_elem_match:
+                credit = _clean_text(credit_elem_match.group(1))
+
+            # Fallback: scan plain text of figcaption for credit patterns
+            if not credit:
+                figcap_text = unescape(re.sub(r"<[^>]+>", " ", figcap_html))
+                cred_text_match = _CREDIT_TEXT_RE.search(figcap_text)
+                if cred_text_match:
+                    credit = _clean_text(cred_text_match.group(1))
+
+            # --- Extract caption (full figcaption text) ---
+            caption = _clean_text(figcap_html)
+
+            # Only store entries that carry at least one piece of metadata
+            if caption or credit:
+                entry: dict[str, str] = {}
+                if caption:
+                    entry["caption"] = caption
+                if credit:
+                    entry["credit"] = credit
+                result[img_src] = entry
+
+        # ------------------------------------------------------------------
+        # Strategy 2: data-* attributes on <img> tags
+        # ------------------------------------------------------------------
+        for img_match in re.finditer(r"<img([^>]+)>", html, re.IGNORECASE):
+            img_attrs = img_match.group(1)
+
+            # Resolve image URL (prefer src over data-src)
+            src_match = re.search(r'(?:^|\s)src\s*=\s*["\']([^"\']+)["\']', img_attrs, re.IGNORECASE)
+            if not src_match:
+                src_match = re.search(r'data-src\s*=\s*["\']([^"\']+)["\']', img_attrs, re.IGNORECASE)
+            if not src_match:
+                continue
+            img_src = urljoin(page_url, src_match.group(1).strip())
+
+            # Skip images already handled by Strategy 1
+            if img_src in result:
+                continue
+
+            credit: str | None = None
+            caption: str | None = None
+
+            for attr in _IMG_DATA_CREDIT_ATTRS:
+                attr_match = re.search(
+                    rf'{re.escape(attr)}\s*=\s*["\']([^"\']+)["\']',
+                    img_attrs,
+                    re.IGNORECASE,
+                )
+                if attr_match:
+                    credit = _clean_text(attr_match.group(1))
+                    break
+
+            for attr in _IMG_DATA_CAPTION_ATTRS:
+                attr_match = re.search(
+                    rf'{re.escape(attr)}\s*=\s*["\']([^"\']+)["\']',
+                    img_attrs,
+                    re.IGNORECASE,
+                )
+                if attr_match:
+                    caption = _clean_text(attr_match.group(1))
+                    break
+
+            if caption or credit:
+                entry = {}
+                if caption:
+                    entry["caption"] = caption
+                if credit:
+                    entry["credit"] = credit
+                result[img_src] = entry
+
+        # ------------------------------------------------------------------
+        # Strategy 3: <img> followed within 200 chars by a credit element
+        # ------------------------------------------------------------------
+        for img_match in re.finditer(r"<img([^>]+)>", html, re.IGNORECASE):
+            img_attrs = img_match.group(1)
+
+            src_match = re.search(r'(?:^|\s)src\s*=\s*["\']([^"\']+)["\']', img_attrs, re.IGNORECASE)
+            if not src_match:
+                src_match = re.search(r'data-src\s*=\s*["\']([^"\']+)["\']', img_attrs, re.IGNORECASE)
+            if not src_match:
+                continue
+            img_src = urljoin(page_url, src_match.group(1).strip())
+
+            # Skip images already handled by earlier strategies
+            if img_src in result:
+                continue
+
+            # Look at the 200 characters of HTML immediately after the img tag
+            after_start = img_match.end()
+            after_html = html[after_start : after_start + 200]
+
+            adj_match = re.search(
+                r"<(?:span|p|div)[^>]*"
+                + _ADJ_CREDIT_CLASS_RE.pattern
+                + r"[^>]*>([\s\S]*?)</(?:span|p|div)>",
+                after_html,
+                re.IGNORECASE,
+            )
+            if adj_match:
+                credit = _clean_text(adj_match.group(1))
+                if credit:
+                    result[img_src] = {"credit": credit}
+
+    except Exception:
+        return {}
+
+    return result
+
+
 def extract_article(url: str, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> ExtractedArticle:
     try:
         req = Request(
@@ -232,6 +414,7 @@ def extract_article(url: str, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) ->
         summary = _clean_text(content_text[:320])
     images = _extract_images(html, url)
     press_contact = _extract_press_contact(content_text)
+    image_metadata = _extract_image_metadata(html, url)
 
     return ExtractedArticle(
         title=title,
@@ -242,6 +425,7 @@ def extract_article(url: str, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) ->
         images=images,
         press_contact=press_contact,
         extraction_error=None,
+        image_metadata=image_metadata,
     )
 
 
@@ -254,4 +438,5 @@ def extracted_article_to_meta(article: ExtractedArticle) -> dict[str, Any]:
         "images": article.images,
         "press_contact": article.press_contact,
         "extraction_error": article.extraction_error,
+        "image_metadata": article.image_metadata,
     }

@@ -161,6 +161,32 @@ def _guess_filename(image_url: str, content_type: str) -> str:
     return stem
 
 
+def _get_image_meta_for_url(meta_json: str | None, image_url: str) -> dict:
+    """Return the caption/credit dict for a specific image URL from extraction metadata."""
+    if not meta_json or not image_url:
+        return {}
+    try:
+        meta = json.loads(meta_json)
+        image_metadata = (meta.get("extraction") or {}).get("image_metadata") or {}
+        return image_metadata.get(image_url) or {}
+    except Exception:
+        return {}
+
+
+def _build_image_caption(image_meta: dict, source_url: str) -> str:
+    """Build a WP caption string from image metadata and source URL."""
+    caption = (image_meta.get("caption") or "").strip()
+    credit = (image_meta.get("credit") or "").strip()
+    parts = []
+    if caption:
+        parts.append(caption)
+    if credit:
+        parts.append(credit)
+    if not parts:
+        parts.append(f"Quelle: {source_url}")
+    return " | ".join(parts)
+
+
 def _upload_featured_media(
     *,
     base_url: str,
@@ -168,6 +194,7 @@ def _upload_featured_media(
     image_url: str,
     article_title: str,
     source_url: str,
+    image_caption: str = "",
 ) -> int:
     image_bytes, content_type = _download_image_bytes(image_url, referer=source_url or None)
     filename = _guess_filename(image_url, content_type)
@@ -192,7 +219,6 @@ def _upload_featured_media(
     if media_id <= 0:
         raise RuntimeError(f"WordPress Media-Upload fehlgeschlagen: {media_payload}")
 
-    # Optional metadata update for traceability.
     _wp_request(
         base_url=base_url,
         auth_header=auth_header,
@@ -200,7 +226,7 @@ def _upload_featured_media(
         endpoint=f"media/{media_id}",
         payload={
             "title": f"{article_title[:120]} - Bild",
-            "caption": f"Quelle: {source_url}",
+            "caption": image_caption or f"Quelle: {source_url}",
             "alt_text": article_title[:200],
         },
     )
@@ -289,6 +315,45 @@ def _sanitize_publish_text(text: str) -> str:
     return merged
 
 
+def _build_attribution_block(article: dict[str, Any]) -> str:
+    """Build a WP Gutenberg attribution block for the bottom of the article."""
+    source_url = (article.get("canonical_url") or article.get("source_url") or "").strip()
+    source_name = (article.get("source_name_snapshot") or "").strip()
+    author = (article.get("author") or "").strip()
+
+    # Get image credit from extraction metadata
+    credit = ""
+    try:
+        meta = json.loads(article.get("meta_json") or "{}")
+        selected_url = (meta.get("image_review") or {}).get("selected_url") or ""
+        if selected_url:
+            img_meta = (meta.get("extraction") or {}).get("image_metadata") or {}
+            credit = (img_meta.get(selected_url) or {}).get("credit") or ""
+    except Exception:
+        pass
+
+    parts: list[str] = []
+    if source_url:
+        label = source_name or source_url
+        parts.append(f'Originalartikel: <a href="{source_url}">{escape(label)}</a>')
+    if author:
+        parts.append(f"Autor: {escape(author)}")
+    if credit:
+        parts.append(f"Bildnachweis: {escape(credit)}")
+
+    if not parts:
+        return ""
+
+    inner = " &nbsp;|&nbsp; ".join(parts)
+    return (
+        "\n<!-- wp:separator {\"className\":\"is-style-wide\"} -->"
+        "<hr class=\"wp-block-separator is-style-wide\"/><!-- /wp:separator -->\n"
+        f'<!-- wp:paragraph {{\"className\":\"article-attribution\"}} -->'
+        f'<p class="article-attribution"><em>{inner}</em></p>'
+        "<!-- /wp:paragraph -->"
+    )
+
+
 def _build_post_content(article: dict[str, Any]) -> tuple[str, str | None]:
     summary = (article.get("summary") or "").strip()
     body_text = (article.get("content_rewritten") or article.get("content_raw") or "").strip()
@@ -300,7 +365,9 @@ def _build_post_content(article: dict[str, Any]) -> tuple[str, str | None]:
     body_html = _html_to_wp_blocks(body_text) if has_html else _as_block_paragraphs(body_text)
     if not body_html:
         body_html = "<!-- wp:paragraph --><p>Kein Inhalt verfügbar.</p><!-- /wp:paragraph -->"
-    content = body_html.strip()
+
+    attribution = _build_attribution_block(article)
+    content = (body_html + attribution).strip()
     return content, None
 
 
@@ -318,6 +385,8 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
     featured_media_id = None
     selected_image_url = _selected_image_url_from_meta(article.get("meta_json"))
     if selected_image_url:
+        image_meta = _get_image_meta_for_url(article.get("meta_json"), selected_image_url)
+        image_caption = _build_image_caption(image_meta, source_url)
         try:
             featured_media_id = _upload_featured_media(
                 base_url=settings.wordpress_base_url,
@@ -325,6 +394,7 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
                 image_url=selected_image_url,
                 article_title=title,
                 source_url=source_url,
+                image_caption=image_caption,
             )
         except Exception as img_exc:
             import logging

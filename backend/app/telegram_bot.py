@@ -289,6 +289,7 @@ def notify_pipeline_done(stats: dict[str, Any]) -> None:
     processed = stats.get("processed", 0)
     drafts = stats.get("drafts_created", 0)
     rejected = stats.get("rejected", 0)
+    no_image = stats.get("no_image", 0)
     warnings = stats.get("warnings", 0)
     errors = stats.get("errors", 0)
 
@@ -300,6 +301,8 @@ def notify_pipeline_done(stats: dict[str, Any]) -> None:
     ]
     if rejected:
         lines.append(f"🚫 Abgelehnt: {rejected}")
+    if no_image:
+        lines.append(f"🖼️ Kein Bild: {no_image}")
     if warnings:
         lines.append(f"⚠️ Warnungen: {warnings}")
     if errors:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-UI_STATUSES = ("new", "rewrite", "publish", "published", "close")
+UI_STATUSES = ("new", "rewrite", "publish", "published", "close", "no_image")
 
 
 def internal_to_ui_status(status: str | None) -> str:
@@ -11,7 +11,7 @@ def internal_to_ui_status(status: str | None) -> str:
         return "close"
     if value == "review":
         return "rewrite"
-    if value in {"new", "rewrite", "published"}:
+    if value in {"new", "rewrite", "published", "no_image"}:
         return value
     return value or "new"
 
@@ -22,7 +22,7 @@ def ui_to_internal_status(status: str | None) -> str:
         return "approved"
     if value == "close":
         return "error"
-    if value in {"new", "rewrite", "published"}:
+    if value in {"new", "rewrite", "published", "no_image"}:
         return value
     if value in {"approved", "error", "review"}:
         return value
@@ -35,4 +35,5 @@ ALLOWED_UI_TRANSITIONS: dict[str, set[str]] = {
     "publish": {"published", "close"},
     "published": {"rewrite", "close"},
     "close": {"rewrite"},
+    "no_image": {"rewrite", "close"},
 }

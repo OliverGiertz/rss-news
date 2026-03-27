@@ -123,7 +123,7 @@ class ArticleUpsertRequest(BaseModel):
     publish_last_error: str | None = None
     published_to_wp_at: str | None = None
     word_count: int = 0
-    status: str = Field(default="new", pattern="^(new|rewrite|publish|published|close|review|approved|error)$")
+    status: str = Field(default="new", pattern="^(new|rewrite|publish|published|close|review|approved|error|no_image)$")
     meta_json: str | None = None
 
 
@@ -132,7 +132,7 @@ class IngestionRunRequest(BaseModel):
 
 
 class ArticleTransitionRequest(BaseModel):
-    target_status: str = Field(pattern="^(new|rewrite|publish|published|close|review|approved|error)$")
+    target_status: str = Field(pattern="^(new|rewrite|publish|published|close|review|approved|error|no_image)$")
     note: str | None = None
 
 

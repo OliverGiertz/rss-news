@@ -110,7 +110,7 @@ def init_db() -> None:
                 publish_last_error TEXT,
                 published_to_wp_at TEXT,
                 word_count INTEGER DEFAULT 0,
-                status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'rewrite', 'review', 'approved', 'published', 'error')),
+                status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'rewrite', 'review', 'approved', 'published', 'error', 'no_image')),
                 meta_json TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -180,6 +180,89 @@ def init_db() -> None:
         for column, ddl in migration_columns.items():
             if column not in existing_columns:
                 conn.execute(ddl)
+
+        # Migration: add 'no_image' to the status CHECK constraint if not present.
+        # SQLite cannot modify CHECK constraints in-place, so we recreate the table.
+        table_sql_row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='articles'"
+        ).fetchone()
+        if table_sql_row and "'no_image'" not in (table_sql_row["sql"] or ""):
+            conn.executescript(
+                """
+                PRAGMA foreign_keys=OFF;
+
+                CREATE TABLE articles_v2 (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    feed_id INTEGER,
+                    source_article_id TEXT,
+                    source_hash TEXT,
+                    title TEXT NOT NULL,
+                    source_url TEXT NOT NULL,
+                    canonical_url TEXT,
+                    published_at TEXT,
+                    author TEXT,
+                    summary TEXT,
+                    content_raw TEXT,
+                    content_rewritten TEXT,
+                    image_urls_json TEXT,
+                    press_contact TEXT,
+                    source_name_snapshot TEXT,
+                    source_terms_url_snapshot TEXT,
+                    source_license_name_snapshot TEXT,
+                    legal_checked INTEGER NOT NULL DEFAULT 0,
+                    legal_checked_at TEXT,
+                    legal_note TEXT,
+                    wp_post_id INTEGER,
+                    wp_post_url TEXT,
+                    publish_attempts INTEGER NOT NULL DEFAULT 0,
+                    publish_last_error TEXT,
+                    published_to_wp_at TEXT,
+                    word_count INTEGER DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'rewrite', 'review', 'approved', 'published', 'error', 'no_image')),
+                    meta_json TEXT,
+                    relevance_score INTEGER,
+                    scheduled_publish_at TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY(feed_id) REFERENCES feeds(id) ON DELETE SET NULL,
+                    UNIQUE(source_url)
+                );
+
+                INSERT INTO articles_v2 SELECT
+                    id, feed_id, source_article_id, source_hash, title, source_url,
+                    canonical_url, published_at, author, summary, content_raw,
+                    content_rewritten, image_urls_json, press_contact,
+                    source_name_snapshot, source_terms_url_snapshot, source_license_name_snapshot,
+                    legal_checked, legal_checked_at, legal_note,
+                    wp_post_id, wp_post_url, publish_attempts, publish_last_error,
+                    published_to_wp_at, word_count, status, meta_json,
+                    relevance_score, scheduled_publish_at, created_at, updated_at
+                FROM articles;
+
+                DROP TABLE articles;
+                ALTER TABLE articles_v2 RENAME TO articles;
+
+                CREATE INDEX IF NOT EXISTS idx_articles_source_article_id ON articles(source_article_id);
+                CREATE INDEX IF NOT EXISTS idx_articles_source_hash ON articles(source_hash);
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_articles_feed_source_article_id
+                  ON articles(feed_id, source_article_id)
+                  WHERE source_article_id IS NOT NULL;
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_articles_source_hash
+                  ON articles(source_hash)
+                  WHERE source_hash IS NOT NULL;
+                CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
+                CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at);
+
+                CREATE TRIGGER IF NOT EXISTS trg_articles_updated_at
+                AFTER UPDATE ON articles
+                FOR EACH ROW
+                BEGIN
+                    UPDATE articles SET updated_at = datetime('now') WHERE id = OLD.id;
+                END;
+
+                PRAGMA foreign_keys=ON;
+                """
+            )
 
         table_rows = conn.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'publish_jobs'"

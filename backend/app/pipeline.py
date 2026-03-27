@@ -45,6 +45,7 @@ class PipelineStats:
     rejected: int = 0
     warnings: int = 0
     errors: int = 0
+    no_image: int = 0
     rejected_articles: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -226,6 +227,7 @@ def run_auto_pipeline(trigger: str = "auto") -> dict[str, Any]:
         "processed": stats.processed,
         "drafts_created": stats.drafts_created,
         "rejected": stats.rejected,
+        "no_image": stats.no_image,
         "warnings": stats.warnings,
         "errors": stats.errors,
     }
@@ -241,6 +243,33 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
 
     # Auto-select image
     _auto_select_image(article)
+
+    # Reload to get updated image_review
+    article = get_article_by_id(article_id) or article
+
+    # Exclude articles without a usable image
+    try:
+        meta = json.loads(article.get("meta_json") or "{}")
+    except Exception:
+        meta = {}
+    has_image = bool((meta.get("image_review") or {}).get("selected_url"))
+    if not has_image:
+        update_article_status(
+            article_id,
+            "no_image",
+            actor="pipeline",
+            note="Kein Bild vorhanden – Artikel ausgeschlossen",
+        )
+        stats.no_image += 1
+        logger.info("Artikel #%d ausgeschlossen: kein Bild gefunden", article_id)
+        try:
+            tg.send_message(
+                f"🖼️ <b>Kein Bild</b> – Artikel #{article_id} ausgeschlossen\n"
+                f"📰 {(article.get('title') or '')[:80]}"
+            )
+        except Exception:
+            pass
+        return
 
     # Score relevance
     try:
