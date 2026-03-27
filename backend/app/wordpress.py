@@ -344,8 +344,22 @@ def _build_attribution_block(article: dict[str, Any]) -> str:
         selected_url = (meta.get("image_review") or {}).get("selected_url") or ""
         if selected_url:
             img_meta = _get_image_meta_for_url(meta_json, selected_url)
-            # caption already contains embedded credit text (e.g. "Foto: IMAGO/Zoonar")
-            credit = img_meta.get("caption") or img_meta.get("credit") or ""
+            raw_credit = (img_meta.get("credit") or "").strip()
+            caption_text = (img_meta.get("caption") or "").strip()
+            # If credit is just a prefix marker (e.g. "Foto:"), extract the credit
+            # portion from the full caption text instead.
+            if raw_credit and not raw_credit.rstrip(":").strip():
+                raw_credit = ""
+            if raw_credit:
+                credit = raw_credit
+            elif caption_text:
+                # Extract credit markers like "Foto: IMAGO/…", "© Agentur", "Bild: …"
+                import re as _re
+                m = _re.search(
+                    r"(©[^\n]{1,120}|(?:Foto|Bild|Credit|Fotograf|Photo)\s*:[^\n]{1,120})",
+                    caption_text,
+                )
+                credit = m.group(1).strip() if m else ""
     except Exception:
         pass
 
