@@ -446,6 +446,14 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
     scheduled_at = article.get("scheduled_publish_at")
     if scheduled_at:
         payload["date"] = scheduled_at  # e.g. "2026-03-24T09:00:00"
+        # Use status "future" so WP schedules auto-publishing at the given date.
+        # WP ignores date for drafts and shows "Sofort veröffentlichen" instead.
+        try:
+            from datetime import datetime as _dt
+            if _dt.fromisoformat(scheduled_at) > _dt.now():
+                payload["status"] = "future"
+        except Exception:
+            pass
 
     wp_post_id = article.get("wp_post_id")
     tag_ids = _resolve_wp_tag_ids(
