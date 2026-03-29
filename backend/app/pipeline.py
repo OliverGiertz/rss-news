@@ -159,8 +159,17 @@ def _do_rewrite_and_draft(article: dict[str, Any]) -> tuple[int, str | None]:
     if not fresh:
         raise RuntimeError(f"Artikel #{article_id} nach Rewrite nicht gefunden")
 
+    # Ensure a publish slot is reserved — reserve one now if not yet set
+    if not fresh.get("scheduled_publish_at"):
+        from .scheduler import reserve_publish_slot
+        logger.info("_do_rewrite_and_draft #%d: kein Slot gesetzt, reserviere jetzt", article_id)
+        reserve_publish_slot(article_id)
+        fresh = get_article_by_id(article_id)
+        if not fresh:
+            raise RuntimeError(f"Artikel #{article_id} nach Slot-Reservierung nicht gefunden")
+
     # Create WP draft
-    logger.info("_do_rewrite_and_draft #%d: erstelle/aktualisiere WP Draft (wp_post_id=%s)", article_id, fresh.get("wp_post_id"))
+    logger.info("_do_rewrite_and_draft #%d: erstelle/aktualisiere WP Draft (wp_post_id=%s, sched=%s)", article_id, fresh.get("wp_post_id"), fresh.get("scheduled_publish_at"))
     wp_post_id, wp_post_url = publish_article_draft(fresh)
     logger.info("_do_rewrite_and_draft #%d: WP Draft fertig (post_id=%s)", article_id, wp_post_id)
 
