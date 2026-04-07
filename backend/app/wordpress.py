@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import base64
 from html import escape
+import logging
 import json
 import mimetypes
 from pathlib import Path
 import re
 from typing import Any
+from html import unescape as _html_unescape
 from urllib.parse import quote_plus, urlparse
 from urllib.request import Request, urlopen
 
@@ -135,9 +137,37 @@ def _resolve_wp_tag_ids(*, base_url: str, auth_header: str, tags: list[str]) -> 
     return ids
 
 
+_BLOCKED_IMAGE_EXTS = {".svg", ".gif", ".ico", ".webp"}
+_logger = logging.getLogger(__name__)
+
+
+def _sanitize_image_url(url: str) -> str:
+    """Decode HTML entities (e.g. &amp; → &) in image URLs from RSS feeds."""
+    return _html_unescape(url)
+
+
+_PLACEHOLDER_PATTERNS = ("some-default.jpg", "default-image", "placeholder", "no-image", "noimage")
+
+def _is_usable_image_url(url: str) -> bool:
+    """Return False for URLs that are unlikely to work as WP featured images."""
+    if not url or url.startswith("data:"):
+        return False
+    try:
+        path = urlparse(url).path.lower()
+        _, ext = path.rsplit(".", 1) if "." in path else ("", "")
+        if f".{ext}" in _BLOCKED_IMAGE_EXTS:
+            return False
+        if any(p in path for p in _PLACEHOLDER_PATTERNS):
+            return False
+    except Exception:
+        pass
+    return True
+
+
 def _download_image_bytes(url: str, referer: str | None = None) -> tuple[bytes, str]:
+    url = _sanitize_image_url(url)
     headers = {
-        "User-Agent": "rss-news-publisher/1.0",
+        "User-Agent": "Mozilla/5.0 (compatible; rss-news-publisher/1.0)",
         "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
     }
     if referer:
@@ -153,11 +183,14 @@ def _download_image_bytes(url: str, referer: str | None = None) -> tuple[bytes, 
 
 
 def _guess_filename(image_url: str, content_type: str) -> str:
-    parsed = urlparse(image_url)
+    parsed = urlparse(_sanitize_image_url(image_url))
     stem = Path(parsed.path).name or "article-image"
     if "." not in stem:
         ext = mimetypes.guess_extension(content_type.split(";")[0].strip()) or ".jpg"
         stem = f"{stem}{ext}"
+    # Sanitize to ASCII-safe characters for the HTTP Content-Disposition header
+    stem = stem.encode("ascii", errors="ignore").decode("ascii")
+    stem = re.sub(r"[^\w.\-]", "_", stem) or "article-image.jpg"
     return stem
 
 
@@ -416,23 +449,42 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
 
     featured_media_id = None
     selected_image_url = _selected_image_url_from_meta(article.get("meta_json"))
-    if selected_image_url:
-        image_meta = _get_image_meta_for_url(article.get("meta_json"), selected_image_url)
+
+    # Build candidate list: primary selected URL + fallbacks from image_urls_json
+    image_candidates: list[str] = []
+    if selected_image_url and _is_usable_image_url(selected_image_url):
+        image_candidates.append(selected_image_url)
+    try:
+        extra_urls = json.loads(article.get("image_urls_json") or "[]")
+        for u in extra_urls:
+            if u and u not in image_candidates and _is_usable_image_url(u):
+                image_candidates.append(u)
+    except Exception:
+        pass
+
+    for candidate_url in image_candidates:
+        image_meta = _get_image_meta_for_url(article.get("meta_json"), candidate_url)
         image_caption = _build_image_caption(image_meta, source_url)
         try:
             featured_media_id = _upload_featured_media(
                 base_url=settings.wordpress_base_url,
                 auth_header=auth,
-                image_url=selected_image_url,
+                image_url=candidate_url,
                 article_title=title,
                 source_url=source_url,
                 image_caption=image_caption,
             )
+            break  # success — stop trying further candidates
         except Exception as img_exc:
-            import logging
-            logging.getLogger(__name__).warning(
-                "Bild-Upload fehlgeschlagen (wird übersprungen): %s — %s", selected_image_url, img_exc
+            _logger.warning(
+                "Bild-Upload fehlgeschlagen, versuche nächste URL: %s — %s", candidate_url, img_exc
             )
+
+    if not featured_media_id and image_candidates:
+        _logger.warning(
+            "Alle %d Bild-Kandidaten fehlgeschlagen für Artikel #%s (%s)",
+            len(image_candidates), article.get("id"), title[:60],
+        )
 
     payload = {
         "title": title,

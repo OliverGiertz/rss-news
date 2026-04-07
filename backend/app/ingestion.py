@@ -38,6 +38,26 @@ class IngestionStats:
 MAX_FEED_FETCH_RETRIES = 3
 
 
+def _normalize_article_url(url: str) -> str:
+    """Strip AMP and tracking query parameters from article URLs.
+
+    Removes ?outputType=valid_amp and other AMP/tracking params so that
+    AMP and non-AMP versions of the same article are deduplicated.
+    """
+    _AMP_PARAMS = {"outputtype", "amp", "outputformat"}
+    try:
+        from urllib.parse import parse_qs, urlencode
+        parsed = urlparse(url)
+        if not parsed.query:
+            return url
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        filtered = {k: v for k, v in params.items() if k.lower() not in _AMP_PARAMS}
+        new_query = urlencode(filtered, doseq=True)
+        return parsed._replace(query=new_query).geturl()
+    except Exception:
+        return url
+
+
 def _resolve_google_redirect(url: str) -> str:
     """Extract the real article URL from Google redirect URLs.
 
@@ -103,15 +123,26 @@ def _rank_image_candidates(source_url: str, title: str, images: list[str]) -> li
     source_host = (urlparse(source_url).hostname or "").lower()
     is_presseportal = "presseportal.de" in source_host
     title_tokens = _normalize_tokens(title)
-    blocked_patterns = ("logo", "badge", "app-store", "google-play", "na-logo", "sprite", "icon", "favicon", "tracking", "pixel")
+    blocked_patterns = ("logo", "badge", "app-store", "google-play", "na-logo", "sprite", "icon", "favicon", "tracking", "pixel", ".svg", ".ico", ".gif")
+    # Known placeholder/default images that should never be used as featured image
+    placeholder_patterns = ("some-default.jpg", "default-image", "placeholder", "no-image", "noimage")
+
 
     ranked: list[dict[str, Any]] = []
     for url in images:
+        # Skip inline data: URIs (e.g. base64-encoded SVG placeholders)
+        if url.startswith("data:"):
+            continue
+
         parsed = urlparse(url)
         path = unquote(parsed.path.lower())
         full = f"{parsed.netloc.lower()}{path}"
         score = 0
         reasons: list[str] = []
+
+        if any(token in full for token in placeholder_patterns):
+            score -= 300
+            reasons.append("placeholder-image")
 
         if any(token in full for token in blocked_patterns):
             score -= 150
@@ -242,6 +273,8 @@ def run_ingestion(feed_id: int | None = None) -> IngestionStats:
                     continue
                 # Resolve Google redirect URLs (google.com/url?...&url=<actual_url>&...)
                 link = _resolve_google_redirect(link)
+                # Normalize AMP/tracking params (e.g. ?outputType=valid_amp)
+                link = _normalize_article_url(link)
 
                 summary, content_raw = _entry_text(entry)
                 # Strip HTML tags from title (Google Alerts wraps matched keywords in <b>)
