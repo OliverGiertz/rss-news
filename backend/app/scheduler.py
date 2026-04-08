@@ -146,17 +146,18 @@ def _format_slot(d: date, hour: int) -> str:
 
 
 def _find_next_free_slot(
-    wp_occupied: set[tuple[str, int]], lookahead_days: int = 30
+    wp_occupied: set[tuple[str, int]], lookahead_days: int = 60
 ) -> tuple[date, int] | None:
-    """Find the next free (date, hour) slot, anchored after the last scheduled article."""
+    """Find the next free (date, hour) slot.
+
+    Starts from tomorrow and scans forward, filling any gaps in the schedule
+    rather than always appending after the last existing post.
+    """
     today = _today_cet()
     tomorrow = today + timedelta(days=1)
 
-    last_date = _get_last_future_scheduled_date(wp_occupied)
-    start_date = last_date if (last_date and last_date >= tomorrow) else tomorrow
-
     for offset in range(0, lookahead_days + 1):
-        candidate = start_date + timedelta(days=offset)
+        candidate = tomorrow + timedelta(days=offset)
         hour = _next_free_hour(candidate, wp_occupied)
         if hour is not None:
             return candidate, hour
