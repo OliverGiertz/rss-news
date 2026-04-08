@@ -109,10 +109,35 @@ def _store_relevance(article_id: int, relevance: dict[str, Any]) -> None:
 def _do_rewrite_and_draft(article: dict[str, Any]) -> tuple[int, str | None]:
     """Rewrite article and create WP draft. Returns (wp_post_id, wp_post_url)."""
     article_id = int(article["id"])
+    settings = get_settings()
+
+    # ── Quality gate 1: raw content length ──────────────────────────────────
+    import re as _re
+    raw_text = _re.sub(r"<[^>]+>", " ", article.get("content_raw") or "")
+    raw_words = len(raw_text.split())
+    if raw_words < settings.pipeline_min_words_raw:
+        note = (
+            f"Zu wenig Rohinhalt: {raw_words} Wörter "
+            f"(Minimum: {settings.pipeline_min_words_raw})"
+        )
+        logger.warning("_do_rewrite_and_draft #%d: %s — überspringe", article_id, note)
+        update_article_status(article_id, "error", actor="pipeline", note=note)
+        raise ValueError(note)
 
     # Rewrite
-    logger.info("_do_rewrite_and_draft #%d: starte OpenAI-Rewrite", article_id)
+    logger.info("_do_rewrite_and_draft #%d: starte OpenAI-Rewrite (%d Roh-Wörter)", article_id, raw_words)
     rewritten = rewrite_article_text(article)
+
+    # ── Quality gate 2: rewritten content length ─────────────────────────────
+    rewritten_words = len(rewritten.split())
+    if rewritten_words < settings.pipeline_min_words_rewritten:
+        note = (
+            f"Rewrite zu kurz: {rewritten_words} Wörter "
+            f"(Minimum: {settings.pipeline_min_words_rewritten})"
+        )
+        logger.warning("_do_rewrite_and_draft #%d: %s — überspringe", article_id, note)
+        update_article_status(article_id, "error", actor="pipeline", note=note)
+        raise ValueError(note)
     logger.info("_do_rewrite_and_draft #%d: Rewrite fertig (%d Wörter), generiere Tags", article_id, len(rewritten.split()))
     tags: list[str] = []
     try:
@@ -341,6 +366,14 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
                     tg.notify_new_draft(final, score=score, suggested_publish_at=slot)
                 except Exception as exc:
                     logger.warning("Telegram draft-Benachrichtigung für #%d fehlgeschlagen: %s", article_id, exc)
+
+        except ValueError as exc:
+            # Quality gate rejection (too short etc.) — status already set in _do_rewrite_and_draft
+            # Release the reserved slot so it's available for the next article
+            from .scheduler import release_publish_slot
+            release_publish_slot(article_id)
+            stats.rejected_articles.append(get_article_by_id(article_id) or {})
+            logger.info("Artikel #%d wegen Qualitätsprüfung abgelehnt: %s", article_id, exc)
 
         except Exception as exc:
             logger.error("Draft-Erstellung für #%d fehlgeschlagen: %s", article_id, exc)

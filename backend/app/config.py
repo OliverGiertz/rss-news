@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     pipeline_relevance_warn: int = 60    # >= this: Telegram warning, else reject
     pipeline_max_drafts_per_day: int = 2
     pipeline_publish_hours: str = "9,14"  # comma-separated preferred publish hours (CET)
+    pipeline_min_words_raw: int = 120    # minimum words in raw content before rewrite (else reject)
+    pipeline_min_words_rewritten: int = 150  # minimum words in rewritten content (else reject)
 
 
 @lru_cache(maxsize=1)

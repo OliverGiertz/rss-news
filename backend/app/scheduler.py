@@ -165,6 +165,15 @@ def _find_next_free_slot(
     return tomorrow, _preferred_hours()[0] if _preferred_hours() else 9
 
 
+def release_publish_slot(article_id: int) -> None:
+    """Clear a previously reserved slot (e.g. when article is rejected after slot assignment)."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE articles SET scheduled_publish_at = NULL WHERE id = ?",
+            (article_id,),
+        )
+
+
 def suggest_publish_slot() -> str:
     """Return a suggested publish datetime string (CET) for the next free slot."""
     wp_occupied = _fetch_wp_occupied_slots()
