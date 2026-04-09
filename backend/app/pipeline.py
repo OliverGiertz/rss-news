@@ -43,6 +43,7 @@ class PipelineStats:
     processed: int = 0
     drafts_created: int = 0
     rejected: int = 0
+    quality_gate_rejected: int = 0
     warnings: int = 0
     errors: int = 0
     no_image: int = 0
@@ -261,6 +262,7 @@ def run_auto_pipeline(trigger: str = "auto") -> dict[str, Any]:
         "processed": stats.processed,
         "drafts_created": stats.drafts_created,
         "rejected": stats.rejected,
+        "quality_gate_rejected": stats.quality_gate_rejected,
         "no_image": stats.no_image,
         "warnings": stats.warnings,
         "errors": stats.errors,
@@ -372,8 +374,19 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
             # Release the reserved slot so it's available for the next article
             from .scheduler import release_publish_slot
             release_publish_slot(article_id)
-            stats.rejected_articles.append(get_article_by_id(article_id) or {})
+            stats.quality_gate_rejected += 1
             logger.info("Artikel #%d wegen Qualitätsprüfung abgelehnt: %s", article_id, exc)
+            # Individual Telegram notification for quality gate rejection
+            try:
+                title = (article.get("title") or "Ohne Titel")[:80]
+                tg.send_message(
+                    f"✂️ <b>Qualitätsprüfung nicht bestanden</b>\n"
+                    f"📰 {title}\n"
+                    f"💯 Score: {score}/100\n"
+                    f"⚠️ {exc}"
+                )
+            except Exception as tg_exc:
+                logger.warning("Telegram QG-Benachrichtigung für #%d fehlgeschlagen: %s", article_id, tg_exc)
 
         except Exception as exc:
             logger.error("Draft-Erstellung für #%d fehlgeschlagen: %s", article_id, exc)
