@@ -45,7 +45,7 @@ def _fetch_wp_occupied_slots() -> set[tuple[str, int]]:
     settings = get_settings()
     try:
         auth = base64.b64encode(
-            f"{settings.wordpress_username}:{settings.wordpress_password}".encode()
+            f"{settings.wordpress_username}:{settings.wordpress_app_password}".encode()
         ).decode()
         url = (
             f"{settings.wordpress_base_url}/wp-json/wp/v2/posts"

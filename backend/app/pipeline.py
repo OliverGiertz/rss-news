@@ -391,6 +391,9 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
         except Exception as exc:
             logger.error("Draft-Erstellung für #%d fehlgeschlagen: %s", article_id, exc)
             update_article_status(article_id, "error", actor="pipeline", note=f"Draft-Fehler: {exc}")
+            # Release reserved slot so it's not permanently blocked by a failed article
+            from .scheduler import release_publish_slot
+            release_publish_slot(article_id)
             raise
 
 
