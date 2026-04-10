@@ -37,6 +37,16 @@
     </section>
     {% endif %}
 
+    <section class="card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+      <div>
+        <h2 style="margin:0;">WordPress → DB Synchronisieren</h2>
+        <p class="subtle" style="margin:4px 0 0;">Liest alle geplanten WP-Beiträge und aktualisiert die Slots in der lokalen DB.<br>Nutze dies nach manuellen Änderungen in WordPress.</p>
+      </div>
+      <form method="post" action="/admin/wp-sync">
+        <button type="submit">🔄 Jetzt synchronisieren</button>
+      </form>
+    </section>
+
     <section class="card">
       <h2>Slot-Übersicht (nächste 60 Tage)</h2>
       <div class="summary-bar">

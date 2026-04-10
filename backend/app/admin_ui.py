@@ -931,6 +931,28 @@ def admin_transition_article(request: Request, article_id: int, target_status: s
     return _dashboard_redirect(msg=f"Ungueltiger Statuswechsel fuer Artikel #{article_id}", msg_type="error")
 
 
+@router.post("/admin/wp-sync")
+def admin_wp_sync(request: Request):
+    """Sync scheduled_publish_at and WP references in the DB from WordPress."""
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    try:
+        from .wordpress import sync_db_from_wordpress
+        stats = sync_db_from_wordpress()
+        msg = (
+            f"WP-Sync abgeschlossen: "
+            f"{stats['slot_updated']} Slots aktualisiert, "
+            f"{stats['slot_cleared_draft']} Slots geleert (Draft), "
+            f"{stats['marked_published']} als veröffentlicht markiert, "
+            f"{stats['wp_reference_cleared']} WP-Referenzen gelöscht (Papierkorb), "
+            f"{stats['already_in_sync']} bereits synchron."
+        )
+        return RedirectResponse(url=f"/admin/schedule?msg={msg}&type=success", status_code=303)
+    except Exception as exc:
+        return RedirectResponse(url=f"/admin/schedule?msg=Sync fehlgeschlagen: {exc}&type=error", status_code=303)
+
+
 @router.post("/admin/articles/{article_id}/retry")
 def admin_retry_article(request: Request, article_id: int):
     """Reset a failed article to 'new' so the pipeline picks it up on next run."""

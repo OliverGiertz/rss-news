@@ -559,3 +559,131 @@ def delete_wp_post(wp_post_id: int) -> None:
         method="DELETE",
         endpoint=f"posts/{wp_post_id}?force=true",
     )
+
+
+def sync_db_from_wordpress() -> dict[str, Any]:
+    """Sync scheduled_publish_at and wp_post_url in the DB from WordPress.
+
+    WordPress is treated as the source of truth for scheduling.
+    For each DB article that has a wp_post_id:
+      - If WP post exists as 'future': update scheduled_publish_at to WP date.
+      - If WP post exists as 'draft': clear scheduled_publish_at (not yet scheduled).
+      - If WP post exists as 'publish': mark article as published in DB.
+      - If WP post is trashed/deleted (404 or trash status): clear wp_post_id,
+        wp_post_url, and scheduled_publish_at so the article can be re-processed.
+    Returns a stats dict with counts of each action taken.
+    """
+    from .db import get_conn
+
+    settings = get_settings()
+    if not settings.wordpress_base_url or not settings.wordpress_username or not settings.wordpress_app_password:
+        raise RuntimeError("WordPress Konfiguration fehlt")
+    auth = _auth_header(settings.wordpress_username, settings.wordpress_app_password)
+    base_url = settings.wordpress_base_url.rstrip("/")
+
+    # Fetch all future + draft + published WP posts in one pass (up to 300 per status)
+    wp_posts: dict[int, dict] = {}
+    for status in ("future", "draft", "publish"):
+        for page in range(1, 4):  # max 300 per status
+            try:
+                result = _wp_request(
+                    base_url=base_url,
+                    auth_header=auth,
+                    method="GET",
+                    endpoint=f"posts?status={status}&per_page=100&page={page}&_fields=id,date,status,link",
+                )
+            except Exception:
+                break
+            if not isinstance(result, list) or not result:
+                break
+            for post in result:
+                try:
+                    wp_posts[int(post["id"])] = post
+                except Exception:
+                    pass
+            if len(result) < 100:
+                break
+
+    # Load all DB articles that have a wp_post_id
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, wp_post_id, wp_post_url, scheduled_publish_at, status
+            FROM articles
+            WHERE wp_post_id IS NOT NULL
+              AND status NOT IN ('no_image')
+            ORDER BY id
+            """
+        ).fetchall()
+
+    stats: dict[str, int] = {
+        "total_db_articles": len(rows),
+        "wp_posts_found": len(wp_posts),
+        "slot_updated": 0,
+        "slot_cleared_draft": 0,
+        "marked_published": 0,
+        "wp_reference_cleared": 0,
+        "already_in_sync": 0,
+    }
+
+    for row in rows:
+        article_id = row["id"]
+        wp_post_id = int(row["wp_post_id"])
+        wp_post = wp_posts.get(wp_post_id)
+
+        if wp_post is None:
+            # Post not found in future/draft/publish — likely trashed or deleted
+            # Clear wp reference so article can be re-processed if needed
+            with get_conn() as conn:
+                conn.execute(
+                    """UPDATE articles
+                       SET wp_post_id = NULL, wp_post_url = NULL, scheduled_publish_at = NULL
+                       WHERE id = ?""",
+                    (article_id,),
+                )
+            stats["wp_reference_cleared"] += 1
+            continue
+
+        wp_status = wp_post.get("status", "")
+        wp_date = wp_post.get("date", "")       # local CET datetime, e.g. "2026-05-05T09:00:00"
+        wp_link = wp_post.get("link") or row["wp_post_url"]
+
+        if wp_status == "publish":
+            # Already published in WP — mark as published in DB if not already
+            if row["status"] != "published":
+                with get_conn() as conn:
+                    conn.execute(
+                        "UPDATE articles SET status = 'published', wp_post_url = ? WHERE id = ?",
+                        (wp_link, article_id),
+                    )
+                stats["marked_published"] += 1
+            else:
+                stats["already_in_sync"] += 1
+
+        elif wp_status == "future":
+            # Scheduled — sync the date into scheduled_publish_at
+            current_slot = row["scheduled_publish_at"] or ""
+            # WP returns e.g. "2026-05-05T09:00:00" — compare ignoring seconds
+            if current_slot[:16] != wp_date[:16]:
+                with get_conn() as conn:
+                    conn.execute(
+                        "UPDATE articles SET scheduled_publish_at = ?, wp_post_url = ? WHERE id = ?",
+                        (wp_date, wp_link, article_id),
+                    )
+                stats["slot_updated"] += 1
+            else:
+                stats["already_in_sync"] += 1
+
+        elif wp_status == "draft":
+            # Draft without a schedule — clear scheduled_publish_at if set
+            if row["scheduled_publish_at"]:
+                with get_conn() as conn:
+                    conn.execute(
+                        "UPDATE articles SET scheduled_publish_at = NULL WHERE id = ?",
+                        (article_id,),
+                    )
+                stats["slot_cleared_draft"] += 1
+            else:
+                stats["already_in_sync"] += 1
+
+    return stats
