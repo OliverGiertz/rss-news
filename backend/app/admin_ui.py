@@ -33,6 +33,8 @@ from .repositories import (
     get_article_by_id,
     get_feed_by_id,
     list_articles,
+    list_articles_page,
+    bulk_update_wp_post_ids,
     list_feeds,
     list_publish_jobs,
     list_runs,
@@ -929,6 +931,105 @@ def admin_transition_article(request: Request, article_id: int, target_status: s
             update_article_status(article_id, target_internal, actor=user, note=note or None)
             return _dashboard_redirect(msg=f"Artikel #{article_id}: {current_ui} -> {target_ui}")
     return _dashboard_redirect(msg=f"Ungueltiger Statuswechsel fuer Artikel #{article_id}", msg_type="error")
+
+
+_PAGE_SIZE = 50
+
+
+@router.get("/admin/article-list", response_class=HTMLResponse)
+def admin_article_list(request: Request):
+    """Paginated article list with inline WP ID editing."""
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    page = max(1, int(request.query_params.get("page", 1)))
+    status_filter = request.query_params.get("status_filter", "") or None
+    search = request.query_params.get("search", "").strip() or None
+    offset = (page - 1) * _PAGE_SIZE
+
+    articles, total = list_articles_page(
+        limit=_PAGE_SIZE, offset=offset,
+        status_filter=status_filter, search=search,
+    )
+
+    # Enrich each article with thumbnail URL
+    for a in articles:
+        meta = _parse_meta_json(a.get("meta_json"))
+        image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
+        sel = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
+        if not sel:
+            sel = (meta.get("extraction") or {}).get("image_selection", {}).get("primary")
+        a["thumb_url"] = sel
+        a["thumb_proxy"] = f"/admin/images/proxy?{urlencode({'url': sel})}" if sel else None
+        raw = (a.get("content_raw") or a.get("summary") or "").strip()
+        a["excerpt"] = raw[:120] + "…" if len(raw) > 120 else raw
+
+    total_pages = max(1, (total + _PAGE_SIZE - 1) // _PAGE_SIZE)
+
+    return templates.TemplateResponse(
+        request,
+        "admin_article_list.html",
+        {
+            "request": request,
+            "title": "Artikelliste",
+            "user": user,
+            "articles": articles,
+            "page": page,
+            "total_pages": total_pages,
+            "total": total,
+            "page_size": _PAGE_SIZE,
+            "status_filter": status_filter or "",
+            "search": search or "",
+            "flash_msg": request.query_params.get("msg", ""),
+            "flash_type": request.query_params.get("type", "success"),
+        },
+    )
+
+
+@router.post("/admin/article-list/update")
+async def admin_article_list_update(request: Request):
+    """Bulk update WP post IDs from the article list form."""
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    form = await request.form()
+    updates: list[tuple[int, int | None]] = []
+
+    # Form fields: wp_<article_id> = new value, orig_<article_id> = original value
+    for key, new_val in form.items():
+        if not key.startswith("wp_"):
+            continue
+        try:
+            article_id = int(key[3:])
+        except ValueError:
+            continue
+        orig_val = str(form.get(f"orig_{article_id}", "")).strip()
+        new_val_s = str(new_val).strip()
+        if new_val_s == orig_val:
+            continue  # unchanged
+        new_wp_id = int(new_val_s) if new_val_s else None
+        updates.append((article_id, new_wp_id))
+
+    if updates:
+        count = bulk_update_wp_post_ids(updates)
+        msg = f"{count} WP-ID(s) aktualisiert. Bitte jetzt WP-Sync ausführen um Slots & URLs zu aktualisieren."
+        msg_type = "success"
+    else:
+        msg = "Keine Änderungen erkannt."
+        msg_type = "success"
+
+    # Preserve pagination/filter params from referer
+    page = form.get("page", "1")
+    status_filter = form.get("status_filter", "")
+    search = form.get("search", "")
+    qs: dict[str, str] = {"msg": msg, "type": msg_type, "page": page}
+    if status_filter:
+        qs["status_filter"] = status_filter
+    if search:
+        qs["search"] = search
+    return RedirectResponse(url=f"/admin/article-list?{urlencode(qs)}", status_code=303)
 
 
 @router.post("/admin/wp-sync")

@@ -757,6 +757,67 @@ def upsert_article(payload: ArticleUpsert) -> int:
     return int(existing_id) if existing_id else 0
 
 
+def list_articles_page(
+    limit: int = 50,
+    offset: int = 0,
+    status_filter: str | None = None,
+    search: str | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Return (articles, total_count) with optional status filter and title search."""
+    safe_limit = max(1, min(limit, 200))
+    safe_offset = max(0, offset)
+
+    conditions: list[str] = []
+    params: list[Any] = []
+    if status_filter:
+        conditions.append("a.status = ?")
+        params.append(status_filter)
+    if search:
+        conditions.append("(a.title LIKE ? OR a.id = ?)")
+        try:
+            params.extend([f"%{search}%", int(search)])
+        except ValueError:
+            params.extend([f"%{search}%", -1])
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    select = """
+        SELECT a.id, a.title, a.status, a.published_at, a.summary, a.content_raw,
+               a.meta_json, a.wp_post_id, a.wp_post_url, a.scheduled_publish_at,
+               a.word_count, f.name AS feed_name
+        FROM articles a
+        LEFT JOIN feeds f ON f.id = a.feed_id
+    """
+    with get_conn() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM articles a {where}", params
+        ).fetchone()[0]
+        rows = conn.execute(
+            f"{select} {where} ORDER BY a.id DESC LIMIT ? OFFSET ?",
+            params + [safe_limit, safe_offset],
+        ).fetchall()
+    return rows_to_dicts(rows), total
+
+
+def bulk_update_wp_post_ids(updates: list[tuple[int, int | None]]) -> int:
+    """Update wp_post_id (and clear stale wp_post_url) for multiple articles.
+
+    Returns the number of rows actually updated.
+    Call sync_db_from_wordpress() afterwards to repopulate wp_post_url and
+    scheduled_publish_at from the live WordPress data.
+    """
+    if not updates:
+        return 0
+    updated = 0
+    with get_conn() as conn:
+        for article_id, new_wp_id in updates:
+            conn.execute(
+                "UPDATE articles SET wp_post_id = ?, wp_post_url = NULL WHERE id = ?",
+                (new_wp_id, article_id),
+            )
+            updated += 1
+    return updated
+
+
 def list_articles(limit: int = 100, status_filter: str | None = None) -> list[dict[str, Any]]:
     safe_limit = max(1, min(limit, 500))
     with get_conn() as conn:

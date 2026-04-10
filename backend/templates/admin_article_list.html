@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/admin/static/admin.css" />
+  <style>
+    .al-table { width: 100%; border-collapse: collapse; }
+    .al-table th, .al-table td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
+    .al-table th { background: #f3f4f6; font-size: 0.85em; text-transform: uppercase; letter-spacing: .04em; }
+    .al-table tr:hover td { background: #fafafa; }
+    .al-thumb { width: 72px; height: 52px; object-fit: cover; border-radius: 4px; display: block; }
+    .al-thumb-placeholder { width: 72px; height: 52px; background: #e5e7eb; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 1.4em; }
+    .al-title { font-weight: 600; font-size: 0.95em; }
+    .al-excerpt { font-size: 0.82em; color: #6b7280; margin-top: 3px; }
+    .wp-id-input { width: 90px; font-family: monospace; font-size: 0.9em; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; }
+    .wp-id-input.changed { border-color: #f59e0b; background: #fffbeb; font-weight: bold; }
+    .wp-link { font-size: 0.8em; margin-top: 3px; display: block; }
+    .sticky-bar { position: sticky; top: 0; z-index: 100; background: #1e3a5f; color: #fff; padding: 10px 20px; display: flex; align-items: center; gap: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+    .sticky-bar button { background: #f59e0b; color: #000; border: none; padding: 8px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.95em; }
+    .sticky-bar button:disabled { background: #9ca3af; color: #fff; cursor: default; }
+    .change-badge { background: #f59e0b; color: #000; border-radius: 12px; padding: 2px 10px; font-weight: bold; font-size: 0.85em; display: none; }
+    .change-badge.visible { display: inline; }
+    .filter-bar { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
+    .filter-bar label { font-size: 0.85em; color: #6b7280; display: block; margin-bottom: 3px; }
+    .filter-bar input, .filter-bar select { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.9em; }
+    .pagination { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+    .pagination a, .pagination span { padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.9em; text-decoration: none; color: #374151; }
+    .pagination .current { background: #1e3a5f; color: #fff; border-color: #1e3a5f; font-weight: bold; }
+    .pagination a:hover { background: #f3f4f6; }
+    .badge-sm { padding: 2px 7px; border-radius: 10px; font-size: 0.75em; font-weight: 600; }
+    .badge-new { background: #dbeafe; color: #1e40af; }
+    .badge-approved { background: #d1fae5; color: #065f46; }
+    .badge-error { background: #fee2e2; color: #991b1b; }
+    .badge-published { background: #ede9fe; color: #5b21b6; }
+    .badge-review { background: #fef3c7; color: #92400e; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Artikelliste</h1>
+      <p>Angemeldet als <strong>{{ user }}</strong></p>
+    </div>
+    <div class="row">
+      <a class="linkbtn" href="/admin/dashboard">Dashboard</a>
+      <a class="linkbtn" href="/admin/schedule">Veröffentlichungsplan</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit" class="secondary">Logout</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container">
+    {% if flash_msg %}
+    <section class="card flash {{ 'flash-error' if flash_type == 'error' else 'flash-success' }}">
+      {{ flash_msg }}
+    </section>
+    {% endif %}
+
+    <!-- Filter bar (outside main form so it doesn't submit with bulk save) -->
+    <section class="card" style="padding-bottom: 0.5rem;">
+      <form method="get" action="/admin/article-list">
+        <div class="filter-bar">
+          <div>
+            <label>Suche (Titel / ID)</label>
+            <input type="text" name="search" value="{{ search }}" placeholder="z.B. Camping …" />
+          </div>
+          <div>
+            <label>Status</label>
+            <select name="status_filter">
+              <option value="">Alle</option>
+              {% for s in ["new","review","approved","published","error","no_image"] %}
+              <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="padding-bottom:1px;">
+            <button type="submit">Filtern</button>
+            <a href="/admin/article-list" class="linkbtn" style="margin-left:4px;">Reset</a>
+          </div>
+        </div>
+      </form>
+      <p class="subtle" style="margin: 4px 0 0;">{{ total }} Artikel gesamt · Seite {{ page }} / {{ total_pages }} · {{ page_size }} pro Seite</p>
+    </section>
+
+    <!-- Main form for bulk WP ID editing -->
+    <form method="post" action="/admin/article-list/update" id="bulk-form">
+      <!-- Pass filter/page state so redirect goes back to same view -->
+      <input type="hidden" name="page" value="{{ page }}">
+      <input type="hidden" name="status_filter" value="{{ status_filter }}">
+      <input type="hidden" name="search" value="{{ search }}">
+
+      <div class="sticky-bar">
+        <button type="submit" id="save-btn" disabled>💾 Änderungen speichern</button>
+        <span class="change-badge" id="change-badge">0 Änderungen</span>
+        <span style="font-size:0.85em;opacity:.8;">Nur geänderte WP-IDs werden gespeichert. Danach WP-Sync ausführen.</span>
+      </div>
+
+      <section class="card" style="padding: 0; overflow-x: auto;">
+        <table class="al-table">
+          <thead>
+            <tr>
+              <th style="width:80px;">Bild</th>
+              <th>Titel &amp; Kurztext</th>
+              <th style="width:90px;">Status</th>
+              <th style="width:110px;">Datum</th>
+              <th style="width:140px;">WP ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in articles %}
+            <tr>
+              <td>
+                {% if a.thumb_proxy %}
+                <a href="{{ a.thumb_url }}" target="_blank" rel="noopener">
+                  <img src="{{ a.thumb_proxy }}"
+                       class="al-thumb"
+                       alt="Vorschau"
+                       loading="lazy"
+                       onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                  <div class="al-thumb-placeholder" style="display:none;">🖼</div>
+                </a>
+                {% else %}
+                <div class="al-thumb-placeholder">🖼</div>
+                {% endif %}
+              </td>
+              <td>
+                <div class="al-title">
+                  <a href="/admin/articles/{{ a.id }}">#{{ a.id }} {{ a.title }}</a>
+                </div>
+                {% if a.excerpt %}
+                <div class="al-excerpt">{{ a.excerpt }}</div>
+                {% endif %}
+                {% if a.feed_name %}
+                <div class="al-excerpt" style="margin-top:4px;">📡 {{ a.feed_name }}</div>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge-sm badge-{{ a.status }}">{{ a.status }}</span>
+              </td>
+              <td style="font-size:0.82em;">
+                {% if a.scheduled_publish_at %}
+                📅 {{ a.scheduled_publish_at[:16] }}
+                {% elif a.published_at %}
+                {{ a.published_at[:10] }}
+                {% else %}
+                —
+                {% endif %}
+              </td>
+              <td>
+                <!-- Hidden original value for change detection -->
+                <input type="hidden" name="orig_{{ a.id }}" value="{{ a.wp_post_id or '' }}">
+                <input
+                  type="text"
+                  name="wp_{{ a.id }}"
+                  value="{{ a.wp_post_id or '' }}"
+                  data-orig="{{ a.wp_post_id or '' }}"
+                  class="wp-id-input"
+                  placeholder="—"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                />
+                {% if a.wp_post_url %}
+                <a href="{{ a.wp_post_url }}" target="_blank" rel="noopener" class="wp-link">↗ WP öffnen</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </form>
+
+    <!-- Pagination (outside form) -->
+    <div class="pagination">
+      {% if page > 1 %}
+      <a href="?page=1&status_filter={{ status_filter }}&search={{ search }}">«</a>
+      <a href="?page={{ page - 1 }}&status_filter={{ status_filter }}&search={{ search }}">‹ Zurück</a>
+      {% endif %}
+
+      {% for p in range([1, page - 2]|max, [total_pages + 1, page + 3]|min) %}
+      {% if p == page %}
+      <span class="current">{{ p }}</span>
+      {% else %}
+      <a href="?page={{ p }}&status_filter={{ status_filter }}&search={{ search }}">{{ p }}</a>
+      {% endif %}
+      {% endfor %}
+
+      {% if page < total_pages %}
+      <a href="?page={{ page + 1 }}&status_filter={{ status_filter }}&search={{ search }}">Weiter ›</a>
+      <a href="?page={{ total_pages }}&status_filter={{ status_filter }}&search={{ search }}">»</a>
+      {% endif %}
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const inputs = document.querySelectorAll('.wp-id-input');
+      const btn = document.getElementById('save-btn');
+      const badge = document.getElementById('change-badge');
+
+      function countChanges() {
+        let n = 0;
+        inputs.forEach(inp => {
+          const changed = inp.value.trim() !== inp.dataset.orig.trim();
+          inp.classList.toggle('changed', changed);
+          if (changed) n++;
+        });
+        btn.disabled = n === 0;
+        badge.textContent = n + (n === 1 ? ' Änderung' : ' Änderungen');
+        badge.classList.toggle('visible', n > 0);
+      }
+
+      inputs.forEach(inp => inp.addEventListener('input', countChanges));
+      countChanges();
+    })();
+  </script>
+</body>
+</html>
