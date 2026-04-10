@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/admin/static/admin.css" />
+  <style>
+    .schedule-table td, .schedule-table th { padding: 6px 10px; }
+    .slot-free { color: #aaa; font-style: italic; }
+    .slot-booked-db { color: #1a7a1a; font-weight: bold; }
+    .slot-booked-wp { color: #b35a00; font-weight: bold; }
+    .badge-db { background: #d4edda; color: #155724; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; }
+    .badge-wp { background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; }
+    .summary-bar { display: flex; gap: 1.5rem; margin-bottom: 1rem; font-size: 0.95em; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>rss-news Veröffentlichungsplan</h1>
+      <p>Angemeldet als <strong>{{ user }}</strong></p>
+    </div>
+    <div class="row">
+      <a class="linkbtn" href="/admin/dashboard">Dashboard</a>
+      <a class="linkbtn" href="/admin/connectivity">Connectivity</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit" class="secondary">Logout</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container">
+    {% if flash_msg %}
+    <section class="card flash {{ 'flash-error' if flash_type == 'error' else 'flash-success' }}">
+      {{ flash_msg }}
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <h2>Slot-Übersicht (nächste 60 Tage)</h2>
+      <div class="summary-bar">
+        <span>📅 Belegte Slots gesamt: <strong>{{ slots|length }}</strong></span>
+        <span>🗄️ Aus Pipeline-DB: <strong>{{ slots|selectattr('source', 'eq', 'db')|list|length }}</strong></span>
+        <span>🌐 Nur in WordPress: <strong>{{ slots|selectattr('source', 'eq', 'wordpress')|list|length }}</strong></span>
+      </div>
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th>Tag</th>
+            {% for h in hours %}
+            <th>{{ "%02d:00 Uhr"|format(h) }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for day in calendar_days %}
+          {% if day.any_booked %}
+          <tr>
+            <td><strong>{{ day.weekday }}</strong> {{ day.date_fmt }}</td>
+            {% for s in day.slots %}
+            <td>
+              {% if s.booked %}
+                {% set info = s.slot %}
+                {% if info.source == 'db' %}
+                <span class="slot-booked-db">✅</span>
+                <span class="badge-db">DB</span>
+                <div style="font-size:0.85em;">
+                  {% if info.article_id %}
+                  <a href="/admin/articles/{{ info.article_id }}">
+                    {{ (info.article_title or "Artikel")[:50] }}{% if (info.article_title or "")|length > 50 %}…{% endif %}
+                  </a>
+                  {% endif %}
+                  <br /><span class="subtle">Status: {{ info.article_status }}</span>
+                  {% if info.wp_post_url %}
+                  <br /><a href="{{ info.wp_post_url }}" target="_blank" rel="noopener">WP öffnen</a>
+                  {% endif %}
+                </div>
+                {% else %}
+                <span class="slot-booked-wp">⚠️</span>
+                <span class="badge-wp">WP</span>
+                <div style="font-size:0.85em;">{{ info.article_title }}</div>
+                {% endif %}
+              {% else %}
+                <span class="slot-free">frei</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if not slots %}
+      <p class="subtle">Keine geplanten Beiträge in den nächsten 60 Tagen.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2>Alle belegten Slots (Liste)</h2>
+      <table>
+        <thead>
+          <tr><th>Datum/Zeit</th><th>Quelle</th><th>Artikel</th><th>Status</th><th>WordPress</th></tr>
+        </thead>
+        <tbody>
+          {% for s in slots %}
+          <tr>
+            <td>{{ s.formatted }}</td>
+            <td>
+              {% if s.source == 'db' %}<span class="badge-db">Pipeline-DB</span>
+              {% else %}<span class="badge-wp">WordPress</span>{% endif %}
+            </td>
+            <td>
+              {% if s.article_id %}
+              <a href="/admin/articles/{{ s.article_id }}">{{ (s.article_title or "")[:60] }}</a>
+              {% else %}
+              {{ s.article_title or "-" }}
+              {% endif %}
+            </td>
+            <td>{{ s.article_status or "-" }}</td>
+            <td>
+              {% if s.wp_post_url %}
+              <a href="{{ s.wp_post_url }}" target="_blank" rel="noopener">Draft öffnen</a>
+              {% else %}-{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

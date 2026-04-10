@@ -374,6 +374,15 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
             # Release the reserved slot so it's available for the next article
             from .scheduler import release_publish_slot
             release_publish_slot(article_id)
+            # Clean up any stale WP draft from a previous pipeline run
+            stale = get_article_by_id(article_id)
+            if stale and stale.get("wp_post_id"):
+                try:
+                    from .wordpress import delete_wp_post
+                    delete_wp_post(int(stale["wp_post_id"]))
+                    logger.info("Artikel #%d: veralteten WP-Draft #%s gelöscht", article_id, stale["wp_post_id"])
+                except Exception as del_exc:
+                    logger.warning("Artikel #%d: WP-Draft konnte nicht gelöscht werden: %s", article_id, del_exc)
             stats.quality_gate_rejected += 1
             logger.info("Artikel #%d wegen Qualitätsprüfung abgelehnt: %s", article_id, exc)
             # Individual Telegram notification for quality gate rejection

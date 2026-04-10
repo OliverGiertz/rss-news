@@ -13,6 +13,7 @@
       <p>Angemeldet als <strong>{{ user }}</strong></p>
     </div>
     <div class="row">
+      <a class="linkbtn" href="/admin/schedule">Veröffentlichungsplan</a>
       <a class="linkbtn" href="/admin/connectivity">Connectivity Check</a>
       <form method="post" action="/admin/logout">
         <button type="submit" class="secondary">Logout</button>
@@ -330,6 +331,11 @@
                 <span class="subtle">keine Aktion</span>
                 {% endif %}
               </form>
+              {% if a.status_ui == 'close' %}
+              <form method="post" action="/admin/articles/{{ a.id }}/retry" class="inline" style="margin-top:4px;">
+                <button type="submit" title="Artikel auf 'neu' zurücksetzen – wird beim nächsten Pipeline-Lauf erneut verarbeitet">🔄 Wiederholen</button>
+              </form>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

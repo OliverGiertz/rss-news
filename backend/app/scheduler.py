@@ -165,6 +165,72 @@ def _find_next_free_slot(
     return tomorrow, _preferred_hours()[0] if _preferred_hours() else 9
 
 
+def get_schedule_overview(lookahead_days: int = 60) -> list[dict]:
+    """Return all booked scheduling slots (DB + WP) for the next N days, sorted by date."""
+    today = _today_cet()
+    hours = _preferred_hours()
+
+    # Slots booked in local DB
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, title, status, wp_post_id, wp_post_url, scheduled_publish_at
+            FROM articles
+            WHERE scheduled_publish_at IS NOT NULL
+              AND scheduled_publish_at >= ?
+              AND status NOT IN ('error', 'no_image')
+            ORDER BY scheduled_publish_at
+            """,
+            (today.isoformat() + "T00:00:00",),
+        ).fetchall()
+
+    db_slots: dict[tuple[str, int], dict] = {}
+    for row in rows:
+        try:
+            dt = datetime.fromisoformat(row["scheduled_publish_at"])
+            key = (dt.date().isoformat(), dt.hour)
+            db_slots[key] = {
+                "date": dt.date().isoformat(),
+                "hour": dt.hour,
+                "formatted": _format_slot(dt.date(), dt.hour),
+                "source": "db",
+                "article_id": row["id"],
+                "article_title": row["title"],
+                "article_status": row["status"],
+                "wp_post_id": row["wp_post_id"],
+                "wp_post_url": row["wp_post_url"],
+            }
+        except Exception:
+            pass
+
+    # Slots occupied in WordPress but not in local DB
+    wp_occupied = _fetch_wp_occupied_slots()
+    wp_only: list[dict] = []
+    for d_str, h in sorted(wp_occupied):
+        if (d_str, h) in db_slots:
+            continue
+        try:
+            d = date.fromisoformat(d_str)
+            if d >= today:
+                wp_only.append({
+                    "date": d_str,
+                    "hour": h,
+                    "formatted": _format_slot(d, h),
+                    "source": "wordpress",
+                    "article_id": None,
+                    "article_title": "(WP-Beitrag außerhalb Pipeline)",
+                    "article_status": None,
+                    "wp_post_id": None,
+                    "wp_post_url": None,
+                })
+        except Exception:
+            pass
+
+    all_slots = list(db_slots.values()) + wp_only
+    all_slots.sort(key=lambda s: (s["date"], s["hour"]))
+    return all_slots
+
+
 def release_publish_slot(article_id: int) -> None:
     """Clear a previously reserved slot (e.g. when article is rejected after slot assignment)."""
     with get_conn() as conn:

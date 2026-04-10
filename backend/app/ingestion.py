@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import re
 import time
 from typing import Any
 from urllib.parse import unquote, urlencode, urlparse, parse_qs
+import urllib.error
+import urllib.request as _urllib_req
 
 import feedparser
 
@@ -119,6 +121,26 @@ def _normalize_tokens(text: str) -> set[str]:
     return {token for token in normalized.split() if len(token) >= 4}
 
 
+def _probe_image_url(url: str, timeout: int = 5) -> bool:
+    """Return True if URL responds without a 4xx/5xx error (HEAD request).
+
+    Returns True on network/connection errors so that a flaky server does not
+    cause a valid image to be silently dropped.
+    """
+    try:
+        req = _urllib_req.Request(
+            url,
+            method="HEAD",
+            headers={"User-Agent": "Mozilla/5.0 (compatible; rss-news/1.0)"},
+        )
+        with _urllib_req.urlopen(req, timeout=timeout) as resp:
+            return resp.status < 400
+    except urllib.error.HTTPError as exc:
+        return exc.code < 400  # 3xx redirects are OK; 4xx/5xx are not
+    except Exception:
+        return True  # network error → don't filter, let WP try later
+
+
 def _rank_image_candidates(source_url: str, title: str, images: list[str]) -> list[dict[str, Any]]:
     source_host = (urlparse(source_url).hostname or "").lower()
     is_presseportal = "presseportal.de" in source_host
@@ -184,10 +206,25 @@ def _select_relevant_images(source_url: str, title: str, images: list[str], max_
             deduped.append(image)
 
     ranked = _rank_image_candidates(source_url, title, deduped)
-    kept = [item["url"] for item in ranked if item["score"] > 0][:max_keep]
-    if not kept and ranked:
-        kept = [ranked[0]["url"]]
-    primary = kept[0] if kept else None
+    candidates = [item["url"] for item in ranked if item["score"] > -100]
+
+    # Probe top candidates (max 4) to skip definitively broken URLs (HTTP 4xx).
+    # Network errors are treated as OK to avoid false negatives on flaky servers.
+    primary = None
+    kept: list[str] = []
+    for url in candidates[:4]:
+        if _probe_image_url(url):
+            if primary is None:
+                primary = url
+            kept.append(url)
+            if len(kept) >= max_keep:
+                break
+
+    # Fallback: if all probes failed with network errors, use best candidate anyway
+    if not kept and candidates:
+        primary = candidates[0]
+        kept = candidates[:max_keep]
+
     return kept, primary, ranked
 
 
@@ -265,12 +302,27 @@ def run_ingestion(feed_id: int | None = None) -> IngestionStats:
 
             feed_entries_seen = 0
             feed_upserts = 0
+            from .config import get_settings as _get_settings
+            _max_age_days = _get_settings().pipeline_max_article_age_days
             for entry in _parsed_get(parsed, "entries", []):
                 entries_seen += 1
                 feed_entries_seen += 1
                 link = entry.get("link")
                 if not link:
                     continue
+
+                # Age filter: skip articles older than max_age_days (0 = no limit)
+                if _max_age_days > 0:
+                    published_iso = _entry_published_iso(entry)
+                    if published_iso:
+                        try:
+                            published_dt = datetime.fromisoformat(published_iso)
+                            age = datetime.now(timezone.utc) - published_dt
+                            if age > timedelta(days=_max_age_days):
+                                continue
+                        except Exception:
+                            pass  # can't parse date → allow through
+
                 # Resolve Google redirect URLs (google.com/url?...&url=<actual_url>&...)
                 link = _resolve_google_redirect(link)
                 # Normalize AMP/tracking params (e.g. ?outputType=valid_amp)

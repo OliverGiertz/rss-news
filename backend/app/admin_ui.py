@@ -929,3 +929,75 @@ def admin_transition_article(request: Request, article_id: int, target_status: s
             update_article_status(article_id, target_internal, actor=user, note=note or None)
             return _dashboard_redirect(msg=f"Artikel #{article_id}: {current_ui} -> {target_ui}")
     return _dashboard_redirect(msg=f"Ungueltiger Statuswechsel fuer Artikel #{article_id}", msg_type="error")
+
+
+@router.post("/admin/articles/{article_id}/retry")
+def admin_retry_article(request: Request, article_id: int):
+    """Reset a failed article to 'new' so the pipeline picks it up on next run."""
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    article = get_article_by_id(article_id)
+    if not article:
+        return _dashboard_redirect(msg=f"Artikel #{article_id} nicht gefunden", msg_type="error")
+
+    from .scheduler import release_publish_slot
+    release_publish_slot(article_id)
+    update_article_status(article_id, "new", actor=user, note="Manuell zurückgesetzt für erneuten Pipeline-Versuch")
+    return _dashboard_redirect(
+        msg=f"Artikel #{article_id} wurde auf 'neu' zurückgesetzt und wird beim nächsten Pipeline-Lauf verarbeitet",
+        status_filter="close",
+    )
+
+
+@router.get("/admin/schedule", response_class=HTMLResponse)
+def admin_schedule(request: Request):
+    """Schedule overview: all booked slots from DB and WordPress."""
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    from .scheduler import get_schedule_overview, _preferred_hours, _today_cet
+    from datetime import timedelta
+
+    slots = get_schedule_overview(lookahead_days=60)
+    today = _today_cet()
+    hours = _preferred_hours()
+
+    # Build a calendar grid: for each day in the next 60 days, show each preferred hour slot
+    booked: dict[tuple[str, int], dict] = {(s["date"], s["hour"]): s for s in slots}
+    calendar_days = []
+    for offset in range(0, 61):
+        d = today + timedelta(days=offset)
+        d_str = d.isoformat()
+        day_slots = []
+        for h in hours:
+            key = (d_str, h)
+            day_slots.append({
+                "hour": h,
+                "booked": key in booked,
+                "slot": booked.get(key),
+            })
+        calendar_days.append({
+            "date": d_str,
+            "date_fmt": d.strftime("%d.%m.%Y"),
+            "weekday": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][d.weekday()],
+            "slots": day_slots,
+            "any_booked": any(s["booked"] for s in day_slots),
+        })
+
+    return templates.TemplateResponse(
+        request,
+        "admin_schedule.html",
+        {
+            "request": request,
+            "title": "Veröffentlichungsplan",
+            "user": user,
+            "slots": slots,
+            "calendar_days": calendar_days,
+            "hours": hours,
+            "flash_msg": request.query_params.get("msg", ""),
+            "flash_type": request.query_params.get("type", "success"),
+        },
+    )

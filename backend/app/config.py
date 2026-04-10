@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     pipeline_publish_hours: str = "9,14"  # comma-separated preferred publish hours (CET)
     pipeline_min_words_raw: int = 120    # minimum words in raw content before rewrite (else reject)
     pipeline_min_words_rewritten: int = 150  # minimum words in rewritten content (else reject)
+    pipeline_max_article_age_days: int = 7   # skip articles older than N days during ingestion (0 = no limit)
 
 
 @lru_cache(maxsize=1)
