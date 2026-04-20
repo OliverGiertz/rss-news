@@ -36,4 +36,4 @@ internal/copy_files.sh
 internal/_line.txt
 internal/push_commit.txt
 internal/git.sh
-CLAUDE_CONTEXT.md
+CLAUDE.md
