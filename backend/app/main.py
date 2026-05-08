@@ -1,8 +1,10 @@
+import asyncio
 from contextlib import asynccontextmanager
 import csv
 from datetime import datetime, timezone
 import io
 import json
+import logging
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
@@ -637,20 +639,26 @@ def _require_api_key(request: Request) -> None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Ungültiger API-Key")
 
 
+_pipeline_lock = asyncio.Lock()
+
+
 @app.post("/api/n8n/pipeline")
 async def api_n8n_pipeline(request: Request) -> dict:
     """Trigger the full auto pipeline in background. Returns immediately.
     Called by N8N (2x/day or on demand). Results arrive via Telegram."""
     _require_api_key(request)
-    import asyncio
-    import logging
+
+    if _pipeline_lock.locked():
+        logging.getLogger(__name__).warning("Pipeline bereits aktiv – Trigger ignoriert")
+        return {"ok": False, "message": "Pipeline läuft bereits – Trigger ignoriert"}
 
     async def _run():
-        loop = asyncio.get_event_loop()
-        try:
-            await loop.run_in_executor(None, lambda: run_auto_pipeline(trigger="n8n"))
-        except Exception as exc:
-            logging.getLogger(__name__).error("Background pipeline error: %s", exc)
+        async with _pipeline_lock:
+            loop = asyncio.get_event_loop()
+            try:
+                await loop.run_in_executor(None, lambda: run_auto_pipeline(trigger="n8n"))
+            except Exception as exc:
+                logging.getLogger(__name__).error("Background pipeline error: %s", exc)
 
     asyncio.create_task(_run())
     return {"ok": True, "message": "Pipeline gestartet – Ergebnisse kommen per Telegram"}
