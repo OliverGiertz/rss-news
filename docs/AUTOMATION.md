@@ -135,9 +135,9 @@ PIPELINE_RELEVANCE_WARN=60
 
 ## Veröffentlichungsplan
 
-- Standardmäßig **09:00 und 14:00 Uhr**, bei hohem Backlog zusätzlich weitere Slots
-- Maximal **3 Beiträge pro Tag** im Standard-Setup
-- Zusätzliche Slots nur mit **mindestens 3 Stunden Abstand**
+- Standardmäßig **09:00, 12:00, 15:00 und 18:00 Uhr**
+- Maximal **4 Beiträge pro Tag** im Standard-Setup
+- Zwischen den Slots liegen jeweils **3 Stunden Abstand**
 - Veröffentlichungsfenster: **09:00 bis 19:00 Uhr** (`Europe/Berlin`)
 - Gleichmäßig über die Woche verteilt
 - Der Vorschlag erscheint in der Telegram-Nachricht
@@ -145,8 +145,8 @@ PIPELINE_RELEVANCE_WARN=60
 
 Einstellbar via:
 ```
-PIPELINE_MAX_DRAFTS_PER_DAY=3
-PIPELINE_PUBLISH_HOURS=9,14
+PIPELINE_MAX_DRAFTS_PER_DAY=4
+PIPELINE_PUBLISH_HOURS=9,12,15,18
 PIPELINE_PUBLISH_START_HOUR=9
 PIPELINE_PUBLISH_END_HOUR=19
 PIPELINE_PUBLISH_MIN_GAP_HOURS=3

@@ -60,7 +60,7 @@ class TestScheduler(unittest.TestCase):
             return int(cur.lastrowid)
 
     def test_preferred_hours_expand_with_gap_and_window(self) -> None:
-        self.assertEqual(_preferred_hours(), [9, 14, 17])
+        self.assertEqual(_preferred_hours(), [9, 12, 15, 18])
 
     @patch("backend.app.scheduler._today_cet")
     @patch("backend.app.scheduler._fetch_wp_occupied_slots", return_value=set())
@@ -68,7 +68,7 @@ class TestScheduler(unittest.TestCase):
         from datetime import date
 
         mock_today.return_value = date(2026, 7, 24)
-        article_ids = [self._insert_article(idx) for idx in range(1, 5)]
+        article_ids = [self._insert_article(idx) for idx in range(1, 6)]
 
         slots = []
         for article_id in article_ids:
@@ -84,8 +84,9 @@ class TestScheduler(unittest.TestCase):
             slots,
             [
                 "2026-07-25T09:00:00",
-                "2026-07-25T14:00:00",
-                "2026-07-25T17:00:00",
+                "2026-07-25T12:00:00",
+                "2026-07-25T15:00:00",
+                "2026-07-25T18:00:00",
                 "2026-07-26T09:00:00",
             ],
         )

@@ -2,8 +2,8 @@
 
 Calculates suggested publish slots for new WordPress drafts.
 Rules:
-- Preferred slots: configurable hours (default 09:00 and 14:00 CET/CEST)
-- When the queue grows, additional slots are inserted with a minimum gap
+- Preferred slots: configurable hours (default 09:00, 12:00, 15:00, 18:00 CET/CEST)
+- The preferred hours define the daily publishing grid
 - Scheduling only happens between the configured start/end hours
 - New articles queue up after the last already-scheduled article
 - Checks both local DB AND WordPress future posts to avoid double-booking
@@ -47,7 +47,7 @@ def _preferred_hours() -> list[int]:
     try:
         preferred = [int(h.strip()) for h in settings.pipeline_publish_hours.split(",") if h.strip()]
     except Exception:
-        preferred = [9, 14]
+        preferred = [9, 12, 15, 18]
 
     anchors: list[int] = []
     seen: set[int] = set()

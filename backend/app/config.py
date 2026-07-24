@@ -44,8 +44,8 @@ class Settings(BaseSettings):
     # Pipeline behaviour
     pipeline_relevance_auto: int = 80    # >= this: auto-process
     pipeline_relevance_warn: int = 60    # >= this: Telegram warning, else reject
-    pipeline_max_drafts_per_day: int = 3
-    pipeline_publish_hours: str = "9,14"  # comma-separated preferred publish hours (CET)
+    pipeline_max_drafts_per_day: int = 4
+    pipeline_publish_hours: str = "9,12,15,18"  # comma-separated preferred publish hours (CET)
     pipeline_publish_start_hour: int = 9
     pipeline_publish_end_hour: int = 19
     pipeline_publish_min_gap_hours: int = 3
