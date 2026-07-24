@@ -135,16 +135,21 @@ PIPELINE_RELEVANCE_WARN=60
 
 ## Veröffentlichungsplan
 
-- Maximal **2 Beiträge pro Tag**
-- Bevorzugte Zeiten: **09:00 und 14:00 Uhr** (CET)
+- Standardmäßig **09:00 und 14:00 Uhr**, bei hohem Backlog zusätzlich weitere Slots
+- Maximal **3 Beiträge pro Tag** im Standard-Setup
+- Zusätzliche Slots nur mit **mindestens 3 Stunden Abstand**
+- Veröffentlichungsfenster: **09:00 bis 19:00 Uhr** (`Europe/Berlin`)
 - Gleichmäßig über die Woche verteilt
 - Der Vorschlag erscheint in der Telegram-Nachricht
 - Manuell in WordPress setzen oder über WP Scheduling-Plugin automatisieren
 
 Einstellbar via:
 ```
-PIPELINE_MAX_DRAFTS_PER_DAY=2
+PIPELINE_MAX_DRAFTS_PER_DAY=3
 PIPELINE_PUBLISH_HOURS=9,14
+PIPELINE_PUBLISH_START_HOUR=9
+PIPELINE_PUBLISH_END_HOUR=19
+PIPELINE_PUBLISH_MIN_GAP_HOURS=3
 ```
 
 ---

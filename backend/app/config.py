@@ -44,8 +44,11 @@ class Settings(BaseSettings):
     # Pipeline behaviour
     pipeline_relevance_auto: int = 80    # >= this: auto-process
     pipeline_relevance_warn: int = 60    # >= this: Telegram warning, else reject
-    pipeline_max_drafts_per_day: int = 2
+    pipeline_max_drafts_per_day: int = 3
     pipeline_publish_hours: str = "9,14"  # comma-separated preferred publish hours (CET)
+    pipeline_publish_start_hour: int = 9
+    pipeline_publish_end_hour: int = 19
+    pipeline_publish_min_gap_hours: int = 3
     pipeline_min_words_raw: int = 120    # minimum words in raw content before rewrite (else reject)
     pipeline_min_words_rewritten: int = 150  # minimum words in rewritten content (else reject)
     pipeline_max_article_age_days: int = 7   # skip articles older than N days during ingestion (0 = no limit)

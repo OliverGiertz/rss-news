@@ -2,8 +2,9 @@
 
 Calculates suggested publish slots for new WordPress drafts.
 Rules:
-- Maximum N drafts per day (configurable, default 2)
-- Preferred slots: configurable hours (default 09:00 and 14:00 CET)
+- Preferred slots: configurable hours (default 09:00 and 14:00 CET/CEST)
+- When the queue grows, additional slots are inserted with a minimum gap
+- Scheduling only happens between the configured start/end hours
 - New articles queue up after the last already-scheduled article
 - Checks both local DB AND WordPress future posts to avoid double-booking
 """
@@ -13,8 +14,9 @@ import base64
 import json
 import threading
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .config import get_settings
 from .db import get_conn
@@ -22,21 +24,53 @@ from .db import get_conn
 # Ensures that concurrent pipeline runs (two threads) never assign the same slot.
 _slot_lock = threading.Lock()
 
-
-# CET offset (UTC+1 winter / UTC+2 summer – fixed +1 for simplicity)
-_CET_OFFSET = timedelta(hours=1)
+_BERLIN_TZ = ZoneInfo("Europe/Berlin")
 
 
 def _today_cet() -> date:
-    return (datetime.now(timezone.utc) + _CET_OFFSET).date()
+    return datetime.now(_BERLIN_TZ).date()
+
+
+def _schedule_bounds() -> tuple[int, int, int]:
+    settings = get_settings()
+    start_hour = max(0, min(23, int(settings.pipeline_publish_start_hour)))
+    end_hour = max(start_hour, min(23, int(settings.pipeline_publish_end_hour)))
+    min_gap = max(1, int(settings.pipeline_publish_min_gap_hours))
+    return start_hour, end_hour, min_gap
 
 
 def _preferred_hours() -> list[int]:
     settings = get_settings()
+    start_hour, end_hour, min_gap = _schedule_bounds()
+    max_per_day = max(1, int(settings.pipeline_max_drafts_per_day))
+
     try:
-        return [int(h.strip()) for h in settings.pipeline_publish_hours.split(",") if h.strip()]
+        preferred = [int(h.strip()) for h in settings.pipeline_publish_hours.split(",") if h.strip()]
     except Exception:
-        return [9, 14]
+        preferred = [9, 14]
+
+    anchors: list[int] = []
+    seen: set[int] = set()
+    for hour in preferred:
+        if hour < start_hour or hour > end_hour or hour in seen:
+            continue
+        anchors.append(hour)
+        seen.add(hour)
+
+    if not anchors:
+        anchors = [start_hour]
+
+    candidates = anchors.copy()
+    for hour in range(start_hour, end_hour + 1):
+        if hour in seen:
+            continue
+        if all(abs(hour - existing) >= min_gap for existing in candidates):
+            candidates.append(hour)
+            seen.add(hour)
+        if len(candidates) >= max_per_day:
+            break
+
+    return candidates[:max_per_day]
 
 
 def _fetch_wp_occupied_slots() -> set[tuple[str, int]]:
@@ -51,20 +85,25 @@ def _fetch_wp_occupied_slots() -> set[tuple[str, int]]:
         auth = base64.b64encode(
             f"{settings.wordpress_username}:{settings.wordpress_app_password}".encode()
         ).decode()
-        url = (
-            f"{settings.wordpress_base_url}/wp-json/wp/v2/posts"
-            f"?status=future&per_page=100&orderby=date&order=asc&_fields=id,date"
-        )
-        req = urllib.request.Request(url, headers={"Authorization": f"Basic {auth}"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            posts = json.loads(resp.read())
         occupied: set[tuple[str, int]] = set()
-        for p in posts:
-            try:
-                dt = datetime.fromisoformat(p["date"])
-                occupied.add((dt.date().isoformat(), dt.hour))
-            except Exception:
-                pass
+        for page in range(1, 21):
+            url = (
+                f"{settings.wordpress_base_url}/wp-json/wp/v2/posts"
+                f"?status=future&per_page=100&page={page}&orderby=date&order=asc&_fields=id,date"
+            )
+            req = urllib.request.Request(url, headers={"Authorization": f"Basic {auth}"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                posts = json.loads(resp.read())
+            if not isinstance(posts, list) or not posts:
+                break
+            for p in posts:
+                try:
+                    dt = datetime.fromisoformat(p["date"])
+                    occupied.add((dt.date().isoformat(), dt.hour))
+                except Exception:
+                    pass
+            if len(posts) < 100:
+                break
         return occupied
     except Exception:
         return set()
@@ -109,8 +148,9 @@ def _get_last_future_scheduled_date(wp_occupied: set[tuple[str, int]]) -> date |
 
 
 def _next_free_hour(target_date: date, wp_occupied: set[tuple[str, int]]) -> int | None:
-    """Return first preferred hour not yet used on target_date (DB + WP), or None if day is full."""
+    """Return first allowed hour with enough spacing to existing slots, or None if day is full."""
     hours = _preferred_hours()
+    _, _, min_gap = _schedule_bounds()
     date_str = target_date.isoformat()
 
     # Hours used in local DB
@@ -138,7 +178,7 @@ def _next_free_hour(target_date: date, wp_occupied: set[tuple[str, int]]) -> int
             used_hours.add(h)
 
     for h in hours:
-        if h not in used_hours:
+        if all(abs(h - used_hour) >= min_gap for used_hour in used_hours):
             return h
     return None
 
@@ -166,7 +206,8 @@ def _find_next_free_slot(
         if hour is not None:
             return candidate, hour
 
-    return tomorrow, _preferred_hours()[0] if _preferred_hours() else 9
+    hours = _preferred_hours()
+    return tomorrow, hours[0] if hours else 9
 
 
 def get_schedule_overview(lookahead_days: int = 60) -> list[dict]:
@@ -252,7 +293,8 @@ def suggest_publish_slot() -> str:
         d, hour = result
         return _format_slot(d, hour)
     tomorrow = _today_cet() + timedelta(days=1)
-    return _format_slot(tomorrow, _preferred_hours()[0] if _preferred_hours() else 9)
+    hours = _preferred_hours()
+    return _format_slot(tomorrow, hours[0] if hours else 9)
 
 
 def reserve_publish_slot(article_id: int) -> str:
