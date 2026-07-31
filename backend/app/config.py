@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     wordpress_username: str | None = Field(default=None, validation_alias=AliasChoices("WORDPRESS_USERNAME", "WP_USERNAME"))
     wordpress_app_password: str | None = Field(default=None, validation_alias=AliasChoices("WORDPRESS_APP_PASSWORD", "WP_PASSWORD"))
     wordpress_default_status: str = "draft"
+    # Tag hygiene: the rewriter proposes far more tags than a post needs, and
+    # every unknown one used to be created on the spot - that is how 955 posts
+    # accumulated 3.055 tags, 1.683 of them used exactly once.
+    wordpress_max_tags_per_post: int = 5
+    wordpress_new_tag_min_proposals: int = 3
     openai_api_key: str | None = Field(default=None, validation_alias=AliasChoices("OPENAI_API_KEY"))
     openai_model: str = "gpt-4o-mini"
 

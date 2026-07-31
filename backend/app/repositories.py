@@ -853,3 +853,41 @@ def list_articles(limit: int = 100, status_filter: str | None = None) -> list[di
                 (safe_limit,),
             ).fetchall()
     return rows_to_dicts(rows)
+
+
+def record_tag_proposals(names: list[str], article_id: int | None) -> dict[str, int]:
+    """Record that these tags were proposed for one article.
+
+    Returns, per casefolded name, how many distinct articles have proposed it so
+    far - this one included. That count is what decides whether a tag is
+    established enough to be created in WordPress: a tag the rewriter invents
+    once for a single article should not become a permanent taxonomy entry.
+
+    Re-publishing an article does not inflate the count, because the row is
+    keyed on (name_key, article_id). Articles without an id (ad-hoc publishing)
+    all share the sentinel 0 and therefore count once in total.
+    """
+    counts: dict[str, int] = {}
+    if not names:
+        return counts
+    key_for_article = int(article_id or 0)
+    with get_conn() as conn:
+        for raw in names:
+            name = str(raw or "").strip()
+            if not name:
+                continue
+            name_key = name.casefold()
+            conn.execute(
+                """
+                INSERT INTO tag_proposals (name_key, name, article_id)
+                VALUES (?, ?, ?)
+                ON CONFLICT(name_key, article_id) DO NOTHING
+                """,
+                (name_key, name, key_for_article),
+            )
+            row = conn.execute(
+                "SELECT COUNT(*) AS n FROM tag_proposals WHERE name_key = ?",
+                (name_key,),
+            ).fetchone()
+            counts[name_key] = int(row["n"] if row else 0)
+    return counts

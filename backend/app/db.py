@@ -118,6 +118,21 @@ def init_db() -> None:
                 UNIQUE(source_url)
             );
 
+            -- One row per (tag, article) the rewriter ever proposed, whether or
+            -- not the tag made it into WordPress. The number of rows per
+            -- name_key is the "is this tag established" signal that gates
+            -- creating the tag in WordPress.
+            CREATE TABLE IF NOT EXISTS tag_proposals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name_key TEXT NOT NULL,
+                name TEXT NOT NULL,
+                article_id INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(name_key, article_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_tag_proposals_name_key ON tag_proposals(name_key);
+
             CREATE INDEX IF NOT EXISTS idx_articles_source_article_id ON articles(source_article_id);
             CREATE INDEX IF NOT EXISTS idx_articles_source_hash ON articles(source_hash);
             CREATE UNIQUE INDEX IF NOT EXISTS uq_articles_feed_source_article_id

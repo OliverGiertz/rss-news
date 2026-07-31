@@ -13,6 +13,7 @@ from urllib.parse import quote_plus, urlparse
 from urllib.request import Request, urlopen
 
 from . import categorize
+from . import repositories
 from .config import get_settings
 
 
@@ -91,7 +92,25 @@ def _selected_tags_from_meta(meta_json: str | None) -> list[str]:
     return tags
 
 
-def _resolve_wp_tag_ids(*, base_url: str, auth_header: str, tags: list[str]) -> list[int]:
+def _resolve_wp_tag_ids(
+    *,
+    base_url: str,
+    auth_header: str,
+    tags: list[str],
+    creatable: set[str],
+) -> list[int]:
+    """Map tag names to WordPress tag IDs, creating only established ones.
+
+    A name matches an existing tag only on an exact (case-insensitive) name.
+    The former fallback of taking the first search hit filed "Camping" under
+    the unrelated existing tag "Campingplatz" whenever the exact tag was
+    missing.
+
+    `creatable` holds the casefolded names that cleared the proposal threshold
+    and may be created in WordPress. Everything else is dropped with a log line
+    rather than turned into a new tag - an empty set means this run adds nothing
+    to the taxonomy.
+    """
     ids: list[int] = []
     seen: set[int] = set()
     for tag in tags:
@@ -113,12 +132,12 @@ def _resolve_wp_tag_ids(*, base_url: str, auth_header: str, tags: list[str]) -> 
                     if row_name.casefold() == name.casefold():
                         tag_id = rid
                         break
-                if tag_id is None:
-                    for row in result:
-                        if isinstance(row, dict) and int(row.get("id", 0) or 0) > 0:
-                            tag_id = int(row.get("id", 0))
-                            break
             if tag_id is None:
+                if name.casefold() not in creatable:
+                    _logger.info(
+                        "Schlagwort '%s' noch nicht etabliert - wird nicht angelegt", name
+                    )
+                    continue
                 created = _wp_request(
                     base_url=base_url,
                     auth_header=auth_header,
@@ -130,12 +149,39 @@ def _resolve_wp_tag_ids(*, base_url: str, auth_header: str, tags: list[str]) -> 
                     rid = int(created.get("id", 0) or 0)
                     if rid > 0:
                         tag_id = rid
+                        _logger.info("Schlagwort '%s' in WordPress neu angelegt (#%s)", name, rid)
             if tag_id is not None and tag_id > 0 and tag_id not in seen:
                 seen.add(tag_id)
                 ids.append(tag_id)
         except Exception:
             continue
     return ids
+
+
+def _creatable_tag_names(tags: list[str], article_id: Any) -> set[str]:
+    """Casefolded names that may be created as new WordPress tags.
+
+    A proposed tag has to show up for `wordpress_new_tag_min_proposals`
+    different articles before it earns a taxonomy entry. Until then it is
+    counted and dropped, so one-off inventions stop accumulating.
+
+    If the bookkeeping itself fails, nothing is creatable: existing tags are
+    still assigned, and the taxonomy simply does not grow that run.
+    """
+    if not tags:
+        return set()
+    settings = get_settings()
+    threshold = max(1, settings.wordpress_new_tag_min_proposals)
+    try:
+        aid = int(article_id) if article_id is not None else None
+    except (TypeError, ValueError):
+        aid = None
+    try:
+        counts = repositories.record_tag_proposals(tags, aid)
+    except Exception as exc:
+        _logger.warning("Schlagwort-Zähler nicht verfügbar, lege keine neuen an: %s", exc)
+        return set()
+    return {name for name, seen in counts.items() if seen >= threshold}
 
 
 _category_id_cache: dict[str, int | None] = {}
@@ -552,10 +598,14 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
 
     wp_post_id = article.get("wp_post_id")
     tag_names = _selected_tags_from_meta(article.get("meta_json"))
+    # Only the leading few tags reach WordPress; the full list still feeds the
+    # category rules below, which were validated against it.
+    wp_tag_names = tag_names[: max(0, settings.wordpress_max_tags_per_post)]
     tag_ids = _resolve_wp_tag_ids(
         base_url=settings.wordpress_base_url,
         auth_header=auth,
-        tags=tag_names,
+        tags=wp_tag_names,
+        creatable=_creatable_tag_names(wp_tag_names, article.get("id")),
     )
     if tag_ids:
         payload["tags"] = tag_ids
