@@ -40,8 +40,11 @@ _RULES: tuple[tuple[str, tuple[tuple[str, int], ...]], ...] = (
         ("rabatt*", 3), ("schnaeppchen*", 3), ("prime day", 3), ("black friday", 3),
         ("gutschein*", 3), ("sparangebot*", 3), ("top-angebot*", 3), ("sommerangebot*", 3),
         ("knaller", 3), ("ausverkauf", 3), ("tiefpreis*", 3), ("rekordpreis*", 3),
-        ("preissturz", 3), ("bestpreis*", 3), ("deal", 2), ("deals", 2), ("lidl", 2),
-        ("aldi", 2), ("reduziert", 2), ("sale", 1), ("prozent auf", 3), ("guenstiger*", 1),
+        ("preissturz", 3), ("bestpreis*", 3), ("deal", 2), ("deals", 2),
+        # Lidl and Aldi articles are always discount posts on this blog, so they
+        # carry enough weight to trigger the override below on their own.
+        ("lidl", 3), ("aldi", 3), ("im angebot", 3),
+        ("reduziert", 2), ("sale", 1), ("prozent auf", 3), ("guenstiger*", 1),
     )),
     ("in-eigener-sache", (
         ("vanityontour", 3), ("vanitycast", 3), ("expense logbook", 3),
@@ -96,6 +99,8 @@ _RULES: tuple[tuple[str, tuple[tuple[str, int], ...]], ...] = (
         ("kassettentoilette*", 3), ("toilette*", 2), ("gaswarner", 3), ("rauchmelder", 3),
         ("feuerloescher", 3), ("co melder", 3), ("router", 3), ("mobilfunk", 3), ("wlan", 3),
         ("lte", 3), ("5g", 3), ("internet", 2), ("buchtipp*", 2),
+        ("duschzelt*", 3), ("kuppelzelt*", 3), ("pop-up-zelt*", 3), ("messer", 3),
+        ("stuhl", 3), ("faltstuhl*", 3), ("klappstuhl*", 3),
     )),
     ("campingplaetze", (
         ("campingplatz*", 3), ("campingplaetze", 3), ("5-sterne*", 3), ("fuenf sterne", 3),
@@ -145,7 +150,11 @@ _RULES: tuple[tuple[str, tuple[tuple[str, int], ...]], ...] = (
         ("rundreise*", 3), ("roadtrip*", 3), ("reisebericht*", 3), ("ausflugsziel*", 3),
         ("kurztrip*", 3), ("europa", 2), ("kueste", 2), ("region", 1), ("uckermark", 3),
         ("lausitz", 3), ("schwaebische alb", 3), ("ausflug*", 2), ("geheimtipp*", 2),
-        ("uebersee", 2), ("kanada", 3),
+        ("uebersee", 2), ("kanada", 3), ("pfalz", 1), ("erzgebirge", 2),
+        ("spreewald", 2), ("vogtland", 2), ("rhoen", 2), ("odenwald", 2),
+        ("chiemsee", 2), ("ammersee", 2), ("muensterland", 2), ("ostfriesland", 2),
+        ("emsland", 2), ("altmuehltal", 2), ("teutoburger wald", 2), ("taunus", 2),
+        ("westerwald", 2), ("bergisches land", 2), ("nordwesten", 2),
     )),
     ("camping-tipps", (
         ("tipp", 3), ("tipps", 3), ("tricks", 3), ("ratgeber", 3), ("anleitung", 3),
