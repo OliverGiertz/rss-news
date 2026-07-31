@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch
 
 from backend.app import config as config_module
+from backend.app import wordpress as wordpress_module
 from backend.app.wordpress import publish_article_draft
 
 
@@ -12,6 +13,9 @@ class TestWordpressPublish(unittest.TestCase):
         os.environ["WORDPRESS_USERNAME"] = "wp-user"
         os.environ["WORDPRESS_APP_PASSWORD"] = "wp-pass"
         config_module.get_settings.cache_clear()
+        # The category lookup is cached for the process lifetime; without this
+        # one test would resolve a slug that the next one expects to be missing.
+        wordpress_module._category_id_cache.clear()
 
     def tearDown(self) -> None:
         for key in ("WORDPRESS_BASE_URL", "WORDPRESS_USERNAME", "WORDPRESS_APP_PASSWORD"):
@@ -133,6 +137,78 @@ class TestWordpressPublish(unittest.TestCase):
         self.assertIn("<!-- wp:paragraph -->", content)
         self.assertIn("<!-- wp:list -->", content)
         self.assertNotIn("<!-- wp:html -->", content)
+
+    @patch("backend.app.wordpress._upload_featured_media")
+    @patch("backend.app.wordpress._wp_request")
+    def test_publish_sets_category_from_rules(self, mock_wp_request, mock_upload_media) -> None:
+        def _fake_wp_request(**kwargs):
+            endpoint = kwargs.get("endpoint", "")
+            method = kwargs.get("method", "")
+            if method == "GET" and endpoint.startswith("tags?search="):
+                return [{"id": 21, "name": "Kühlbox"}]
+            if method == "GET" and endpoint.startswith("categories?slug=ausruestung-tests"):
+                return [{"id": 77, "slug": "ausruestung-tests"}]
+            if method == "POST" and endpoint == "posts":
+                return {"id": 901, "link": "https://example.org/?p=901"}
+            return {}
+
+        mock_wp_request.side_effect = _fake_wp_request
+        article = {
+            "title": "Dometic CFX5 45 im Test: Top-Kühlbox für unterwegs",
+            "content_raw": "Inhalt",
+            "source_url": "https://example.com/source",
+            "canonical_url": "https://example.com/source",
+            "meta_json": '{"generated_tags":["Kühlbox"]}',
+        }
+        post_id, _ = publish_article_draft(article)
+        self.assertEqual(post_id, 901)
+        payload = [c for c in mock_wp_request.call_args_list if c.kwargs.get("endpoint") == "posts"][0].kwargs["payload"]
+        self.assertEqual(payload.get("categories"), [77])
+
+    @patch("backend.app.wordpress._upload_featured_media")
+    @patch("backend.app.wordpress._wp_request")
+    def test_publish_omits_category_when_no_rule_matches(self, mock_wp_request, mock_upload_media) -> None:
+        def _fake_wp_request(**kwargs):
+            if kwargs.get("method") == "POST" and kwargs.get("endpoint") == "posts":
+                return {"id": 902, "link": "https://example.org/?p=902"}
+            return {}
+
+        mock_wp_request.side_effect = _fake_wp_request
+        article = {
+            "title": "Weihnachten 2021",
+            "content_raw": "Inhalt",
+            "source_url": "https://example.com/source",
+            "canonical_url": "https://example.com/source",
+            "meta_json": '{"generated_tags":[]}',
+        }
+        publish_article_draft(article)
+        payload = [c for c in mock_wp_request.call_args_list if c.kwargs.get("endpoint") == "posts"][0].kwargs["payload"]
+        self.assertNotIn("categories", payload)
+        self.assertFalse(any("categories?slug=" in (c.kwargs.get("endpoint") or "")
+                             for c in mock_wp_request.call_args_list))
+
+    @patch("backend.app.wordpress._upload_featured_media")
+    @patch("backend.app.wordpress._wp_request")
+    def test_publish_skips_category_when_slug_is_missing_in_wordpress(self, mock_wp_request, mock_upload_media) -> None:
+        def _fake_wp_request(**kwargs):
+            endpoint = kwargs.get("endpoint", "")
+            if kwargs.get("method") == "GET" and endpoint.startswith("categories?slug="):
+                return []
+            if kwargs.get("method") == "POST" and endpoint == "posts":
+                return {"id": 903, "link": "https://example.org/?p=903"}
+            return {}
+
+        mock_wp_request.side_effect = _fake_wp_request
+        article = {
+            "title": "Dometic CFX5 45 im Test: Top-Kühlbox für unterwegs",
+            "content_raw": "Inhalt",
+            "source_url": "https://example.com/source",
+            "canonical_url": "https://example.com/source",
+            "meta_json": '{"generated_tags":[]}',
+        }
+        publish_article_draft(article)
+        payload = [c for c in mock_wp_request.call_args_list if c.kwargs.get("endpoint") == "posts"][0].kwargs["payload"]
+        self.assertNotIn("categories", payload)
 
 
 if __name__ == "__main__":

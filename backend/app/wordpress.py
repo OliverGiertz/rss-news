@@ -12,6 +12,7 @@ from html import unescape as _html_unescape
 from urllib.parse import quote_plus, urlparse
 from urllib.request import Request, urlopen
 
+from . import categorize
 from .config import get_settings
 
 
@@ -135,6 +136,48 @@ def _resolve_wp_tag_ids(*, base_url: str, auth_header: str, tags: list[str]) -> 
         except Exception:
             continue
     return ids
+
+
+_category_id_cache: dict[str, int | None] = {}
+
+
+def _resolve_wp_category_id(*, base_url: str, auth_header: str, slug: str) -> int | None:
+    """Look up a WordPress category by slug.
+
+    Unlike tags, categories are never created on the fly: the set is curated in
+    WordPress, so an unknown slug means the rules and the site drifted apart and
+    should be fixed there, not silently papered over with a new category.
+    """
+    if slug in _category_id_cache:
+        return _category_id_cache[slug]
+
+    try:
+        result = _wp_request(
+            base_url=base_url,
+            auth_header=auth_header,
+            method="GET",
+            endpoint=f"categories?slug={quote_plus(slug)}&per_page=1",
+        )
+    except Exception as exc:
+        # Do not cache transient failures - the next article should retry.
+        _logger.warning("Kategorie-Abfrage für '%s' fehlgeschlagen: %s", slug, exc)
+        return None
+
+    category_id: int | None = None
+    if isinstance(result, list):
+        for row in result:
+            if not isinstance(row, dict):
+                continue
+            rid = int(row.get("id", 0) or 0)
+            if rid > 0:
+                category_id = rid
+                break
+
+    if category_id is None:
+        _logger.warning("Kategorie mit Slug '%s' existiert nicht in WordPress", slug)
+
+    _category_id_cache[slug] = category_id
+    return category_id
 
 
 _BLOCKED_IMAGE_EXTS = {".svg", ".gif", ".ico", ".webp"}
@@ -508,13 +551,32 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
             pass
 
     wp_post_id = article.get("wp_post_id")
+    tag_names = _selected_tags_from_meta(article.get("meta_json"))
     tag_ids = _resolve_wp_tag_ids(
         base_url=settings.wordpress_base_url,
         auth_header=auth,
-        tags=_selected_tags_from_meta(article.get("meta_json")),
+        tags=tag_names,
     )
     if tag_ids:
         payload["tags"] = tag_ids
+
+    # Without an explicit category WordPress files everything under "Allgemein".
+    # Leaving it unset when no rule matches is deliberate: a wrong category is
+    # harder to spot later than a handful of posts in the catch-all.
+    slug = categorize.category_slug(title, tag_names)
+    if slug:
+        category_id = _resolve_wp_category_id(
+            base_url=settings.wordpress_base_url,
+            auth_header=auth,
+            slug=slug,
+        )
+        if category_id:
+            payload["categories"] = [category_id]
+    else:
+        _logger.info(
+            "Keine Kategorie-Regel für Artikel #%s (%s) - bleibt in der Standardkategorie",
+            article.get("id"), title[:60],
+        )
 
     if wp_post_id:
         result = _wp_request(
