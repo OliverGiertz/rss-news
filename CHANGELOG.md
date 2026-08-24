@@ -8,6 +8,10 @@
   - Nach jeder Aktion zurück zur Liste, damit sich eine Warteschlange am Stück abarbeiten lässt
   - Verlinkt aus der Navigation aller Admin-Seiten, mit Zähler im Dashboard
 
+### 📨 Telegram
+  - Freigabe-Meldung enthält jetzt zwei Links: „Diesen Artikel prüfen" (Detailseite) und „Alle wartenden Artikel" (Warteschlange)
+  - Pipeline-Zusammenfassung verlinkt die Warteschlange, sobald etwas darauf wartet
+
 ### 🧹 Status-Altlasten entfernt
   - Artikelliste zeigte interne Kürzel (`pending_review`, `approved`, `error`) — jetzt überall Klartext
   - Status `review` (Relevanz-Warnzone 60–79) wurde als „Rewrite" angezeigt, was etwas anderes bedeutet — heißt jetzt „Niedrige Relevanz"

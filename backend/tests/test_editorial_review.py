@@ -425,6 +425,48 @@ class TestReviewQueuePage(EditorialReviewTestBase):
         self.assertIn("/admin/login", response.headers["location"])
 
 
+class TestTelegramLinks(EditorialReviewTestBase):
+    def test_pending_notification_links_to_article_and_to_the_queue(self) -> None:
+        from backend.app import telegram_bot
+
+        os.environ["PORTAL_BASE_URL"] = "https://news.example.de"
+        config_module.get_settings.cache_clear()
+        try:
+            article_id = self._create_article(status="pending_review", rewritten=LONG_TEXT)
+            article = get_article_by_id(article_id)
+
+            with patch.object(telegram_bot, "send_photo_message") as photo, \
+                 patch.object(telegram_bot, "send_message") as plain:
+                telegram_bot.notify_pending_review(article, score=88)
+
+            # Article has an image, so it goes out as a photo message.
+            caption = photo.call_args.kwargs["caption"]
+            plain.assert_not_called()
+            self.assertIn(f'href="https://news.example.de/admin/articles/{article_id}"', caption)
+            self.assertIn('href="https://news.example.de/admin/freigabe"', caption)
+        finally:
+            os.environ.pop("PORTAL_BASE_URL", None)
+            config_module.get_settings.cache_clear()
+
+    def test_pipeline_summary_links_to_the_queue_when_something_waits(self) -> None:
+        from backend.app import telegram_bot
+
+        os.environ["PORTAL_BASE_URL"] = "https://news.example.de"
+        config_module.get_settings.cache_clear()
+        try:
+            with patch.object(telegram_bot, "send_message") as plain:
+                telegram_bot.notify_pipeline_done({"ingested": 3, "processed": 3, "pending_review": 2})
+            text = plain.call_args.args[0]
+            self.assertIn('href="https://news.example.de/admin/freigabe"', text)
+
+            with patch.object(telegram_bot, "send_message") as plain:
+                telegram_bot.notify_pipeline_done({"ingested": 0, "processed": 0, "pending_review": 0})
+            self.assertNotIn("/admin/freigabe", plain.call_args.args[0])
+        finally:
+            os.environ.pop("PORTAL_BASE_URL", None)
+            config_module.get_settings.cache_clear()
+
+
 class TestLegacyArticlesKeepPublishing(EditorialReviewTestBase):
     def test_approved_article_without_stamp_still_publishes(self) -> None:
         """Altbestand: approved before the gate existed, must not get stuck."""

@@ -104,9 +104,13 @@ Wenn ein Artikel umgeschrieben wurde und geprüft werden muss:
 🟢 Relevanz-Score: 87/100
 📄 312 Wörter
 🏷 #VanLife #Camping #Wohnmobil
-🔗 Im Portal prüfen und freigeben
+🔗 Diesen Artikel prüfen
+📋 Alle wartenden Artikel
 Erst nach der Freigabe geht der Beitrag nach WordPress und wird eingeplant.
 ```
+
+Zwei Links: der erste springt direkt in den gemeldeten Artikel, der zweite auf
+die Freigabe-Warteschlange `/admin/freigabe`, wenn mehrere Artikel anstehen.
 
 Diese Nachricht trägt **bewusst keinen Freigabe-Button**: Der Sinn des Gates ist,
 dass der Artikel gelesen wurde. Freigeben, neu schreiben und verwerfen passiert

@@ -220,9 +220,17 @@ def notify_new_draft(
         send_message(text, reply_markup=keyboard)
 
 
-def _portal_article_url(article_id: Any) -> str:
+def _portal_url(path: str) -> str:
     base = (get_settings().portal_base_url or "").rstrip("/")
-    return f"{base}/admin/articles/{article_id}"
+    return f"{base}{path}"
+
+
+def _portal_article_url(article_id: Any) -> str:
+    return _portal_url(f"/admin/articles/{article_id}")
+
+
+def _portal_queue_url() -> str:
+    return _portal_url("/admin/freigabe")
 
 
 def _article_image_url(article: dict[str, Any]) -> str | None:
@@ -257,7 +265,8 @@ def notify_pending_review(article: dict[str, Any], score: int) -> None:
     ]
     if tags_str:
         text_parts.append(f"🏷 {tags_str}")
-    text_parts.append(f'🔗 <a href="{_portal_article_url(art_id)}">Im Portal prüfen und freigeben</a>')
+    text_parts.append(f'🔗 <a href="{_portal_article_url(art_id)}">Diesen Artikel prüfen</a>')
+    text_parts.append(f'📋 <a href="{_portal_queue_url()}">Alle wartenden Artikel</a>')
     text_parts.append(
         "<i>Erst nach der Freigabe geht der Beitrag nach WordPress und wird eingeplant.</i>"
     )
@@ -373,6 +382,7 @@ def notify_pipeline_done(stats: dict[str, Any]) -> None:
         lines.append(f"📝 Drafts erstellt: {drafts}")
     if pending_review:
         lines.append(f"🕐 Wartet auf Freigabe: {pending_review}")
+        lines.append(f'📋 <a href="{_portal_queue_url()}">Freigabe-Warteschlange öffnen</a>')
     if rejected:
         lines.append(f"🚫 Abgelehnt (Score): {rejected}")
     if quality_gate_rejected:
