@@ -58,6 +58,15 @@ class Settings(BaseSettings):
     pipeline_min_words_rewritten: int = 150  # minimum words in rewritten content (else reject)
     pipeline_max_article_age_days: int = 7   # skip articles older than N days during ingestion (0 = no limit)
 
+    # Redaktionelle Freigabe (Art. 50 Abs. 4 KI-VO)
+    # Ist das Gate aktiv, endet die Pipeline beim Rewrite: der Artikel wartet im
+    # Portal auf die Freigabe durch einen Menschen. Erst danach entsteht der
+    # WordPress-Beitrag und der Publish-Slot. Auf False laeuft der alte,
+    # vollautomatische Ablauf.
+    editorial_review_required: bool = True
+    # Basis-URL des Portals fuer die Deep-Links in den Telegram-Meldungen.
+    portal_base_url: str = "https://news.vanityontour.de"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

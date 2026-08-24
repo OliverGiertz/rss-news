@@ -322,7 +322,8 @@ def get_article_by_id(article_id: int) -> dict[str, Any] | None:
                    a.legal_checked, a.legal_checked_at, a.legal_note,
                    a.wp_post_id, a.wp_post_url, a.publish_attempts, a.publish_last_error, a.published_to_wp_at,
                    a.word_count, a.status, a.meta_json, a.created_at, a.updated_at,
-                   a.scheduled_publish_at
+                   a.scheduled_publish_at,
+                   a.editorial_review_at, a.editorial_review_by, a.editorial_review_note
             FROM articles a
             WHERE a.id = ?
             """,
@@ -412,6 +413,55 @@ def set_article_legal_review(article_id: int, approved: bool, note: str | None, 
             (1 if approved else 0, note, merged_meta, article_id),
         )
     return True
+
+
+def set_article_editorial_review(article_id: int, actor: str, note: str | None = None) -> str | None:
+    """Stamp the human editorial sign-off on an article.
+
+    This is the evidence for the exemption in Art. 50 (4) KI-VO: a named person
+    read the AI-rewritten text and takes editorial responsibility for it. The
+    timestamp is set by the system, never by hand, so it cannot be backdated in
+    the UI. Returns the ISO timestamp, or None if the article is unknown.
+    """
+    article = get_article_by_id(article_id)
+    if not article:
+        return None
+
+    reviewed_at = datetime.now(timezone.utc).isoformat()
+    event = {
+        "timestamp": reviewed_at,
+        "event": "editorial_review",
+        "actor": actor,
+        "note": note,
+    }
+    merged_meta = _merge_review_event(article.get("meta_json"), event)
+    with get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE articles
+            SET editorial_review_at = ?, editorial_review_by = ?, editorial_review_note = ?, meta_json = ?
+            WHERE id = ?
+            """,
+            (reviewed_at, actor, note, merged_meta, article_id),
+        )
+    return reviewed_at
+
+
+def clear_article_editorial_review(article_id: int) -> None:
+    """Drop the sign-off because the text changed after it was given.
+
+    A stamp says "a person read *this* text". Once a machine rewrite replaces the
+    text, that is no longer true, so the article has to be read again.
+    """
+    with get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE articles
+            SET editorial_review_at = NULL, editorial_review_by = NULL, editorial_review_note = NULL
+            WHERE id = ?
+            """,
+            (article_id,),
+        )
 
 
 def set_article_image_decision(article_id: int, image_url: str, action: str, actor: str | None = None) -> bool:
@@ -783,7 +833,8 @@ def list_articles_page(
     select = """
         SELECT a.id, a.title, a.status, a.published_at, a.summary, a.content_raw,
                a.meta_json, a.wp_post_id, a.wp_post_url, a.scheduled_publish_at,
-               a.word_count, f.name AS feed_name
+               a.word_count, a.editorial_review_at, a.editorial_review_by,
+               f.name AS feed_name
         FROM articles a
         LEFT JOIN feeds f ON f.id = a.feed_id
     """
@@ -828,7 +879,8 @@ def list_articles(limit: int = 100, status_filter: str | None = None) -> list[di
                        a.summary, a.content_raw, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name,
                        a.image_urls_json, a.press_contact, a.source_name_snapshot, a.source_terms_url_snapshot,
                        a.source_license_name_snapshot, a.legal_checked, a.legal_checked_at, a.legal_note,
-                       a.wp_post_id, a.wp_post_url, a.publish_attempts, a.publish_last_error, a.published_to_wp_at
+                       a.wp_post_id, a.wp_post_url, a.publish_attempts, a.publish_last_error, a.published_to_wp_at,
+                       a.editorial_review_at, a.editorial_review_by, a.editorial_review_note
                 FROM articles a
                 LEFT JOIN feeds f ON f.id = a.feed_id
                 WHERE a.status = ?
@@ -844,7 +896,8 @@ def list_articles(limit: int = 100, status_filter: str | None = None) -> list[di
                        a.summary, a.content_raw, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name,
                        a.image_urls_json, a.press_contact, a.source_name_snapshot, a.source_terms_url_snapshot,
                        a.source_license_name_snapshot, a.legal_checked, a.legal_checked_at, a.legal_note,
-                       a.wp_post_id, a.wp_post_url, a.publish_attempts, a.publish_last_error, a.published_to_wp_at
+                       a.wp_post_id, a.wp_post_url, a.publish_attempts, a.publish_last_error, a.published_to_wp_at,
+                       a.editorial_review_at, a.editorial_review_by, a.editorial_review_note
                 FROM articles a
                 LEFT JOIN feeds f ON f.id = a.feed_id
                 ORDER BY a.id DESC

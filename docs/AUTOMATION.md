@@ -2,18 +2,31 @@
 
 ## Überblick
 
-Das System läuft vollautomatisch und benötigt nur noch gelegentliche Telegram-Interaktion.
+Import, Bewertung und Rewrite laufen automatisch. **Veröffentlicht wird erst nach
+deiner redaktionellen Freigabe im Portal** — siehe `docs/KI-VO.md` für den
+rechtlichen Hintergrund (Art. 50 Abs. 4 KI-VO).
 
 ```
 N8N (2× täglich, 08:00 + 16:00 Uhr)
   └─► POST /api/n8n/pipeline  (X-API-Key Header)
         ├── RSS Ingestion (alle aktivierten Feeds)
         ├── Relevanz-Score per GPT (0–100)
-        │     ├── Score ≥ 80 → Rewrite + WP-Draft + Telegram
+        │     ├── Score ≥ 80 → Rewrite + Tags → Status "Wartet auf Freigabe"
         │     ├── Score 60–79 → Telegram-Warnung + manueller Override möglich
         │     └── Score < 60 → Abgelehnt + tägliche Telegram-Liste
         └── Pipeline-Zusammenfassung via Telegram
+
+Danach, manuell im Portal (news.vanityontour.de):
+  Artikel öffnen → lesen → [✅ Redaktionell geprüft & freigeben]
+        ├── Stempel: Prüfer + Systemzeit (nicht editierbar)
+        ├── Publish-Slot reservieren
+        └── WordPress-Beitrag anlegen (Status "future" zum Slot)
 ```
+
+Vor der Freigabe existiert **kein** WordPress-Beitrag und **kein** belegter
+Publish-Slot. Wer das Gate abschalten will: `EDITORIAL_REVIEW_REQUIRED=false` —
+dann gilt wieder der alte, vollautomatische Ablauf, und der KI-Hinweistext auf
+dem Blog muss angepasst werden.
 
 ---
 
@@ -82,18 +95,32 @@ In N8N einen neuen Workflow erstellen:
 
 ## Telegram-Benachrichtigungen
 
-### Neuer Draft erstellt
-Wenn ein Artikel erfolgreich verarbeitet wurde:
+### Artikel wartet auf Freigabe
+Wenn ein Artikel umgeschrieben wurde und geprüft werden muss:
 
 ```
-✅ Neuer Draft erstellt
+📝 Neuer Artikel wartet auf Freigabe
 📰 [Artikel-Titel]
 🟢 Relevanz-Score: 87/100
-📅 Vorgeschlagene Veröffentlichung: Mo, 24.03.2026 um 09:00 Uhr
+📄 312 Wörter
 🏷 #VanLife #Camping #Wohnmobil
-🔗 Draft in WordPress öffnen
+🔗 Im Portal prüfen und freigeben
+Erst nach der Freigabe geht der Beitrag nach WordPress und wird eingeplant.
+```
 
-  [✏️ Neu schreiben]  [❌ Verwerfen]
+Diese Nachricht trägt **bewusst keinen Freigabe-Button**: Der Sinn des Gates ist,
+dass der Artikel gelesen wurde. Freigeben, neu schreiben und verwerfen passiert
+auf der Artikelseite im Portal, einen Tipp auf den Link entfernt.
+
+### Freigegeben und eingeplant
+Bestätigung nach der Freigabe im Portal:
+
+```
+✅ Freigegeben und eingeplant
+📰 [Artikel-Titel]
+👤 Geprüft von: admin
+📅 Veröffentlichung: Mo, 24.08.2026 um 09:00 Uhr
+🔗 Beitrag in WordPress
 ```
 
 ### Relevanz-Warnung (Score 60–79)
@@ -118,8 +145,8 @@ Der GPT-basierte Score bewertet die Themenrelevanz für den VanLife/Camping-Blog
 
 | Score | Aktion |
 |-------|--------|
-| 80–100 | Automatisch verarbeiten |
-| 60–79 | Telegram-Warnung, manueller Override |
+| 80–100 | Rewrite, danach Warteschlange „Wartet auf Freigabe" |
+| 60–79 | Telegram-Warnung, manueller Override (führt ebenfalls in die Warteschlange) |
 | 0–59 | Automatisch abgelehnt |
 
 Themen die hoch scored werden: Campingplätze, Stellplätze, Wohnmobile, Van-Ausbau,
@@ -140,8 +167,10 @@ PIPELINE_RELEVANCE_WARN=60
 - Zwischen den Slots liegen jeweils **3 Stunden Abstand**
 - Veröffentlichungsfenster: **09:00 bis 19:00 Uhr** (`Europe/Berlin`)
 - Gleichmäßig über die Woche verteilt
-- Der Vorschlag erscheint in der Telegram-Nachricht
-- Manuell in WordPress setzen oder über WP Scheduling-Plugin automatisieren
+- Der Slot wird **im Moment der Freigabe** reserviert, nicht schon beim Rewrite —
+  ein wartender Artikel blockiert also keinen Sendeplatz
+- Der zugeteilte Slot erscheint in der Freigabe-Bestätigung per Telegram
+- WordPress veröffentlicht den Beitrag zum Slot selbst (Status `future`)
 
 Einstellbar via:
 ```

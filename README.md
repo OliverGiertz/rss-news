@@ -32,6 +32,7 @@ Details: `docs/PROJECT_PLAN.md`
 - Projektplan: `docs/PROJECT_PLAN.md`
 - ToDo-Liste: `docs/TODO.md`
 - Quell- und Lizenzpolicy: `docs/SOURCE_POLICY.md`
+- KI-Verordnung / redaktionelle Freigabe: `docs/KI-VO.md`
 - Wiki Home: `docs/wiki/Home.md`
 
 ## Lokale Entwicklung (Legacy-Code)

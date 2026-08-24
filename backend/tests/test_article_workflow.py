@@ -95,15 +95,16 @@ class TestArticleWorkflow(unittest.TestCase):
         self.assertEqual(bad.status_code, 410)
 
     @patch("backend.app.main.rewrite_article_text")
-    def test_rewrite_run_sets_publish_status(self, mock_rewrite) -> None:
+    def test_rewrite_run_sends_article_to_editorial_queue(self, mock_rewrite) -> None:
+        """A rewrite no longer reaches `publish` by itself — a person has to sign off."""
         mock_rewrite.return_value = "<h2>Neu</h2><p>Umschreibung</p>"
         article_id = self._create_article()
         self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "rewrite"})
         r = self.client.post(f"/api/articles/{article_id}/rewrite-run")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json()["status"], "publish")
+        self.assertEqual(r.json()["status"], "freigabe")
         final = self.client.get(f"/api/articles/{article_id}")
-        self.assertEqual(final.json()["item"]["status_ui"], "publish")
+        self.assertEqual(final.json()["item"]["status_ui"], "freigabe")
 
 
 if __name__ == "__main__":

@@ -1,3 +1,35 @@
+## [1.8.0] - 2026-08-24
+
+### ⚖️ Redaktionelle Freigabe vor der Veröffentlichung (Art. 50 Abs. 4 KI-VO)
+  - Neuer Status **„Wartet auf Freigabe"** (`pending_review`) zwischen Rewrite und Publish
+  - Die Pipeline endet jetzt beim Rewrite: **kein WordPress-Beitrag und kein Publish-Slot**, bevor ein Mensch den Artikel freigegeben hat
+  - Neuer Button „✅ Redaktionell geprüft & freigeben" auf der Artikel-Detailseite, mit optionaler Prüfnotiz
+  - Freigabe stempelt Prüfer und **Systemzeit** in `editorial_review_at` / `_by` / `_note` — nicht editierbar, zusätzlich im Audit-Trail (`review_events`)
+  - Erst die Freigabe reserviert den Slot und legt den WordPress-Beitrag an (Status `future`)
+  - Schlägt WordPress dabei fehl, fällt der Artikel mit freigegebenem Slot zurück in die Warteschlange — Freigabe einfach wiederholen
+  - Kein Schlupfloch: auch der manuelle Statuswechsel nach `publish` (Admin-UI und API) stempelt die Freigabe
+  - Altbestand bleibt unberührt: bereits freigegebene/veröffentlichte Artikel brauchen keinen Stempel
+
+### 📨 Telegram
+  - Neue Meldung „📝 Neuer Artikel wartet auf Freigabe" mit Deep-Link ins Portal, bewusst **ohne** Freigabe-Button
+  - Neue Bestätigung „✅ Freigegeben und eingeplant" mit Prüfer und Slot
+  - Relevanz-Warnung enthält zusätzlich den Portal-Link
+  - Pipeline-Zusammenfassung und `/status` zeigen die Zahl der wartenden Artikel
+
+### 🖥️ Admin-UI
+  - Dashboard-Banner mit Anzahl der Artikel, die auf Freigabe warten, inkl. Direktfilter
+  - Klartext-Bezeichnungen für alle Status statt interner Kürzel
+  - Publish-Bereitschaft weist „Redaktionelle Freigabe fehlt" aus
+
+### 🔧 Technisch
+  - Migration: Spalten `editorial_review_at/_by/_note`, Status-CHECK um `pending_review` erweitert
+  - Spalten-Migration wird nach den Tabellen-Neubauten erneut angewandt (der ältere `no_image`-Rebuild hat frisch angelegte Spalten sonst wieder verworfen)
+  - Neue Konfiguration `EDITORIAL_REVIEW_REQUIRED` (Default `true`) und `PORTAL_BASE_URL`
+  - Neue Doku `docs/KI-VO.md`; `docs/AUTOMATION.md` an den neuen Ablauf angepasst
+  - 12 neue Tests in `backend/tests/test_editorial_review.py`
+
+---
+
 ## [1.7.1] - 2025-08-24
 
 ###  ✨ Security angepasst

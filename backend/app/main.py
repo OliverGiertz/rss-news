@@ -17,7 +17,7 @@ from .auth import create_session_token, verify_credentials, verify_session_token
 from .config import get_settings
 from .db import init_db
 from .ingestion import run_ingestion
-from .pipeline import run_auto_pipeline
+from .pipeline import post_rewrite_status, run_auto_pipeline
 from .policy import evaluate_source_policy, is_source_allowed
 from .publisher import enqueue_publish, run_publisher
 from .relevance import article_age_days, article_relevance
@@ -41,6 +41,8 @@ from .repositories import (
     list_feeds as repo_list_feeds,
     list_runs,
     list_sources as repo_list_sources,
+    clear_article_editorial_review,
+    set_article_editorial_review,
     set_article_legal_review,
     update_article_status,
     upsert_article as repo_upsert_article,
@@ -503,6 +505,11 @@ def api_article_transition(article_id: int, payload: ArticleTransitionRequest, u
             detail=f"Ungueltiger Statuswechsel: {current_ui} -> {target_ui}",
         )
 
+    # Reaching `publish` means a person signed the article off. Stamp that fact
+    # (Art. 50 Abs. 4 KI-VO) so the API cannot bypass the editorial gate.
+    if target_ui == "publish" and not (article.get("editorial_review_at") or ""):
+        set_article_editorial_review(article_id, actor=username, note=payload.note)
+
     updated = update_article_status(article_id, target_internal, actor=username, note=payload.note)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikel nicht gefunden")
@@ -552,11 +559,20 @@ def api_article_rewrite_run(article_id: int, username: str = Depends(require_aut
             publish_last_error=article.get("publish_last_error"),
             published_to_wp_at=article.get("published_to_wp_at"),
             word_count=len(rewritten.split()),
-            status="approved",
+            status=post_rewrite_status(),
             meta_json=merged_meta,
         )
     )
-    return {"ok": True, "id": article_id, "status": "publish", "tags": tags}
+    new_status = post_rewrite_status()
+    if new_status == "pending_review":
+        # New text, so any earlier sign-off no longer applies.
+        clear_article_editorial_review(article_id)
+    return {
+        "ok": True,
+        "id": article_id,
+        "status": internal_to_ui_status(new_status),
+        "tags": tags,
+    }
 
 
 @app.post("/api/articles/{article_id}/legal-review")

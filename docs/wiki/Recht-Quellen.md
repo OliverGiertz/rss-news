@@ -1,5 +1,11 @@
 # Recht und Quellen
 
+## KI-Verordnung
+- Jeder KI-umgeschriebene Artikel braucht vor der Veroeffentlichung die
+  redaktionelle Freigabe im Portal (Art. 50 Abs. 4 KI-VO)
+- Nachweis: `editorial_review_at` / `_by` / `_note` je Artikel
+- Details und Begruendung: `docs/KI-VO.md`
+
 ## Grundregeln
 - Nur freigegebene Quellen aus Source-Register
 - Pflicht-Attribution pro Artikel

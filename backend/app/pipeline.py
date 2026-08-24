@@ -25,7 +25,9 @@ from .publisher import enqueue_publish, run_publisher
 from .repositories import (
     ArticleUpsert,
     get_article_by_id,
+    clear_article_editorial_review,
     list_articles,
+    set_article_editorial_review,
     set_article_image_decision,
     update_article_status,
     upsert_article as repo_upsert_article,
@@ -42,6 +44,7 @@ class PipelineStats:
     ingested: int = 0
     processed: int = 0
     drafts_created: int = 0
+    pending_review: int = 0
     rejected: int = 0
     quality_gate_rejected: int = 0
     warnings: int = 0
@@ -107,8 +110,35 @@ def _store_relevance(article_id: int, relevance: dict[str, Any]) -> None:
         )
 
 
-def _do_rewrite_and_draft(article: dict[str, Any]) -> tuple[int, str | None]:
-    """Rewrite article and create WP draft. Returns (wp_post_id, wp_post_url)."""
+def editorial_gate_active() -> bool:
+    """Is the human sign-off required before an article may be published?"""
+    return bool(getattr(get_settings(), "editorial_review_required", True))
+
+
+def post_rewrite_status() -> str:
+    """Status an article gets right after a rewrite.
+
+    With the gate active it waits for a person; without it, it goes straight to
+    `approved` the way it did before. Every rewrite path in the app uses this so
+    none of them can quietly become a back door into publishing.
+    """
+    return "pending_review" if editorial_gate_active() else "approved"
+
+
+def _do_rewrite_and_draft(
+    article: dict[str, Any],
+    *,
+    create_wp_draft: bool = True,
+) -> tuple[int | None, str | None]:
+    """Rewrite article and (optionally) create the WP draft.
+
+    With `create_wp_draft=False` the article stops at status `pending_review`:
+    no publish slot, no WordPress post. That is the editorial gate — a human
+    signs the article off in the portal first (Art. 50 Abs. 4 KI-VO), and only
+    then does `approve_article()` finish the job.
+
+    Returns (wp_post_id, wp_post_url), both None when the draft was skipped.
+    """
     article_id = int(article["id"])
     settings = get_settings()
 
@@ -175,7 +205,7 @@ def _do_rewrite_and_draft(article: dict[str, Any]) -> tuple[int, str | None]:
             publish_last_error=article.get("publish_last_error"),
             published_to_wp_at=article.get("published_to_wp_at"),
             word_count=len(rewritten.split()),
-            status="approved",
+            status="approved" if create_wp_draft else "pending_review",
             meta_json=merged_meta,
         )
     )
@@ -184,6 +214,15 @@ def _do_rewrite_and_draft(article: dict[str, Any]) -> tuple[int, str | None]:
     fresh = get_article_by_id(article_id)
     if not fresh:
         raise RuntimeError(f"Artikel #{article_id} nach Rewrite nicht gefunden")
+
+    if not create_wp_draft:
+        # The text is new, so an older sign-off no longer covers it.
+        clear_article_editorial_review(article_id)
+        logger.info(
+            "_do_rewrite_and_draft #%d: Rewrite gespeichert, wartet auf redaktionelle Freigabe",
+            article_id,
+        )
+        return None, None
 
     # Ensure a publish slot is reserved — reserve one now if not yet set
     if not fresh.get("scheduled_publish_at"):
@@ -261,6 +300,7 @@ def run_auto_pipeline(trigger: str = "auto") -> dict[str, Any]:
         "ingested": stats.ingested,
         "processed": stats.processed,
         "drafts_created": stats.drafts_created,
+        "pending_review": stats.pending_review,
         "rejected": stats.rejected,
         "quality_gate_rejected": stats.quality_gate_rejected,
         "no_image": stats.no_image,
@@ -349,25 +389,39 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
             logger.warning("Telegram warning für #%d fehlgeschlagen: %s", article_id, exc)
 
     else:
-        # Auto-process: rewrite + WP draft
+        # Auto-process: rewrite, then either park the article for the editorial
+        # sign-off or (gate disabled) go straight to the WP draft as before.
+        gate = editorial_gate_active()
         try:
-            # Reserve publish slot FIRST so it's available when WP draft is created
-            slot = reserve_publish_slot(article_id)
+            # Without the gate the slot must exist before the WP draft is built.
+            # With the gate the slot is reserved at approval time instead, so a
+            # pending article does not sit on a publish slot for hours.
+            slot: str | None = None
+            if not gate:
+                slot = reserve_publish_slot(article_id)
 
             # Reload article to get updated image_review + scheduled_publish_at
             fresh = get_article_by_id(article_id)
             if not fresh:
                 return
-            wp_post_id, wp_post_url = _do_rewrite_and_draft(fresh)
-            stats.drafts_created += 1
+            _do_rewrite_and_draft(fresh, create_wp_draft=not gate)
 
             # Reload for notification
             final = get_article_by_id(article_id)
-            if final:
-                try:
-                    tg.notify_new_draft(final, score=score, suggested_publish_at=slot)
-                except Exception as exc:
-                    logger.warning("Telegram draft-Benachrichtigung für #%d fehlgeschlagen: %s", article_id, exc)
+            if gate:
+                stats.pending_review += 1
+                if final:
+                    try:
+                        tg.notify_pending_review(final, score=score)
+                    except Exception as exc:
+                        logger.warning("Telegram Freigabe-Hinweis für #%d fehlgeschlagen: %s", article_id, exc)
+            else:
+                stats.drafts_created += 1
+                if final:
+                    try:
+                        tg.notify_new_draft(final, score=score, suggested_publish_at=slot)
+                    except Exception as exc:
+                        logger.warning("Telegram draft-Benachrichtigung für #%d fehlgeschlagen: %s", article_id, exc)
 
         except ValueError as exc:
             # Quality gate rejection (too short etc.) — status already set in _do_rewrite_and_draft
@@ -411,13 +465,92 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
 # ---------------------------------------------------------------------------
 
 def rewrite_and_update_draft(article_id: int) -> None:
-    """Rewrite article and update the existing WP draft."""
+    """Rewrite article and update the existing WP draft.
+
+    An article that already lives in WordPress keeps its post updated. One that
+    never got there (because it is waiting for the editorial sign-off) stays in
+    the review queue and must be approved again after the rewrite.
+    """
     article = get_article_by_id(article_id)
     if not article:
         raise RuntimeError(f"Artikel #{article_id} nicht gefunden")
     _auto_select_image(article)
     fresh = get_article_by_id(article_id)
-    _do_rewrite_and_draft(fresh)
+    gate = editorial_gate_active()
+    keep_wp_in_sync = bool(fresh.get("wp_post_id")) or not gate
+    _do_rewrite_and_draft(fresh, create_wp_draft=keep_wp_in_sync)
+
+
+def approve_article(article_id: int, actor: str, note: str | None = None) -> dict[str, Any]:
+    """Record the human editorial sign-off, then publish to WP and schedule it.
+
+    This is the single door to `approved`: it stamps who approved and when
+    (Art. 50 Abs. 4 KI-VO), reserves the publish slot and creates the scheduled
+    WordPress post. If WordPress fails, the article falls back into the review
+    queue with its slot released, so the approval can simply be repeated.
+    """
+    from . import telegram_bot as tg
+
+    article = get_article_by_id(article_id)
+    if not article:
+        raise RuntimeError(f"Artikel #{article_id} nicht gefunden")
+
+    if not (article.get("content_rewritten") or "").strip():
+        raise ValueError("Kein Rewrite-Text vorhanden — Artikel kann nicht freigegeben werden")
+    if not selected_image_exists(article):
+        raise ValueError("Kein Hauptbild ausgewählt — Artikel kann nicht freigegeben werden")
+
+    reviewed_at = set_article_editorial_review(article_id, actor=actor, note=note)
+    update_article_status(
+        article_id,
+        "approved",
+        actor=actor,
+        note=note or "Redaktionell geprüft und freigegeben",
+        decision="editorial_approval",
+    )
+
+    try:
+        slot = reserve_publish_slot(article_id)
+        fresh = get_article_by_id(article_id)
+        if not fresh:
+            raise RuntimeError(f"Artikel #{article_id} nach Freigabe nicht gefunden")
+        wp_post_id, wp_post_url = publish_article_draft(fresh)
+    except Exception as exc:
+        from .scheduler import release_publish_slot
+        release_publish_slot(article_id)
+        update_article_status(
+            article_id,
+            "pending_review",
+            actor="system",
+            note=f"WordPress-Fehler nach Freigabe: {exc}",
+        )
+        logger.error("Freigabe von #%d fehlgeschlagen: %s", article_id, exc)
+        raise
+
+    from .repositories import mark_article_publish_result
+    mark_article_publish_result(
+        article_id,
+        wp_post_id=wp_post_id,
+        wp_post_url=wp_post_url,
+        error=None,
+        increment_attempts=True,
+        set_published_status=False,
+    )
+
+    final = get_article_by_id(article_id) or {}
+    try:
+        tg.notify_approved(final, scheduled_at=slot)
+    except Exception as exc:
+        logger.warning("Telegram Freigabe-Bestätigung für #%d fehlgeschlagen: %s", article_id, exc)
+
+    return {
+        "article_id": article_id,
+        "reviewed_at": reviewed_at,
+        "reviewed_by": actor,
+        "scheduled_publish_at": slot,
+        "wp_post_id": wp_post_id,
+        "wp_post_url": wp_post_url,
+    }
 
 
 def discard_article(article_id: int) -> None:
@@ -463,11 +596,21 @@ def override_rejected_article(article_id: int) -> None:
     except Exception:
         score = 0
 
+    gate = editorial_gate_active()
+    if gate:
+        # "Trotzdem verarbeiten" means process it, not publish it — the article
+        # still has to pass the editorial sign-off in the portal.
+        _do_rewrite_and_draft(fresh, create_wp_draft=False)
+        final = get_article_by_id(article_id)
+        if final:
+            tg.notify_pending_review(final, score=score)
+        return
+
     # Reserve publish slot FIRST so it's in the DB when WP draft is created
     slot = reserve_publish_slot(article_id)
     fresh = get_article_by_id(article_id)
 
-    wp_post_id, wp_post_url = _do_rewrite_and_draft(fresh)
+    _do_rewrite_and_draft(fresh)
 
     final = get_article_by_id(article_id)
     if final:
@@ -503,6 +646,7 @@ def get_pipeline_status_text() -> str:
     """Return a text summary of current pipeline state."""
     from .repositories import list_articles as _list
     new_count = len(_list(limit=500, status_filter="new"))
+    pending_count = len(_list(limit=500, status_filter="pending_review"))
     approved_count = len(_list(limit=500, status_filter="approved"))
     published_count = len(_list(limit=500, status_filter="published"))
     error_count = len(_list(limit=500, status_filter="error"))
@@ -510,6 +654,7 @@ def get_pipeline_status_text() -> str:
     return (
         f"📊 <b>Pipeline-Status</b>\n"
         f"🆕 Neu / wartend: {new_count}\n"
+        f"📝 Wartet auf Freigabe: {pending_count}\n"
         f"✅ Draft / freigegeben: {approved_count}\n"
         f"📢 Veröffentlicht: {published_count}\n"
         f"🚫 Fehler / abgelehnt: {error_count}"

@@ -333,7 +333,8 @@ class TestAdminUi(unittest.TestCase):
         self.assertEqual(res.status_code, 303)
         article = get_article_by_id(article_id)
         self.assertIsNotNone(article)
-        self.assertEqual(article.get("status"), "approved")
+        # Batch rewrites land in the editorial queue, not in `approved`.
+        self.assertEqual(article.get("status"), "pending_review")
         self.assertIn("generated_tags", article.get("meta_json", ""))
 
     @patch("backend.app.admin_ui.urlopen")

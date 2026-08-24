@@ -220,6 +220,74 @@ def notify_new_draft(
         send_message(text, reply_markup=keyboard)
 
 
+def _portal_article_url(article_id: Any) -> str:
+    base = (get_settings().portal_base_url or "").rstrip("/")
+    return f"{base}/admin/articles/{article_id}"
+
+
+def _article_image_url(article: dict[str, Any]) -> str | None:
+    try:
+        meta = json.loads(article.get("meta_json") or "{}")
+    except Exception:
+        return None
+    image_review = meta.get("image_review") or {}
+    if isinstance(image_review, dict) and image_review.get("selected_url"):
+        return image_review.get("selected_url")
+    image_sel = (meta.get("extraction") or {}).get("image_selection") or {}
+    return image_sel.get("primary")
+
+
+def notify_pending_review(article: dict[str, Any], score: int) -> None:
+    """Announce an article that waits for the human editorial sign-off.
+
+    Deliberately carries no approve button: the whole point of the gate is that
+    a person opened the article and read it. The buttons live on the article
+    page in the portal, one tap away via the link below.
+    """
+    title = (article.get("title") or "Ohne Titel").strip()
+    art_id = article.get("id")
+    tags_str = _format_tags(article.get("meta_json"))
+    words = article.get("word_count") or 0
+
+    text_parts = [
+        "📝 <b>Neuer Artikel wartet auf Freigabe</b>",
+        f"📰 <b>{title}</b>",
+        f"{_score_emoji(score)} Relevanz-Score: <b>{score}/100</b>",
+        f"📄 {words} Wörter",
+    ]
+    if tags_str:
+        text_parts.append(f"🏷 {tags_str}")
+    text_parts.append(f'🔗 <a href="{_portal_article_url(art_id)}">Im Portal prüfen und freigeben</a>')
+    text_parts.append(
+        "<i>Erst nach der Freigabe geht der Beitrag nach WordPress und wird eingeplant.</i>"
+    )
+    text = "\n".join(text_parts)
+
+    image_url = _article_image_url(article)
+    if image_url:
+        send_photo_message(image_url, caption=text)
+    else:
+        send_message(text)
+
+
+def notify_approved(article: dict[str, Any], scheduled_at: str | None = None) -> None:
+    """Confirm that an approved article reached WordPress and got a slot."""
+    title = (article.get("title") or "Ohne Titel").strip()
+    wp_url = article.get("wp_post_url") or ""
+    reviewer = article.get("editorial_review_by") or "?"
+
+    parts = [
+        "✅ <b>Freigegeben und eingeplant</b>",
+        f"📰 <b>{title}</b>",
+        f"👤 Geprüft von: <b>{reviewer}</b>",
+    ]
+    if scheduled_at:
+        parts.append(f"📅 Veröffentlichung: <b>{scheduled_at}</b>")
+    if wp_url:
+        parts.append(f'🔗 <a href="{wp_url}">Beitrag in WordPress</a>')
+    send_message("\n".join(parts))
+
+
 def notify_relevance_warning(article: dict[str, Any], score: int, reason: str) -> None:
     """Send Telegram warning for borderline articles (score between warn and auto thresholds)."""
     title = (article.get("title") or "Ohne Titel").strip()
@@ -231,7 +299,8 @@ def notify_relevance_warning(article: dict[str, Any], score: int, reason: str) -
         f"📰 <b>{title}</b>\n"
         f"{_score_emoji(score)} Score: <b>{score}/100</b>\n"
         f"💬 {reason}\n"
-        f'🔗 <a href="{source_url}">Originalartikel</a>'
+        f'🔗 <a href="{source_url}">Originalartikel</a>\n'
+        f'📋 <a href="{_portal_article_url(art_id)}">Im Portal ansehen</a>'
     )
     keyboard = _inline_keyboard([
         [
@@ -288,6 +357,7 @@ def notify_pipeline_done(stats: dict[str, Any]) -> None:
     ingested = stats.get("ingested", 0)
     processed = stats.get("processed", 0)
     drafts = stats.get("drafts_created", 0)
+    pending_review = stats.get("pending_review", 0)
     rejected = stats.get("rejected", 0)
     quality_gate_rejected = stats.get("quality_gate_rejected", 0)
     no_image = stats.get("no_image", 0)
@@ -298,8 +368,11 @@ def notify_pipeline_done(stats: dict[str, Any]) -> None:
         "📊 <b>Pipeline abgeschlossen</b>",
         f"📥 Neue Artikel importiert: {ingested}",
         f"⚙️ Verarbeitet: {processed}",
-        f"📝 Drafts erstellt: {drafts}",
     ]
+    if drafts:
+        lines.append(f"📝 Drafts erstellt: {drafts}")
+    if pending_review:
+        lines.append(f"🕐 Wartet auf Freigabe: {pending_review}")
     if rejected:
         lines.append(f"🚫 Abgelehnt (Score): {rejected}")
     if quality_gate_rejected:

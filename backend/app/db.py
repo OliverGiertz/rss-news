@@ -110,8 +110,11 @@ def init_db() -> None:
                 publish_last_error TEXT,
                 published_to_wp_at TEXT,
                 word_count INTEGER DEFAULT 0,
-                status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'rewrite', 'review', 'approved', 'published', 'error', 'no_image')),
+                status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'rewrite', 'review', 'pending_review', 'approved', 'published', 'error', 'no_image')),
                 meta_json TEXT,
+                editorial_review_at TEXT,
+                editorial_review_by TEXT,
+                editorial_review_note TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now')),
                 FOREIGN KEY(feed_id) REFERENCES feeds(id) ON DELETE SET NULL,
@@ -191,10 +194,26 @@ def init_db() -> None:
             "publish_attempts": "ALTER TABLE articles ADD COLUMN publish_attempts INTEGER NOT NULL DEFAULT 0",
             "publish_last_error": "ALTER TABLE articles ADD COLUMN publish_last_error TEXT",
             "published_to_wp_at": "ALTER TABLE articles ADD COLUMN published_to_wp_at TEXT",
+            # Nachweis der menschlichen redaktionellen Kontrolle (Art. 50 Abs. 4 KI-VO).
+            "editorial_review_at": "ALTER TABLE articles ADD COLUMN editorial_review_at TEXT",
+            "editorial_review_by": "ALTER TABLE articles ADD COLUMN editorial_review_by TEXT",
+            "editorial_review_note": "ALTER TABLE articles ADD COLUMN editorial_review_note TEXT",
         }
-        for column, ddl in migration_columns.items():
-            if column not in existing_columns:
-                conn.execute(ddl)
+        def _add_missing_columns() -> None:
+            """(Re-)apply the column migrations against the current table.
+
+            Must be callable more than once: the CHECK-constraint rebuilds below
+            recreate `articles` from a fixed column list, so a column added here
+            can disappear again and has to be re-added afterwards.
+            """
+            present = {
+                row["name"] for row in conn.execute("PRAGMA table_info(articles)").fetchall()
+            }
+            for column, ddl in migration_columns.items():
+                if column not in present:
+                    conn.execute(ddl)
+
+        _add_missing_columns()
 
         # Migration: add 'no_image' to the status CHECK constraint if not present.
         # SQLite cannot modify CHECK constraints in-place, so we recreate the table.
@@ -256,6 +275,99 @@ def init_db() -> None:
 
                 DROP TABLE articles;
                 ALTER TABLE articles_v2 RENAME TO articles;
+
+                CREATE INDEX IF NOT EXISTS idx_articles_source_article_id ON articles(source_article_id);
+                CREATE INDEX IF NOT EXISTS idx_articles_source_hash ON articles(source_hash);
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_articles_feed_source_article_id
+                  ON articles(feed_id, source_article_id)
+                  WHERE source_article_id IS NOT NULL;
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_articles_source_hash
+                  ON articles(source_hash)
+                  WHERE source_hash IS NOT NULL;
+                CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
+                CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at);
+
+                CREATE TRIGGER IF NOT EXISTS trg_articles_updated_at
+                AFTER UPDATE ON articles
+                FOR EACH ROW
+                BEGIN
+                    UPDATE articles SET updated_at = datetime('now') WHERE id = OLD.id;
+                END;
+
+                PRAGMA foreign_keys=ON;
+                """
+            )
+
+        # The v2 rebuild above copies a fixed column list, so anything added by
+        # _add_missing_columns() before it is gone again. Re-add before v3 reads
+        # those columns.
+        _add_missing_columns()
+
+        # Migration: add 'pending_review' to the status CHECK constraint. Same
+        # recreate-the-table dance as above, SQLite cannot alter a CHECK in place.
+        table_sql_row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='articles'"
+        ).fetchone()
+        if table_sql_row and "'pending_review'" not in (table_sql_row["sql"] or ""):
+            conn.executescript(
+                """
+                PRAGMA foreign_keys=OFF;
+
+                CREATE TABLE articles_v3 (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    feed_id INTEGER,
+                    source_article_id TEXT,
+                    source_hash TEXT,
+                    title TEXT NOT NULL,
+                    source_url TEXT NOT NULL,
+                    canonical_url TEXT,
+                    published_at TEXT,
+                    author TEXT,
+                    summary TEXT,
+                    content_raw TEXT,
+                    content_rewritten TEXT,
+                    image_urls_json TEXT,
+                    press_contact TEXT,
+                    source_name_snapshot TEXT,
+                    source_terms_url_snapshot TEXT,
+                    source_license_name_snapshot TEXT,
+                    legal_checked INTEGER NOT NULL DEFAULT 0,
+                    legal_checked_at TEXT,
+                    legal_note TEXT,
+                    wp_post_id INTEGER,
+                    wp_post_url TEXT,
+                    publish_attempts INTEGER NOT NULL DEFAULT 0,
+                    publish_last_error TEXT,
+                    published_to_wp_at TEXT,
+                    word_count INTEGER DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'rewrite', 'review', 'pending_review', 'approved', 'published', 'error', 'no_image')),
+                    meta_json TEXT,
+                    relevance_score INTEGER,
+                    scheduled_publish_at TEXT,
+                    editorial_review_at TEXT,
+                    editorial_review_by TEXT,
+                    editorial_review_note TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY(feed_id) REFERENCES feeds(id) ON DELETE SET NULL,
+                    UNIQUE(source_url)
+                );
+
+                INSERT INTO articles_v3 SELECT
+                    id, feed_id, source_article_id, source_hash, title, source_url,
+                    canonical_url, published_at, author, summary, content_raw,
+                    content_rewritten, image_urls_json, press_contact,
+                    source_name_snapshot, source_terms_url_snapshot, source_license_name_snapshot,
+                    legal_checked, legal_checked_at, legal_note,
+                    wp_post_id, wp_post_url, publish_attempts, publish_last_error,
+                    published_to_wp_at, word_count, status, meta_json,
+                    relevance_score, scheduled_publish_at,
+                    editorial_review_at, editorial_review_by, editorial_review_note,
+                    created_at, updated_at
+                FROM articles;
+
+                DROP TABLE articles;
+                ALTER TABLE articles_v3 RENAME TO articles;
 
                 CREATE INDEX IF NOT EXISTS idx_articles_source_article_id ON articles(source_article_id);
                 CREATE INDEX IF NOT EXISTS idx_articles_source_hash ON articles(source_hash);

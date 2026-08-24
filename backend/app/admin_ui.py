@@ -7,7 +7,7 @@ import socket
 import ssl
 import time
 from urllib.parse import urlparse
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote_plus
 from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import APIRouter, Form, Request
@@ -17,6 +17,7 @@ from fastapi.templating import Jinja2Templates
 from .auth import create_session_token, verify_credentials, verify_session_token
 from .config import get_settings
 from .ingestion import run_ingestion
+from .pipeline import approve_article, post_rewrite_status
 from .policy import evaluate_source_policy
 from .publisher import enqueue_publish, run_publisher
 from .relevance import article_age_days, article_relevance
@@ -28,6 +29,7 @@ from .repositories import (
     SourceUpdate,
     delete_feed,
     delete_source,
+    clear_article_editorial_review,
     create_feed,
     create_source,
     get_article_by_id,
@@ -46,17 +48,25 @@ from .repositories import (
     update_article_status,
     ArticleUpsert,
 )
-from .workflow import ALLOWED_UI_TRANSITIONS, UI_STATUSES, internal_to_ui_status, ui_to_internal_status
+from .workflow import (
+    ALLOWED_UI_TRANSITIONS,
+    UI_STATUS_LABELS,
+    UI_STATUSES,
+    internal_to_ui_status,
+    ui_to_internal_status,
+)
 
 settings = get_settings()
 router = APIRouter(tags=["admin-ui"])
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
     "new": ("rewrite", "close"),
-    "rewrite": ("publish", "close"),
+    "rewrite": ("freigabe", "publish", "close"),
+    "freigabe": ("publish", "rewrite", "close"),
     "publish": ("published", "close"),
     "published": ("rewrite", "close"),
     "close": ("rewrite",),
+    "no_image": ("rewrite", "close"),
 }
 IMAGE_PROXY_USER_AGENT = "rss-news-admin/1.0"
 _UNSET = object()
@@ -172,8 +182,16 @@ def _build_image_entries(article: dict, extraction: dict, meta: dict) -> list[di
 
 def _publish_readiness(article: dict, meta: dict) -> tuple[bool, list[str]]:
     reasons: list[str] = []
-    if internal_to_ui_status(article.get("status")) not in {"publish", "published"}:
+    status_ui = internal_to_ui_status(article.get("status"))
+    if status_ui not in {"publish", "published"}:
         reasons.append("Status ist nicht 'publish'")
+    # Altbestand (bereits veroeffentlicht) hat keinen Stempel und braucht keinen.
+    if (
+        settings.editorial_review_required
+        and status_ui != "published"
+        and not (article.get("editorial_review_at") or "")
+    ):
+        reasons.append("Redaktionelle Freigabe fehlt")
     image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
     selected_image = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
     if not selected_image:
@@ -513,7 +531,9 @@ def admin_dashboard(request: Request):
             "publish_jobs": publish_jobs,
             "articles": articles,
             "status_options": list(UI_STATUSES),
+            "status_labels": UI_STATUS_LABELS,
             "allowed_transitions": ALLOWED_TRANSITIONS,
+            "pending_review_count": len(list_articles(limit=500, status_filter="pending_review")),
             "status_filter": status_filter,
             "flash_msg": request.query_params.get("msg", ""),
             "flash_type": request.query_params.get("type", "success"),
@@ -588,6 +608,8 @@ def admin_article_detail(request: Request, article_id: int):
             "feed": feed,
             "checklist": checklist,
             "allowed_transitions": ALLOWED_TRANSITIONS.get(article.get("status_ui"), ()),
+            "status_labels": UI_STATUS_LABELS,
+            "editorial_review_required": settings.editorial_review_required,
             "flash_msg": request.query_params.get("msg", ""),
             "flash_type": request.query_params.get("type", "success"),
         },
@@ -837,16 +859,23 @@ def admin_rewrite_run(request: Request, article_id: int):
     article = get_article_by_id(article_id)
     if not article:
         return _dashboard_redirect(msg=f"Artikel #{article_id} nicht gefunden", msg_type="error")
-    if internal_to_ui_status(article.get("status")) not in {"new", "rewrite"}:
-        return _dashboard_redirect(msg=f"Rewrite nur aus new/rewrite fuer Artikel #{article_id}", msg_type="error")
+    if internal_to_ui_status(article.get("status")) not in {"new", "rewrite", "freigabe", "no_image"}:
+        return _dashboard_redirect(msg=f"Rewrite nur aus new/rewrite/freigabe fuer Artikel #{article_id}", msg_type="error")
     try:
         rewritten = rewrite_article_text(article)
         tags = generate_article_tags(article, rewritten_text=rewritten)
     except Exception as exc:
         return _dashboard_redirect(msg=f"Rewrite fehlgeschlagen fuer Artikel #{article_id}: {exc}", msg_type="error")
     merged_meta = merge_generated_tags(article.get("meta_json"), tags)
-    _upsert_article_from_existing(article, content_rewritten=rewritten, status="approved", meta_json=merged_meta)
-    return _dashboard_redirect(msg=f"Rewrite fertig fuer Artikel #{article_id} -> publish")
+    new_status = post_rewrite_status()
+    _upsert_article_from_existing(article, content_rewritten=rewritten, status=new_status, meta_json=merged_meta)
+    if new_status == "pending_review":
+        clear_article_editorial_review(article_id)
+    target = "Freigabe" if new_status == "pending_review" else "publish"
+    return RedirectResponse(
+        url=f"/admin/articles/{article_id}?msg={quote_plus(f'Rewrite fertig -> {target}')}&type=success",
+        status_code=303,
+    )
 
 
 @router.post("/admin/rewrite/run")
@@ -868,7 +897,10 @@ def admin_rewrite_run_batch(request: Request, max_jobs: str = Form("10")):
             rewritten = rewrite_article_text(article)
             tags = generate_article_tags(article, rewritten_text=rewritten)
             merged_meta = merge_generated_tags(article.get("meta_json"), tags)
-            _upsert_article_from_existing(article, content_rewritten=rewritten, status="approved", meta_json=merged_meta)
+            new_status = post_rewrite_status()
+            _upsert_article_from_existing(article, content_rewritten=rewritten, status=new_status, meta_json=merged_meta)
+            if new_status == "pending_review":
+                clear_article_editorial_review(int(article["id"]))
             success += 1
         except Exception:
             failed += 1
@@ -916,6 +948,37 @@ def admin_reopen_article(request: Request, article_id: int):
     )
 
 
+@router.post("/admin/articles/{article_id}/approve")
+def admin_approve_article(request: Request, article_id: int, note: str = Form("")):
+    """Editorial sign-off: a person read the article and takes responsibility.
+
+    Stamps reviewer and system time, then hands the article to WordPress and the
+    scheduler. Nothing about the timestamp is user-editable — that is the point.
+    """
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    try:
+        result = approve_article(article_id, actor=user, note=note.strip() or None)
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/admin/articles/{article_id}?msg={quote_plus(str(exc))}&type=error",
+            status_code=303,
+        )
+    except Exception as exc:
+        return RedirectResponse(
+            url=f"/admin/articles/{article_id}?msg={quote_plus(f'Freigabe fehlgeschlagen: {exc}')}&type=error",
+            status_code=303,
+        )
+
+    slot = result.get("scheduled_publish_at") or "-"
+    return RedirectResponse(
+        url=f"/admin/articles/{article_id}?msg={quote_plus(f'Freigegeben. Veroeffentlichung geplant fuer {slot}.')}&type=success",
+        status_code=303,
+    )
+
+
 @router.post("/admin/articles/{article_id}/transition")
 def admin_transition_article(request: Request, article_id: int, target_status: str = Form(...), note: str = Form("")):
     user = _admin_user(request)
@@ -928,6 +991,11 @@ def admin_transition_article(request: Request, article_id: int, target_status: s
         target_internal = ui_to_internal_status(target_status)
         target_ui = internal_to_ui_status(target_internal)
         if target_ui in ALLOWED_TRANSITIONS.get(current_ui, ()):
+            # Setting an article to `publish` by hand IS the editorial sign-off.
+            # Route it through the same door so it cannot slip into WordPress
+            # unstamped and unscheduled.
+            if target_ui == "publish" and not (article.get("editorial_review_at") or ""):
+                return admin_approve_article(request, article_id, note=note)
             update_article_status(article_id, target_internal, actor=user, note=note or None)
             return _dashboard_redirect(msg=f"Artikel #{article_id}: {current_ui} -> {target_ui}")
     return _dashboard_redirect(msg=f"Ungueltiger Statuswechsel fuer Artikel #{article_id}", msg_type="error")

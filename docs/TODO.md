@@ -19,6 +19,9 @@
 - [x] Artikel-Datum + Relevanzscore im UI/Export
 
 ## Recht/Qualitaet
+- [x] Redaktionelle Freigabe vor Veroeffentlichung (Art. 50 Abs. 4 KI-VO), siehe `docs/KI-VO.md`
+- [ ] KI-Register/Export der Freigaben fuer die Dokumentation (CSV je Zeitraum)
+- [ ] Erinnerung, wenn Artikel laenger als X Tage auf Freigabe warten
 - [x] Source-Policy in DB + Admin-UI abbilden
 - [x] Pflichtfelder je Quelle erzwingen (Autor, URL, Lizenz, Hinweise)
 - [x] Auto-Block bei fehlender Lizenzinfo

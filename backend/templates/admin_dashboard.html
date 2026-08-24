@@ -236,12 +236,19 @@
 
     <section class="card">
       <h2>Artikel (Review)</h2>
+      {% if pending_review_count %}
+      <p class="flash flash-success" style="padding:8px 12px;">
+        📝 <strong>{{ pending_review_count }}</strong> Artikel warten auf deine redaktionelle Freigabe —
+        <a href="/admin/dashboard?status_filter=freigabe">jetzt prüfen</a>.
+        Erst nach der Freigabe gehen sie nach WordPress.
+      </p>
+      {% endif %}
       <form method="get" action="/admin/dashboard" class="row filter-row">
         <label>Status-Filter</label>
         <select name="status_filter">
           <option value="" {% if not status_filter %}selected{% endif %}>alle</option>
           {% for s in status_options %}
-          <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+          <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ status_labels.get(s, s) }}</option>
           {% endfor %}
         </select>
         <button type="submit" class="secondary">Filtern</button>
@@ -267,7 +274,7 @@
               <br /><a href="{{ a.canonical_url }}" target="_blank" rel="noopener">Canonical öffnen</a>
               {% endif %}
             </td>
-            <td><span class="badge">{{ a.status_ui }}</span></td>
+            <td><span class="badge">{{ status_labels.get(a.status_ui, a.status_ui) }}</span></td>
             <td>
               <div class="subtle">Publish: {{ "bereit" if a.publish_ready else "blockiert" }}</div>
               {% if not a.publish_ready and a.publish_blockers %}
@@ -323,7 +330,7 @@
               <form method="post" action="/admin/articles/{{ a.id }}/transition" class="inline">
                 <select name="target_status">
                   {% for s in allowed_transitions.get(a.status_ui, []) %}
-                  <option value="{{ s }}">{{ s }}</option>
+                  <option value="{{ s }}">{{ status_labels.get(s, s) }}</option>
                   {% endfor %}
                 </select>
                 {% if allowed_transitions.get(a.status_ui, []) %}
