@@ -22,6 +22,11 @@
 - [x] Redaktionelle Freigabe vor Veroeffentlichung (Art. 50 Abs. 4 KI-VO), siehe `docs/KI-VO.md`
 - [ ] KI-Register/Export der Freigaben fuer die Dokumentation (CSV je Zeitraum)
 - [ ] Erinnerung, wenn Artikel laenger als X Tage auf Freigabe warten
+- [ ] Randfall: "Neu schreiben" auf einem bereits in WordPress eingeplanten Artikel
+      aktualisiert den Beitrag, ohne eine erneute Freigabe zu verlangen. Betrifft
+      nur Altbestand bzw. alte Telegram-Nachrichten (die neue Freigabe-Meldung hat
+      keinen Rewrite-Button). Sauber waere: Slot freigeben, WP-Beitrag auf `draft`
+      zuruecksetzen, Artikel erneut in die Freigabe-Warteschlange.
 - [x] Source-Policy in DB + Admin-UI abbilden
 - [x] Pflichtfelder je Quelle erzwingen (Autor, URL, Lizenz, Hinweise)
 - [x] Auto-Block bei fehlender Lizenzinfo
