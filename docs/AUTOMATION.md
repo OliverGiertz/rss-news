@@ -198,14 +198,45 @@ Alle externen Endpunkte benötigen den Header `X-API-Key: <N8N_API_KEY>`.
 
 ---
 
-## Deployment (Hetzner via GitHub)
+## Deployment (Hetzner)
 
-Das Deployment läuft automatisch über GitHub Actions beim Push auf `main`:
+**Achtung: Das Deployment läuft derzeit NICHT automatisch.** Stand 24.08.2026
+geprüft — `.github/workflows/deploy.yml` ist GitHub-Actions-Syntax, das Remote
+ist aber Forgejo (`git.giertz.biz`), und es greift kein Runner. Zusätzlich hat
+der Server keinen Deploy-Key für das Repo: `git pull origin main` scheitert dort
+mit `Permission denied (publickey)`. Ein Push auf `main` bewirkt also nichts.
 
-1. GitHub Action führt Tests aus
-2. Bei Erfolg: SSH-Deploy auf Hetzner
-3. `pip install -r requirements.txt`
-4. Systemd-Dienst `rss-app` neu starten
+Bis das repariert ist, wird von Hand deployt. Weg über ein Git-Bundle, damit die
+Historie auf dem Server korrekt bleibt (statt Dateien zu kopieren und die Stände
+unbemerkt auseinanderdriften zu lassen):
+
+```bash
+# lokal, <alt> = Commit, auf dem der Server steht
+git bundle create /tmp/deploy.bundle <alt>..main
+scp /tmp/deploy.bundle hetzner:/root/deploy.bundle
+
+# auf dem Server
+cd /opt/rss-news
+git pull /root/deploy.bundle main
+systemctl restart rss-news-api      # zieht die DB-Migration automatisch nach
+```
+
+`pip install` nur, wenn sich `requirements.txt` oder `backend/requirements.txt`
+tatsächlich geändert haben.
+
+Dienst: `rss-news-api` (systemd), `WorkingDirectory=/opt/rss-news`,
+uvicorn auf `127.0.0.1:8790`, davor der Reverse Proxy.
+
+**Vor jedem Deploy die Datenbank sichern:**
+
+```bash
+ssh hetzner "cp -a /opt/rss-news/backend/data/rss_news.db \
+  /root/rss-news-backups/rss_news.db.$(date +%F-%H%M)"
+```
+
+Dauerhafte Reparatur (offen): entweder einen Deploy-Key auf dem Server
+hinterlegen und in Forgejo eintragen, oder den Workflow nach
+`.forgejo/workflows/` umziehen und einen Runner registrieren.
 
 Workflow-Dateien: `.github/workflows/test.yml` und `.github/workflows/deploy.yml`
 

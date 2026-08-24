@@ -34,6 +34,9 @@
 - [x] Manuelle Rechtsfreigabe als Publish-Gate
 
 ## Betrieb
+- [ ] Deploy reparieren: Server hat keinen Deploy-Key (`git pull` scheitert), Forgejo hat keinen
+      Runner fuer `.github/workflows/deploy.yml`. Bis dahin Handbetrieb per Bundle, siehe `docs/AUTOMATION.md`.
+- [x] `backend/data/rss_news.db` aus der Versionierung genommen (Live-DB 95 MB, Repo-Stand 200 KB)
 - [ ] Systemd-Service(s) fuer API/Worker erstellen
 - [ ] Nginx-Routing fuer neue App einrichten
 - [ ] Healthcheck-Endpunkte + Monitoring einrichten

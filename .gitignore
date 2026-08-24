@@ -23,6 +23,17 @@ Thumbs.db
 # dotenv / Umgebungsvariablen
 .env
 
+# SQLite-Datenbanken NIE versionieren.
+# Die Produktivdatenbank liegt auf dem Server unter demselben Pfad
+# (backend/data/rss_news.db, 95 MB). Solange die Datei im Repo lag, haette
+# jeder Commit, der sie mitnimmt, beim naechsten Deploy die Live-Daten mit
+# einem Entwicklungsstand ueberschrieben. init_db() legt die Datei beim
+# ersten Start selbst an.
+*.db
+*.db-wal
+*.db-shm
+backend/data/
+
 # JSON-Datenbanken / Zwischenspeicherung
 # *.json
 # !feeds.json  # optional entfernbar, wenn du Beispielfeeds mit versionieren willst
