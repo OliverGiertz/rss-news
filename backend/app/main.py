@@ -47,7 +47,13 @@ from .repositories import (
     update_article_status,
     upsert_article as repo_upsert_article,
 )
-from .workflow import ALLOWED_UI_TRANSITIONS, UI_STATUSES, internal_to_ui_status, ui_to_internal_status
+from .workflow import (
+    ALLOWED_UI_TRANSITIONS,
+    INTERNAL_STATUSES,
+    UI_STATUSES,
+    internal_to_ui_status,
+    ui_to_internal_status,
+)
 
 settings = get_settings()
 
@@ -135,8 +141,13 @@ class IngestionRunRequest(BaseModel):
     feed_id: int | None = None
 
 
+# Abgeleitet statt handgepflegt: die Liste ist frueher beim Einfuehren eines
+# neuen Status stillschweigend veraltet und hat den Wechsel mit 422 abgelehnt.
+_TRANSITION_TARGET_PATTERN = "^(" + "|".join(sorted(set(UI_STATUSES) | set(INTERNAL_STATUSES))) + ")$"
+
+
 class ArticleTransitionRequest(BaseModel):
-    target_status: str = Field(pattern="^(new|rewrite|publish|published|close|review|approved|error|no_image)$")
+    target_status: str = Field(pattern=_TRANSITION_TARGET_PATTERN)
     note: str | None = None
 
 

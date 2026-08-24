@@ -16,8 +16,8 @@ N8N (2× täglich, 08:00 + 16:00 Uhr)
         │     └── Score < 60 → Abgelehnt + tägliche Telegram-Liste
         └── Pipeline-Zusammenfassung via Telegram
 
-Danach, manuell im Portal (news.vanityontour.de):
-  Artikel öffnen → lesen → [✅ Redaktionell geprüft & freigeben]
+Danach, manuell im Portal (news.vanityontour.de/admin/freigabe):
+  Artikel lesen → [✅ Freigeben] / [✏️ Neu schreiben] / [❌ Verwerfen]
         ├── Stempel: Prüfer + Systemzeit (nicht editierbar)
         ├── Publish-Slot reservieren
         └── WordPress-Beitrag anlegen (Status "future" zum Slot)

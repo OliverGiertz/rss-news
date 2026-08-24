@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from html import escape
+from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
@@ -50,9 +52,11 @@ from .repositories import (
 )
 from .workflow import (
     ALLOWED_UI_TRANSITIONS,
+    INTERNAL_STATUSES,
     UI_STATUS_LABELS,
     UI_STATUSES,
     internal_to_ui_status,
+    ui_status_label,
     ui_to_internal_status,
 )
 
@@ -61,9 +65,10 @@ router = APIRouter(tags=["admin-ui"])
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
     "new": ("rewrite", "close"),
-    "rewrite": ("freigabe", "publish", "close"),
+    "relevanz": ("rewrite", "close"),
+    "rewrite": ("freigabe", "close"),
     "freigabe": ("publish", "rewrite", "close"),
-    "publish": ("published", "close"),
+    "publish": ("close",),
     "published": ("rewrite", "close"),
     "close": ("rewrite",),
     "no_image": ("rewrite", "close"),
@@ -178,6 +183,85 @@ def _build_image_entries(article: dict, extraction: dict, meta: dict) -> list[di
             }
         )
     return entries
+
+
+_PREVIEW_ALLOWED_TAGS = {
+    "p", "br", "h2", "h3", "h4", "ul", "ol", "li",
+    "strong", "b", "em", "i", "blockquote", "a",
+}
+_PREVIEW_DROPPED_CONTENT_TAGS = {"script", "style"}
+
+
+class _PreviewSanitizer(HTMLParser):
+    """Rebuild article HTML with a small whitelist of tags.
+
+    The rewrite text comes from a language model fed with scraped source pages,
+    and the Freigabe page renders it instead of showing raw markup — so it gets
+    filtered rather than trusted. Disallowed tags are dropped, their text kept.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self._suppress_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in _PREVIEW_DROPPED_CONTENT_TAGS:
+            self._suppress_depth += 1
+            return
+        if self._suppress_depth or tag not in _PREVIEW_ALLOWED_TAGS:
+            return
+        if tag == "a":
+            href = next((v or "" for k, v in attrs if k == "href"), "")
+            if href.lower().startswith(("http://", "https://")):
+                self.parts.append(f'<a href="{escape(href, quote=True)}" target="_blank" rel="noopener">')
+            else:
+                self.parts.append("<a>")
+            return
+        self.parts.append(f"<{tag}>")
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if not self._suppress_depth and tag == "br":
+            self.parts.append("<br />")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in _PREVIEW_DROPPED_CONTENT_TAGS:
+            self._suppress_depth = max(0, self._suppress_depth - 1)
+            return
+        if self._suppress_depth or tag not in _PREVIEW_ALLOWED_TAGS or tag == "br":
+            return
+        self.parts.append(f"</{tag}>")
+
+    def handle_data(self, data: str) -> None:
+        if not self._suppress_depth:
+            self.parts.append(escape(data))
+
+
+def _sanitize_preview_html(raw: str | None) -> str:
+    text = (raw or "").strip()
+    if not text:
+        return ""
+    parser = _PreviewSanitizer()
+    try:
+        parser.feed(text)
+        parser.close()
+    except Exception:
+        return f"<p>{escape(re.sub(r'<[^>]+>', ' ', text))}</p>"
+    cleaned = "".join(parser.parts).strip()
+    if not cleaned:
+        return ""
+    # Plain text without any block tag would collapse into one run.
+    if "<p>" not in cleaned and "<h2>" not in cleaned and "<ul>" not in cleaned:
+        cleaned = f"<p>{cleaned}</p>"
+    return cleaned
+
+
+def _safe_admin_redirect(value: str | None, fallback: str) -> str:
+    """Only allow redirects back into the admin UI, never to another host."""
+    target = (value or "").strip()
+    if target.startswith("/admin/") and "//" not in target[1:] and "\\" not in target:
+        return target
+    return fallback
 
 
 def _publish_readiness(article: dict, meta: dict) -> tuple[bool, list[str]]:
@@ -852,30 +936,34 @@ def admin_review_article(request: Request, article_id: int, decision: str = Form
 
 
 @router.post("/admin/articles/{article_id}/rewrite-run")
-def admin_rewrite_run(request: Request, article_id: int):
+def admin_rewrite_run(request: Request, article_id: int, redirect_to: str = Form("")):
     user = _admin_user(request)
     if not user:
         return RedirectResponse(url="/admin/login", status_code=303)
+
+    back = _safe_admin_redirect(redirect_to, f"/admin/articles/{article_id}")
+    sep = "&" if "?" in back else "?"
+
+    def _back(msg: str, msg_type: str = "success"):
+        return RedirectResponse(url=f"{back}{sep}msg={quote_plus(msg)}&type={msg_type}", status_code=303)
+
     article = get_article_by_id(article_id)
     if not article:
         return _dashboard_redirect(msg=f"Artikel #{article_id} nicht gefunden", msg_type="error")
     if internal_to_ui_status(article.get("status")) not in {"new", "rewrite", "freigabe", "no_image"}:
-        return _dashboard_redirect(msg=f"Rewrite nur aus new/rewrite/freigabe fuer Artikel #{article_id}", msg_type="error")
+        return _back(f"Rewrite fuer Artikel #{article_id} in diesem Status nicht moeglich", "error")
     try:
         rewritten = rewrite_article_text(article)
         tags = generate_article_tags(article, rewritten_text=rewritten)
     except Exception as exc:
-        return _dashboard_redirect(msg=f"Rewrite fehlgeschlagen fuer Artikel #{article_id}: {exc}", msg_type="error")
+        return _back(f"Rewrite fehlgeschlagen fuer Artikel #{article_id}: {exc}", "error")
     merged_meta = merge_generated_tags(article.get("meta_json"), tags)
     new_status = post_rewrite_status()
     _upsert_article_from_existing(article, content_rewritten=rewritten, status=new_status, meta_json=merged_meta)
     if new_status == "pending_review":
         clear_article_editorial_review(article_id)
-    target = "Freigabe" if new_status == "pending_review" else "publish"
-    return RedirectResponse(
-        url=f"/admin/articles/{article_id}?msg={quote_plus(f'Rewrite fertig -> {target}')}&type=success",
-        status_code=303,
-    )
+    target = ui_status_label(internal_to_ui_status(new_status))
+    return _back(f"Artikel #{article_id} neu geschrieben -> {target}")
 
 
 @router.post("/admin/rewrite/run")
@@ -948,8 +1036,59 @@ def admin_reopen_article(request: Request, article_id: int):
     )
 
 
+@router.get("/admin/freigabe", response_class=HTMLResponse)
+def admin_review_queue(request: Request):
+    """The daily work list: every article waiting for the editorial sign-off.
+
+    Everything needed to decide is on this one page — the rewritten text is
+    rendered to be read, not shown as markup — and each article carries its three
+    actions, so a queue can be worked through without ever leaving the page.
+    """
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    articles = list_articles(limit=100, status_filter="pending_review")
+    for article in articles:
+        meta = _parse_meta_json(article.get("meta_json"))
+        image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
+        selected = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
+        article["selected_image_url"] = selected
+        article["selected_image_proxy_url"] = (
+            f"/admin/images/proxy?{urlencode({'url': selected})}" if selected else None
+        )
+        relevance = meta.get("relevance") if isinstance(meta.get("relevance"), dict) else {}
+        article["relevance_score"] = relevance.get("score")
+        article["relevance_reason"] = relevance.get("reason")
+        tags = meta.get("generated_tags") if isinstance(meta.get("generated_tags"), list) else []
+        article["generated_tags"] = [str(t) for t in tags if t]
+        article["preview_html"] = _sanitize_preview_html(article.get("content_rewritten"))
+        article["days_old"] = article_age_days(article.get("published_at"))
+        article["source_display"] = (
+            article.get("source_name_snapshot") or article.get("feed_name") or "unbekannte Quelle"
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "admin_review_queue.html",
+        {
+            "request": request,
+            "title": "Freigabe",
+            "user": user,
+            "articles": articles,
+            "flash_msg": request.query_params.get("msg", ""),
+            "flash_type": request.query_params.get("type", "success"),
+        },
+    )
+
+
 @router.post("/admin/articles/{article_id}/approve")
-def admin_approve_article(request: Request, article_id: int, note: str = Form("")):
+def admin_approve_article(
+    request: Request,
+    article_id: int,
+    note: str = Form(""),
+    redirect_to: str = Form(""),
+):
     """Editorial sign-off: a person read the article and takes responsibility.
 
     Stamps reviewer and system time, then hands the article to WordPress and the
@@ -959,31 +1098,49 @@ def admin_approve_article(request: Request, article_id: int, note: str = Form(""
     if not user:
         return RedirectResponse(url="/admin/login", status_code=303)
 
+    back = _safe_admin_redirect(redirect_to, f"/admin/articles/{article_id}")
+    sep = "&" if "?" in back else "?"
+
     try:
         result = approve_article(article_id, actor=user, note=note.strip() or None)
     except ValueError as exc:
         return RedirectResponse(
-            url=f"/admin/articles/{article_id}?msg={quote_plus(str(exc))}&type=error",
+            url=f"{back}{sep}msg={quote_plus(f'Artikel #{article_id}: {exc}')}&type=error",
             status_code=303,
         )
     except Exception as exc:
         return RedirectResponse(
-            url=f"/admin/articles/{article_id}?msg={quote_plus(f'Freigabe fehlgeschlagen: {exc}')}&type=error",
+            url=f"{back}{sep}msg={quote_plus(f'Freigabe von #{article_id} fehlgeschlagen: {exc}')}&type=error",
             status_code=303,
         )
 
     slot = result.get("scheduled_publish_at") or "-"
     return RedirectResponse(
-        url=f"/admin/articles/{article_id}?msg={quote_plus(f'Freigegeben. Veroeffentlichung geplant fuer {slot}.')}&type=success",
+        url=f"{back}{sep}msg={quote_plus(f'Artikel #{article_id} freigegeben. Veroeffentlichung geplant fuer {slot}.')}&type=success",
         status_code=303,
     )
 
 
 @router.post("/admin/articles/{article_id}/transition")
-def admin_transition_article(request: Request, article_id: int, target_status: str = Form(...), note: str = Form("")):
+def admin_transition_article(
+    request: Request,
+    article_id: int,
+    target_status: str = Form(...),
+    note: str = Form(""),
+    redirect_to: str = Form(""),
+):
     user = _admin_user(request)
     if not user:
         return RedirectResponse(url="/admin/login", status_code=303)
+
+    def _back(msg: str, msg_type: str = "success"):
+        if not redirect_to:
+            return _dashboard_redirect(msg=msg, msg_type=msg_type)
+        target = _safe_admin_redirect(redirect_to, "/admin/dashboard")
+        sep = "&" if "?" in target else "?"
+        return RedirectResponse(
+            url=f"{target}{sep}msg={quote_plus(msg)}&type={msg_type}", status_code=303
+        )
 
     article = get_article_by_id(article_id)
     if article:
@@ -995,10 +1152,12 @@ def admin_transition_article(request: Request, article_id: int, target_status: s
             # Route it through the same door so it cannot slip into WordPress
             # unstamped and unscheduled.
             if target_ui == "publish" and not (article.get("editorial_review_at") or ""):
-                return admin_approve_article(request, article_id, note=note)
+                return admin_approve_article(request, article_id, note=note, redirect_to=redirect_to)
             update_article_status(article_id, target_internal, actor=user, note=note or None)
-            return _dashboard_redirect(msg=f"Artikel #{article_id}: {current_ui} -> {target_ui}")
-    return _dashboard_redirect(msg=f"Ungueltiger Statuswechsel fuer Artikel #{article_id}", msg_type="error")
+            return _back(
+                f"Artikel #{article_id}: {ui_status_label(current_ui)} -> {ui_status_label(target_ui)}"
+            )
+    return _back(f"Ungueltiger Statuswechsel fuer Artikel #{article_id}", msg_type="error")
 
 
 _PAGE_SIZE = 50
@@ -1023,6 +1182,8 @@ def admin_article_list(request: Request):
 
     # Enrich each article with thumbnail URL
     for a in articles:
+        a["status_ui"] = internal_to_ui_status(a.get("status"))
+        a["status_label"] = ui_status_label(a["status_ui"])
         meta = _parse_meta_json(a.get("meta_json"))
         image_review = meta.get("image_review") if isinstance(meta.get("image_review"), dict) else {}
         sel = image_review.get("selected_url") if isinstance(image_review.get("selected_url"), str) else None
@@ -1047,6 +1208,11 @@ def admin_article_list(request: Request):
             "total_pages": total_pages,
             "total": total,
             "page_size": _PAGE_SIZE,
+            # Wert bleibt der interne Status (danach wird gefiltert), angezeigt
+            # wird die Klartext-Bezeichnung.
+            "status_options": [
+                (s, ui_status_label(internal_to_ui_status(s))) for s in INTERNAL_STATUSES
+            ],
             "status_filter": status_filter or "",
             "search": search or "",
             "flash_msg": request.query_params.get("msg", ""),

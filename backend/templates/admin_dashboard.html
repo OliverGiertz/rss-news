@@ -13,6 +13,7 @@
       <p>Angemeldet als <strong>{{ user }}</strong></p>
     </div>
     <div class="row">
+      <a class="linkbtn" href="/admin/freigabe">Freigabe{% if pending_review_count %} ({{ pending_review_count }}){% endif %}</a>
       <a class="linkbtn" href="/admin/article-list">Artikelliste</a>
       <a class="linkbtn" href="/admin/schedule">Veröffentlichungsplan</a>
       <a class="linkbtn" href="/admin/connectivity">Connectivity Check</a>
@@ -239,7 +240,7 @@
       {% if pending_review_count %}
       <p class="flash flash-success" style="padding:8px 12px;">
         📝 <strong>{{ pending_review_count }}</strong> Artikel warten auf deine redaktionelle Freigabe —
-        <a href="/admin/dashboard?status_filter=freigabe">jetzt prüfen</a>.
+        <a href="/admin/freigabe">jetzt prüfen</a>.
         Erst nach der Freigabe gehen sie nach WordPress.
       </p>
       {% endif %}

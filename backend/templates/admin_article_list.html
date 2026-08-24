@@ -46,6 +46,7 @@
     </div>
     <div class="row">
       <a class="linkbtn" href="/admin/dashboard">Dashboard</a>
+      <a class="linkbtn" href="/admin/freigabe">Freigabe</a>
       <a class="linkbtn" href="/admin/schedule">Veröffentlichungsplan</a>
       <form method="post" action="/admin/logout">
         <button type="submit" class="secondary">Logout</button>
@@ -72,8 +73,8 @@
             <label>Status</label>
             <select name="status_filter">
               <option value="">Alle</option>
-              {% for s in ["new","review","pending_review","approved","published","error","no_image"] %}
-              <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+              {% for value, label in status_options %}
+              <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
             </select>
           </div>
@@ -139,7 +140,7 @@
                 {% endif %}
               </td>
               <td>
-                <span class="badge-sm badge-{{ a.status }}">{{ a.status }}</span>
+                <span class="badge-sm badge-{{ a.status }}">{{ a.status_label }}</span>
               </td>
               <td style="font-size:0.82em;">
                 {% if a.scheduled_publish_at %}

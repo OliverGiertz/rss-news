@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/admin/static/admin.css" />
+  <style>
+    .queue-intro { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .queue-count { font-size: 1.6em; font-weight: 700; }
+    .queue-index { margin: 0; padding-left: 1.2em; }
+    .queue-index li { margin: 2px 0; }
+    .review-item { border-left: 4px solid #f59e0b; }
+    .review-head { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .review-head h2 { margin: 0 0 6px 0; }
+    .review-facts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+    .review-thumb { width: 180px; flex: 0 0 180px; }
+    .review-thumb img { width: 100%; border-radius: 6px; display: block; }
+    .review-headtext { flex: 1 1 320px; min-width: 260px; }
+    .review-text {
+      max-width: 72ch; margin: 14px 0; padding: 14px 18px;
+      background: #fcfcfd; border: 1px solid #e5e7eb; border-radius: 8px;
+      line-height: 1.65;
+    }
+    .review-text h2 { font-size: 1.15em; margin: 1.1em 0 0.3em; }
+    .review-text h3 { font-size: 1.05em; margin: 1em 0 0.3em; }
+    .review-text p { margin: 0.6em 0; }
+    .review-text ul, .review-text ol { margin: 0.6em 0; padding-left: 1.4em; }
+    .review-actions {
+      display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+      border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 4px;
+    }
+    .review-actions .approve { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .review-actions .approve input[name="note"] { min-width: 220px; }
+    .review-actions .spacer { flex: 1 1 auto; }
+    .btn-approve { background: #047857; }
+    .score-hi { background: #d1fae5; color: #065f46; }
+    .score-mid { background: #fef3c7; color: #92400e; }
+    .queue-empty { text-align: center; padding: 36px 12px; }
+    .queue-empty .big { font-size: 2.2em; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Freigabe</h1>
+      <p>Angemeldet als <strong>{{ user }}</strong></p>
+    </div>
+    <div class="row">
+      <a class="linkbtn" href="/admin/dashboard">Dashboard</a>
+      <a class="linkbtn" href="/admin/article-list">Artikelliste</a>
+      <a class="linkbtn" href="/admin/schedule">Veröffentlichungsplan</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit" class="secondary">Logout</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container">
+    {% if flash_msg %}
+    <section class="card flash {{ 'flash-error' if flash_type == 'error' else 'flash-success' }}">
+      {{ flash_msg }}
+    </section>
+    {% endif %}
+
+    {% if not articles %}
+    <section class="card queue-empty">
+      <div class="big">✅</div>
+      <h2>Nichts zu prüfen</h2>
+      <p class="subtle">
+        Kein Artikel wartet auf die redaktionelle Freigabe. Neue Artikel erscheinen
+        hier, sobald die Pipeline gelaufen ist.
+      </p>
+      <p><a class="linkbtn" href="/admin/dashboard">Zum Dashboard</a></p>
+    </section>
+    {% else %}
+
+    <section class="card">
+      <div class="queue-intro">
+        <span class="queue-count">{{ articles|length }}</span>
+        <span>{{ "Artikel wartet" if articles|length == 1 else "Artikel warten" }} auf deine Freigabe</span>
+      </div>
+      <p class="subtle">
+        Lies den Text, dann entscheide: freigeben, neu schreiben oder verwerfen.
+        Erst die Freigabe legt den WordPress-Beitrag an und bucht den
+        Veröffentlichungs-Slot. Prüfer und Uhrzeit werden dabei automatisch
+        festgehalten (Art. 50 Abs. 4 KI-VO).
+      </p>
+      {% if articles|length > 1 %}
+      <ol class="queue-index">
+        {% for a in articles %}
+        <li><a href="#artikel-{{ a.id }}">{{ a.title }}</a></li>
+        {% endfor %}
+      </ol>
+      {% endif %}
+    </section>
+
+    {% for a in articles %}
+    <section class="card review-item" id="artikel-{{ a.id }}">
+      <div class="review-head">
+        {% if a.selected_image_proxy_url %}
+        <div class="review-thumb">
+          <a href="{{ a.selected_image_url }}" target="_blank" rel="noopener">
+            <img src="{{ a.selected_image_proxy_url }}" data-fallback-src="{{ a.selected_image_url }}"
+                 alt="Hauptbild" loading="lazy"
+                 onerror="if(!this.dataset.fallbackUsed){this.dataset.fallbackUsed='1';this.src=this.dataset.fallbackSrc;}else{this.classList.add('img-failed');}" />
+          </a>
+        </div>
+        {% endif %}
+        <div class="review-headtext">
+          <h2>{{ a.title }}</h2>
+          <div class="review-facts">
+            {% if a.relevance_score is not none %}
+            <span class="badge {{ 'score-hi' if a.relevance_score >= 85 else 'score-mid' }}">Relevanz {{ a.relevance_score }}/100</span>
+            {% endif %}
+            <span class="badge">{{ a.word_count or 0 }} Wörter</span>
+            {% if a.days_old is not none %}<span class="badge">{{ a.days_old }} Tage alt</span>{% endif %}
+            <span class="subtle">Quelle: {{ a.source_display }}</span>
+          </div>
+          {% if a.relevance_reason %}
+          <p class="subtle">Einschätzung: {{ a.relevance_reason }}</p>
+          {% endif %}
+          {% if a.generated_tags %}
+          <p class="subtle">Tags: {{ a.generated_tags|join(", ") }}</p>
+          {% endif %}
+          <p class="subtle">
+            <a href="{{ a.source_url }}" target="_blank" rel="noopener">Originalartikel öffnen</a>
+            &nbsp;|&nbsp;
+            <a href="/admin/articles/{{ a.id }}">Detailseite (Bilder, Rechtliches, Text bearbeiten)</a>
+          </p>
+        </div>
+      </div>
+
+      {% if a.preview_html %}
+      <div class="review-text">{{ a.preview_html|safe }}</div>
+      {% else %}
+      <p class="subtle">Kein Rewrite-Text vorhanden — bitte neu schreiben lassen.</p>
+      {% endif %}
+
+      <div class="review-actions">
+        <form method="post" action="/admin/articles/{{ a.id }}/approve" class="approve">
+          <input type="hidden" name="redirect_to" value="/admin/freigabe" />
+          <input name="note" placeholder="Notiz zur Prüfung (optional)" />
+          <button type="submit" class="btn-approve">✅ Freigeben</button>
+        </form>
+        <span class="spacer"></span>
+        <form method="post" action="/admin/articles/{{ a.id }}/rewrite-run" class="inline">
+          <input type="hidden" name="redirect_to" value="/admin/freigabe" />
+          <button type="submit" class="secondary" title="Text mit OpenAI neu schreiben lassen">✏️ Neu schreiben</button>
+        </form>
+        <form method="post" action="/admin/articles/{{ a.id }}/transition" class="inline">
+          <input type="hidden" name="target_status" value="close" />
+          <input type="hidden" name="note" value="Bei der redaktionellen Prüfung verworfen" />
+          <input type="hidden" name="redirect_to" value="/admin/freigabe" />
+          <button type="submit" class="secondary">❌ Verwerfen</button>
+        </form>
+      </div>
+    </section>
+    {% endfor %}
+    {% endif %}
+  </main>
+</body>
+</html>

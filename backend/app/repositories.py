@@ -876,7 +876,8 @@ def list_articles(limit: int = 100, status_filter: str | None = None) -> list[di
             rows = conn.execute(
                 """
                 SELECT a.id, a.feed_id, a.source_article_id, a.source_hash, a.title, a.source_url, a.canonical_url, a.published_at, a.author,
-                       a.summary, a.content_raw, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name,
+                       a.summary, a.content_raw, a.content_rewritten,
+                       a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name,
                        a.image_urls_json, a.press_contact, a.source_name_snapshot, a.source_terms_url_snapshot,
                        a.source_license_name_snapshot, a.legal_checked, a.legal_checked_at, a.legal_note,
                        a.wp_post_id, a.wp_post_url, a.publish_attempts, a.publish_last_error, a.published_to_wp_at,
@@ -893,7 +894,8 @@ def list_articles(limit: int = 100, status_filter: str | None = None) -> list[di
             rows = conn.execute(
                 """
                 SELECT a.id, a.feed_id, a.source_article_id, a.source_hash, a.title, a.source_url, a.canonical_url, a.published_at, a.author,
-                       a.summary, a.content_raw, a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name,
+                       a.summary, a.content_raw, a.content_rewritten,
+                       a.word_count, a.status, a.meta_json, a.created_at, a.updated_at, f.name AS feed_name,
                        a.image_urls_json, a.press_contact, a.source_name_snapshot, a.source_terms_url_snapshot,
                        a.source_license_name_snapshot, a.legal_checked, a.legal_checked_at, a.legal_note,
                        a.wp_post_id, a.wp_post_url, a.publish_attempts, a.publish_last_error, a.published_to_wp_at,

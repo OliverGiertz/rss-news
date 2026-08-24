@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 
 from backend.app import config as config_module
 from backend.app import pipeline as pipeline_module
+from backend.app.admin_ui import _safe_admin_redirect, _sanitize_preview_html
 from backend.app.db import init_db
 from backend.app.main import app
 from backend.app.publisher import _can_publish
@@ -315,7 +316,113 @@ class TestDashboardSurfacesQueue(EditorialReviewTestBase):
         page = self.client.get("/admin/dashboard")
         self.assertEqual(page.status_code, 200)
         self.assertIn("warten auf deine redaktionelle Freigabe", page.text)
-        self.assertIn("status_filter=freigabe", page.text)
+        self.assertIn('href="/admin/freigabe"', page.text)
+
+
+class TestPreviewSanitizer(unittest.TestCase):
+    """The rewrite text is model output over scraped pages — render it filtered."""
+
+    def test_keeps_article_markup(self) -> None:
+        html = _sanitize_preview_html("<h2>Titel</h2><p>Text mit <strong>Betonung</strong></p><ul><li>Punkt</li></ul>")
+        self.assertIn("<h2>Titel</h2>", html)
+        self.assertIn("<strong>Betonung</strong>", html)
+        self.assertIn("<li>Punkt</li>", html)
+
+    def test_drops_scripts_and_their_content(self) -> None:
+        html = _sanitize_preview_html('<p>Text</p><script>alert("x")</script>')
+        self.assertIn("<p>Text</p>", html)
+        self.assertNotIn("<script", html)
+        self.assertNotIn("alert", html)
+
+    def test_strips_event_handlers_and_unknown_tags(self) -> None:
+        html = _sanitize_preview_html('<p onclick="evil()">Hallo</p><iframe src="x"></iframe>')
+        self.assertNotIn("onclick", html)
+        self.assertNotIn("<iframe", html)
+        self.assertIn("Hallo", html)
+
+    def test_keeps_only_http_links(self) -> None:
+        html = _sanitize_preview_html('<p><a href="javascript:evil()">bad</a> <a href="https://ok.de">gut</a></p>')
+        self.assertNotIn("javascript:", html)
+        self.assertIn('href="https://ok.de"', html)
+
+    def test_plain_text_gets_a_paragraph(self) -> None:
+        self.assertEqual(_sanitize_preview_html("Nur Text"), "<p>Nur Text</p>")
+
+    def test_empty_input(self) -> None:
+        self.assertEqual(_sanitize_preview_html(None), "")
+        self.assertEqual(_sanitize_preview_html("   "), "")
+
+
+class TestSafeRedirect(unittest.TestCase):
+    def test_accepts_admin_paths(self) -> None:
+        self.assertEqual(_safe_admin_redirect("/admin/freigabe", "/fallback"), "/admin/freigabe")
+
+    def test_rejects_foreign_targets(self) -> None:
+        for bad in ("https://evil.example/x", "//evil.example", "/admin//evil.example", "", None):
+            self.assertEqual(_safe_admin_redirect(bad, "/fallback"), "/fallback")
+
+
+class TestReviewQueuePage(EditorialReviewTestBase):
+    def _login(self) -> None:
+        self.client.post(
+            "/admin/login",
+            data={"username": "admin", "password": "secret"},
+            follow_redirects=False,
+        )
+
+    def test_queue_lists_pending_articles_with_all_three_actions(self) -> None:
+        self._login()
+        article_id = self._create_article(status="pending_review", rewritten="<h2>Kapitel</h2><p>Inhalt hier</p>")
+
+        page = self.client.get("/admin/freigabe")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Artikel zur Freigabe", page.text)      # Titel
+        self.assertIn("Inhalt hier", page.text)               # lesbarer Text
+        self.assertIn(f"/admin/articles/{article_id}/approve", page.text)
+        self.assertIn(f"/admin/articles/{article_id}/rewrite-run", page.text)
+        self.assertIn(f"/admin/articles/{article_id}/transition", page.text)
+
+    def test_queue_hides_articles_in_other_states(self) -> None:
+        self._login()
+        self._create_article(status="published", rewritten=LONG_TEXT)
+
+        page = self.client.get("/admin/freigabe")
+        self.assertIn("Nichts zu prüfen", page.text)
+
+    def test_approving_from_queue_returns_to_the_queue(self) -> None:
+        self._login()
+        article_id = self._create_article(status="pending_review", rewritten=LONG_TEXT)
+
+        with patch.object(pipeline_module, "reserve_publish_slot", return_value="2026-08-25 09:00:00"), \
+             patch.object(pipeline_module, "publish_article_draft", return_value=(7, "https://blog/p/7")):
+            response = self.client.post(
+                f"/admin/articles/{article_id}/approve",
+                data={"note": "", "redirect_to": "/admin/freigabe"},
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertTrue(response.headers["location"].startswith("/admin/freigabe?"))
+        self.assertEqual(get_article_by_id(article_id)["status"], "approved")
+
+    def test_discarding_from_queue_returns_to_the_queue(self) -> None:
+        self._login()
+        article_id = self._create_article(status="pending_review", rewritten=LONG_TEXT)
+
+        response = self.client.post(
+            f"/admin/articles/{article_id}/transition",
+            data={"target_status": "close", "note": "", "redirect_to": "/admin/freigabe"},
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertTrue(response.headers["location"].startswith("/admin/freigabe?"))
+        self.assertEqual(get_article_by_id(article_id)["status"], "error")
+
+    def test_queue_requires_login(self) -> None:
+        response = self.client.get("/admin/freigabe", follow_redirects=False)
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("/admin/login", response.headers["location"])
 
 
 class TestLegacyArticlesKeepPublishing(EditorialReviewTestBase):

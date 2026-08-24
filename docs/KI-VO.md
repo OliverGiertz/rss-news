@@ -41,12 +41,11 @@ N8N (2× täglich)  →  POST /api/n8n/pipeline
    └── Status: pending_review  ──►  KEIN WordPress-Beitrag, KEIN Slot
                                      Telegram: Info + Link ins Portal
                                         │
-                        Mensch öffnet den Artikel im Portal, liest ihn
+                     Mensch öffnet /admin/freigabe und liest den Artikel
                                         │
               ┌─────────────────────────┼──────────────────────────┐
               ▼                         ▼                          ▼
-     „Redaktionell geprüft      „Rewrite ausführen"          „Verwerfen"
-      & freigeben"                  (neu schreiben)          (Status close)
+        „✅ Freigeben"          „✏️ Neu schreiben"          „❌ Verwerfen"
               │
               ▼
    Stempel: editorial_review_at / _by / _note (Systemzeit, nicht editierbar)
@@ -61,6 +60,19 @@ Wichtig an der Reihenfolge:
 - **Kein Slot vor der Freigabe.** Es gibt vier feste Slots pro Tag; ein Artikel,
   der stundenlang auf die Prüfung wartet, darf keinen davon blockieren. Der Slot
   wird im Moment der Freigabe reserviert, der Scheduler füllt Lücken auf.
+
+## Die Freigabe-Seite
+
+`/admin/freigabe` ist die Arbeitsliste: alle Artikel im Status „Wartet auf
+Freigabe", jeweils mit Hauptbild, Relevanz-Score samt Begründung, Tags, Link zum
+Originalartikel — und dem **umgeschriebenen Text lesbar gerendert**, nicht als
+Markup. Darunter die drei Aktionen. Nach jeder Aktion landet man wieder in der
+Liste, sodass eine Warteschlange von oben nach unten abgearbeitet werden kann.
+
+Der Text stammt aus einem Sprachmodell, das mit fremden Webseiten gefüttert
+wurde. Für die Anzeige wird er deshalb durch einen Tag-Whitelist-Filter geschickt
+(`_sanitize_preview_html`): Absätze, Überschriften, Listen und http(s)-Links
+bleiben, alles andere fällt weg.
 
 ## Wo der Nachweis liegt
 

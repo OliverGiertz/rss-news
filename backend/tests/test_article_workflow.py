@@ -65,24 +65,33 @@ class TestArticleWorkflow(unittest.TestCase):
         return article.json()["id"]
 
     def test_valid_transition_chain(self) -> None:
+        """The chain now runs through the editorial gate: rewrite -> freigabe -> publish."""
         article_id = self._create_article()
 
         t1 = self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "rewrite"})
         self.assertEqual(t1.status_code, 200)
 
-        t2 = self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "publish"})
+        t2 = self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "freigabe"})
         self.assertEqual(t2.status_code, 200)
 
-        t3 = self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "published"})
+        t3 = self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "publish"})
         self.assertEqual(t3.status_code, 200)
 
-        t4 = self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "rewrite"})
+        t4 = self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "close"})
         self.assertEqual(t4.status_code, 200)
 
         final = self.client.get(f"/api/articles/{article_id}")
         self.assertEqual(final.status_code, 200)
-        self.assertEqual(final.json()["item"]["status"], "rewrite")
-        self.assertEqual(final.json()["item"]["status_ui"], "rewrite")
+        self.assertEqual(final.json()["item"]["status"], "error")
+        self.assertEqual(final.json()["item"]["status_ui"], "close")
+
+    def test_rewrite_cannot_jump_straight_to_publish(self) -> None:
+        """The old shortcut past the sign-off is gone."""
+        article_id = self._create_article()
+        self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "rewrite"})
+
+        jump = self.client.post(f"/api/articles/{article_id}/transition", json={"target_status": "publish"})
+        self.assertEqual(jump.status_code, 400)
 
     def test_invalid_transition_rejected(self) -> None:
         article_id = self._create_article()

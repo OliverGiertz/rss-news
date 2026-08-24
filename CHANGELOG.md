@@ -1,3 +1,25 @@
+## [1.8.1] - 2026-08-24
+
+### 📋 Freigabe-Seite
+  - Neue Seite `/admin/freigabe`: alle Artikel im Status „Wartet auf Freigabe" auf einer Arbeitsliste
+  - Pro Artikel: Hauptbild, Relevanz-Score mit Begründung, Tags, Wortzahl, Alter, Link zum Originalartikel
+  - Der umgeschriebene Text wird **lesbar gerendert** statt als Markup — durch einen Tag-Whitelist-Filter, weil er aus Modell-Ausgabe über fremde Webseiten stammt
+  - Drei Aktionen direkt an jedem Artikel: ✅ Freigeben (mit Notizfeld), ✏️ Neu schreiben, ❌ Verwerfen
+  - Nach jeder Aktion zurück zur Liste, damit sich eine Warteschlange am Stück abarbeiten lässt
+  - Verlinkt aus der Navigation aller Admin-Seiten, mit Zähler im Dashboard
+
+### 🧹 Status-Altlasten entfernt
+  - Artikelliste zeigte interne Kürzel (`pending_review`, `approved`, `error`) — jetzt überall Klartext
+  - Status `review` (Relevanz-Warnzone 60–79) wurde als „Rewrite" angezeigt, was etwas anderes bedeutet — heißt jetzt „Niedrige Relevanz"
+  - Übergang `Rewrite → Freigegeben` entfernt: ein zweiter Weg an der Freigabe vorbei
+  - Übergang `Freigegeben → Veröffentlicht` entfernt: das setzen WordPress bzw. der WP-Sync, nicht die Hand
+  - API-Statusliste wird aus dem Statusmodell abgeleitet statt handgepflegt (kannte `freigabe` nicht und lehnte den Wechsel mit 422 ab)
+
+### 🐛 Behoben
+  - `list_articles` las `content_rewritten` nicht mit — die Freigabe-Seite hätte nie einen Text angezeigt
+
+---
+
 ## [1.8.0] - 2026-08-24
 
 ### ⚖️ Redaktionelle Freigabe vor der Veröffentlichung (Art. 50 Abs. 4 KI-VO)
