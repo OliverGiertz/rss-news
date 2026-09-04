@@ -33,8 +33,8 @@ from .repositories import (
     upsert_article as repo_upsert_article,
 )
 from .rewrite import generate_article_tags, merge_generated_tags, rewrite_article_text, score_article_relevance
-from .scheduler import reserve_publish_slot
-from .wordpress import publish_article_draft, selected_image_exists
+from .scheduler import SlotPlan, release_publish_slot, reserve_publish_slot, restore_publish_slot, set_publish_slot
+from .wordpress import publish_article_draft, selected_image_exists, update_wp_post_schedule
 
 logger = logging.getLogger(__name__)
 
@@ -426,7 +426,6 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
         except ValueError as exc:
             # Quality gate rejection (too short etc.) — status already set in _do_rewrite_and_draft
             # Release the reserved slot so it's available for the next article
-            from .scheduler import release_publish_slot
             release_publish_slot(article_id)
             # Clean up any stale WP draft from a previous pipeline run
             stale = get_article_by_id(article_id)
@@ -455,7 +454,6 @@ def _process_article(article: dict[str, Any], stats: PipelineStats, settings: An
             logger.error("Draft-Erstellung für #%d fehlgeschlagen: %s", article_id, exc)
             update_article_status(article_id, "error", actor="pipeline", note=f"Draft-Fehler: {exc}")
             # Release reserved slot so it's not permanently blocked by a failed article
-            from .scheduler import release_publish_slot
             release_publish_slot(article_id)
             raise
 
@@ -481,13 +479,23 @@ def rewrite_and_update_draft(article_id: int) -> None:
     _do_rewrite_and_draft(fresh, create_wp_draft=keep_wp_in_sync)
 
 
-def approve_article(article_id: int, actor: str, note: str | None = None) -> dict[str, Any]:
+def approve_article(
+    article_id: int,
+    actor: str,
+    note: str | None = None,
+    schedule_mode: str = "auto",
+    schedule_at: str | None = None,
+) -> dict[str, Any]:
     """Record the human editorial sign-off, then publish to WP and schedule it.
 
     This is the single door to `approved`: it stamps who approved and when
     (Art. 50 Abs. 4 KI-VO), reserves the publish slot and creates the scheduled
     WordPress post. If WordPress fails, the article falls back into the review
     queue with its slot released, so the approval can simply be repeated.
+
+    `schedule_mode` carries the editor's wish: `auto` appends to the plan as
+    before, `today`/`tomorrow`/`now`/`custom` pull the article forward. Nothing
+    already scheduled is moved for it - see `scheduler` for why.
     """
     from . import telegram_bot as tg
 
@@ -510,13 +518,18 @@ def approve_article(article_id: int, actor: str, note: str | None = None) -> dic
     )
 
     try:
-        slot = reserve_publish_slot(article_id)
+        plan = set_publish_slot(
+            article_id,
+            mode=schedule_mode,
+            custom=schedule_at,
+            actor=actor,
+            keep_existing=True,
+        )
         fresh = get_article_by_id(article_id)
         if not fresh:
             raise RuntimeError(f"Artikel #{article_id} nach Freigabe nicht gefunden")
-        wp_post_id, wp_post_url = publish_article_draft(fresh)
+        wp_post_id, wp_post_url = publish_article_draft(fresh, publish_now=plan.publish_now)
     except Exception as exc:
-        from .scheduler import release_publish_slot
         release_publish_slot(article_id)
         update_article_status(
             article_id,
@@ -534,12 +547,12 @@ def approve_article(article_id: int, actor: str, note: str | None = None) -> dic
         wp_post_url=wp_post_url,
         error=None,
         increment_attempts=True,
-        set_published_status=False,
+        set_published_status=plan.publish_now,
     )
 
     final = get_article_by_id(article_id) or {}
     try:
-        tg.notify_approved(final, scheduled_at=slot)
+        tg.notify_approved(final, scheduled_at=plan.label)
     except Exception as exc:
         logger.warning("Telegram Freigabe-Bestätigung für #%d fehlgeschlagen: %s", article_id, exc)
 
@@ -547,10 +560,57 @@ def approve_article(article_id: int, actor: str, note: str | None = None) -> dic
         "article_id": article_id,
         "reviewed_at": reviewed_at,
         "reviewed_by": actor,
-        "scheduled_publish_at": slot,
+        "scheduled_publish_at": plan.label,
+        "schedule_kind": plan.kind,
+        "schedule_note": plan.note,
+        "published_now": plan.publish_now,
         "wp_post_id": wp_post_id,
         "wp_post_url": wp_post_url,
     }
+
+
+def reschedule_article(
+    article_id: int, mode: str, custom: str | None = None, actor: str = "admin"
+) -> SlotPlan:
+    """Move an already scheduled article to another publish date.
+
+    Only this article moves. Its old raster slot simply falls free and the next
+    pipeline run drops the next article into it, so the queue keeps its length
+    without a single other post changing date.
+    """
+    article = get_article_by_id(article_id)
+    if not article:
+        raise RuntimeError(f"Artikel #{article_id} nicht gefunden")
+    if (article.get("status") or "") not in {"approved", "published"}:
+        raise ValueError("Nur freigegebene Artikel haben einen Veröffentlichungstermin")
+
+    previous = article.get("scheduled_publish_at")
+    plan = set_publish_slot(article_id, mode=mode, custom=custom, actor=actor)
+
+    wp_post_id = article.get("wp_post_id")
+    if wp_post_id:
+        try:
+            update_wp_post_schedule(int(wp_post_id), plan.iso, publish_now=plan.publish_now)
+        except Exception as exc:
+            # A slot the DB believes in but WordPress never heard of is worse
+            # than no change at all.
+            restore_publish_slot(article_id, previous)
+            logger.error("Termin von #%d konnte in WordPress nicht gesetzt werden: %s", article_id, exc)
+            raise
+
+        if plan.publish_now:
+            from .repositories import mark_article_publish_result
+            mark_article_publish_result(
+                article_id,
+                wp_post_id=int(wp_post_id),
+                wp_post_url=article.get("wp_post_url"),
+                error=None,
+                increment_attempts=False,
+                set_published_status=True,
+            )
+
+    logger.info("Artikel #%d neu terminiert auf %s (%s)", article_id, plan.iso, plan.kind)
+    return plan
 
 
 def discard_article(article_id: int) -> None:

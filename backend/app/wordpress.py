@@ -525,7 +525,13 @@ def _build_post_content(article: dict[str, Any]) -> tuple[str, str | None]:
     return content, None
 
 
-def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
+def publish_article_draft(article: dict[str, Any], publish_now: bool = False) -> tuple[int, str | None]:
+    """Create or update the article's WordPress post.
+
+    `publish_now` puts the post live immediately instead of handing the date
+    to WP-Cron - the "sofort" case, where waiting for the next cron tick would
+    defeat the purpose.
+    """
     settings = get_settings()
     if not settings.wordpress_base_url or not settings.wordpress_username or not settings.wordpress_app_password:
         raise RuntimeError("WordPress Konfiguration fehlt (base_url, username, app_password)")
@@ -595,6 +601,8 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
                 payload["status"] = "future"
         except Exception:
             pass
+    if publish_now:
+        payload["status"] = "publish"
 
     wp_post_id = article.get("wp_post_id")
     tag_names = _selected_tags_from_meta(article.get("meta_json"))
@@ -656,6 +664,30 @@ def publish_article_draft(article: dict[str, Any]) -> tuple[int, str | None]:
 
 def selected_image_exists(article: dict[str, Any]) -> bool:
     return _selected_image_url_from_meta(article.get("meta_json")) is not None
+
+
+def update_wp_post_schedule(wp_post_id: int, scheduled_at: str, publish_now: bool = False) -> str:
+    """Move an existing WordPress post to a new publish date.
+
+    Only date and status travel - rewriting the whole post to change a timestamp
+    would clobber every edit made in WordPress since. `publish_now` flips the
+    post to `publish` right away instead of leaving it to WP-Cron, which on a
+    quiet site can sit on a due `future` post for a while.
+    """
+    settings = get_settings()
+    if not settings.wordpress_base_url or not settings.wordpress_username or not settings.wordpress_app_password:
+        raise RuntimeError("WordPress Konfiguration fehlt")
+    auth = _auth_header(settings.wordpress_username, settings.wordpress_app_password)
+
+    payload = {"date": scheduled_at, "status": "publish" if publish_now else "future"}
+    result = _wp_request(
+        base_url=settings.wordpress_base_url,
+        auth_header=auth,
+        method="POST",
+        endpoint=f"posts/{int(wp_post_id)}",
+        payload=payload,
+    )
+    return str(result.get("link") or "") if isinstance(result, dict) else ""
 
 
 def delete_wp_post(wp_post_id: int) -> None:

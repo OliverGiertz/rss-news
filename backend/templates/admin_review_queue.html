@@ -31,7 +31,8 @@
       border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 4px;
     }
     .review-actions .approve { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .review-actions .approve input[name="note"] { min-width: 220px; }
+    .review-actions .approve input[name="note"] { min-width: 200px; }
+    .review-actions .approve .schedule-mode { max-width: 200px; }
     .review-actions .spacer { flex: 1 1 auto; }
     .btn-approve { background: #047857; }
     .score-hi { background: #d1fae5; color: #065f46; }
@@ -141,6 +142,12 @@
         <form method="post" action="/admin/articles/{{ a.id }}/approve" class="approve">
           <input type="hidden" name="redirect_to" value="/admin/freigabe" />
           <input name="note" placeholder="Notiz zur Prüfung (optional)" />
+          <select name="schedule_mode" class="schedule-mode" title="Wann soll der Beitrag erscheinen?">
+            {% for value, label in slot_modes.items() %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+          <input type="datetime-local" name="schedule_at" class="schedule-at" hidden />
           <button type="submit" class="btn-approve">✅ Freigeben</button>
         </form>
         <span class="spacer"></span>
@@ -159,5 +166,19 @@
     {% endfor %}
     {% endif %}
   </main>
+<script>
+  // Die Datumswahl taucht nur auf, wenn sie gebraucht wird - sonst steht in
+  // jeder Zeile ein leeres Feld, das niemand ausfuellen soll.
+  document.addEventListener("change", function (event) {
+    var select = event.target;
+    if (!select.classList || !select.classList.contains("schedule-mode")) return;
+    var field = select.form.querySelector(".schedule-at");
+    if (!field) return;
+    var custom = select.value === "custom";
+    field.hidden = !custom;
+    field.required = custom;
+    if (custom && !field.value) field.value = "{{ default_custom }}";
+  });
+</script>
 </body>
 </html>

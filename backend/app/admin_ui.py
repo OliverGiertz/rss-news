@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from html import escape
 from html.parser import HTMLParser
 import json
@@ -19,10 +20,11 @@ from fastapi.templating import Jinja2Templates
 from .auth import create_session_token, verify_credentials, verify_session_token
 from .config import get_settings
 from .ingestion import run_ingestion
-from .pipeline import approve_article, post_rewrite_status
+from .pipeline import approve_article, post_rewrite_status, reschedule_article
 from .policy import evaluate_source_policy
 from .publisher import enqueue_publish, run_publisher
 from .relevance import article_age_days, article_relevance
+from .scheduler import SLOT_MODE_LABELS
 from .rewrite import generate_article_tags, merge_generated_tags, rewrite_article_text
 from .repositories import (
     FeedCreate,
@@ -262,6 +264,44 @@ def _safe_admin_redirect(value: str | None, fallback: str) -> str:
     if target.startswith("/admin/") and "//" not in target[1:] and "\\" not in target:
         return target
     return fallback
+
+
+def _default_custom_input() -> str:
+    """Prefill for the date picker: tomorrow's first raster time.
+
+    An empty datetime-local field is a small wall - this way the picker opens on
+    a date that is already a sensible answer.
+    """
+    from .scheduler import _preferred_hours, _today_cet
+    from datetime import timedelta
+
+    hours = _preferred_hours()
+    day = _today_cet() + timedelta(days=1)
+    return f"{day.isoformat()}T{(hours[0] if hours else 9):02d}:00"
+
+
+def _schedule_context(article: dict, meta: dict) -> dict[str, object]:
+    """Everything the detail page needs to show and change the publish date."""
+    from .scheduler import _format_slot, _slot_kind
+
+    raw = article.get("scheduled_publish_at") or ""
+    schedule_meta = meta.get("schedule") if isinstance(meta.get("schedule"), dict) else {}
+    try:
+        when = datetime.fromisoformat(raw)
+    except ValueError:
+        return {
+            "scheduled_label": "",
+            "scheduled_kind": "",
+            "scheduled_input": "",
+            "schedule_meta": schedule_meta,
+        }
+    return {
+        "scheduled_label": _format_slot(when.date(), when.hour, when.minute),
+        "scheduled_kind": _slot_kind(when),
+        # datetime-local wants exactly this shape, seconds included would break it
+        "scheduled_input": when.strftime("%Y-%m-%dT%H:%M"),
+        "schedule_meta": schedule_meta,
+    }
 
 
 def _publish_readiness(article: dict, meta: dict) -> tuple[bool, list[str]]:
@@ -680,6 +720,7 @@ def admin_article_detail(request: Request, article_id: int):
     article["status_ui"] = internal_to_ui_status(article.get("status"))
     feed = get_feed_by_id(int(article["feed_id"])) if article.get("feed_id") else None
     checklist = _legal_checklist(article, feed)
+    article.update(_schedule_context(article, meta))
 
     return templates.TemplateResponse(
         request,
@@ -689,10 +730,12 @@ def admin_article_detail(request: Request, article_id: int):
             "title": f"Artikel #{article_id}",
             "user": user,
             "article": article,
+            "default_custom": _default_custom_input(),
             "feed": feed,
             "checklist": checklist,
             "allowed_transitions": ALLOWED_TRANSITIONS.get(article.get("status_ui"), ()),
             "status_labels": UI_STATUS_LABELS,
+            "slot_modes": SLOT_MODE_LABELS,
             "editorial_review_required": settings.editorial_review_required,
             "flash_msg": request.query_params.get("msg", ""),
             "flash_type": request.query_params.get("type", "success"),
@@ -1076,6 +1119,8 @@ def admin_review_queue(request: Request):
             "title": "Freigabe",
             "user": user,
             "articles": articles,
+            "slot_modes": SLOT_MODE_LABELS,
+            "default_custom": _default_custom_input(),
             "flash_msg": request.query_params.get("msg", ""),
             "flash_type": request.query_params.get("type", "success"),
         },
@@ -1088,11 +1133,14 @@ def admin_approve_article(
     article_id: int,
     note: str = Form(""),
     redirect_to: str = Form(""),
+    schedule_mode: str = Form("auto"),
+    schedule_at: str = Form(""),
 ):
     """Editorial sign-off: a person read the article and takes responsibility.
 
     Stamps reviewer and system time, then hands the article to WordPress and the
-    scheduler. Nothing about the timestamp is user-editable — that is the point.
+    scheduler. The review timestamp stays out of reach — that is the point — but
+    the publish date is the editor's to choose.
     """
     user = _admin_user(request)
     if not user:
@@ -1102,7 +1150,13 @@ def admin_approve_article(
     sep = "&" if "?" in back else "?"
 
     try:
-        result = approve_article(article_id, actor=user, note=note.strip() or None)
+        result = approve_article(
+            article_id,
+            actor=user,
+            note=note.strip() or None,
+            schedule_mode=schedule_mode,
+            schedule_at=schedule_at.strip() or None,
+        )
     except ValueError as exc:
         return RedirectResponse(
             url=f"{back}{sep}msg={quote_plus(f'Artikel #{article_id}: {exc}')}&type=error",
@@ -1115,10 +1169,56 @@ def admin_approve_article(
         )
 
     slot = result.get("scheduled_publish_at") or "-"
+    if result.get("published_now"):
+        msg = f"Artikel #{article_id} freigegeben und sofort veroeffentlicht."
+    else:
+        msg = f"Artikel #{article_id} freigegeben. Veroeffentlichung geplant fuer {slot}."
+    if result.get("schedule_note"):
+        msg = f"{msg} {result['schedule_note']}"
     return RedirectResponse(
-        url=f"{back}{sep}msg={quote_plus(f'Artikel #{article_id} freigegeben. Veroeffentlichung geplant fuer {slot}.')}&type=success",
+        url=f"{back}{sep}msg={quote_plus(msg)}&type=success",
         status_code=303,
     )
+
+
+@router.post("/admin/articles/{article_id}/schedule")
+def admin_reschedule_article(
+    request: Request,
+    article_id: int,
+    schedule_mode: str = Form("auto"),
+    schedule_at: str = Form(""),
+    redirect_to: str = Form(""),
+):
+    """Move an already scheduled article to a different publish date."""
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    back = _safe_admin_redirect(redirect_to, f"/admin/articles/{article_id}")
+    sep = "&" if "?" in back else "?"
+
+    def _back(msg: str, msg_type: str = "success"):
+        return RedirectResponse(url=f"{back}{sep}msg={quote_plus(msg)}&type={msg_type}", status_code=303)
+
+    try:
+        plan = reschedule_article(
+            article_id,
+            mode=schedule_mode,
+            custom=schedule_at.strip() or None,
+            actor=user,
+        )
+    except ValueError as exc:
+        return _back(f"Artikel #{article_id}: {exc}", "error")
+    except Exception as exc:
+        return _back(f"Termin fuer #{article_id} konnte nicht gesetzt werden: {exc}", "error")
+
+    if plan.publish_now:
+        return _back(f"Artikel #{article_id} wurde sofort veroeffentlicht.")
+    label = "Sondertermin" if plan.kind == "extra" else "Termin"
+    msg = f"Artikel #{article_id}: {label} auf {plan.label} gesetzt."
+    if plan.note:
+        msg = f"{msg} {plan.note}"
+    return _back(msg)
 
 
 @router.post("/admin/articles/{article_id}/transition")
@@ -1152,7 +1252,12 @@ def admin_transition_article(
             # Route it through the same door so it cannot slip into WordPress
             # unstamped and unscheduled.
             if target_ui == "publish" and not (article.get("editorial_review_at") or ""):
-                return admin_approve_article(request, article_id, note=note, redirect_to=redirect_to)
+                # Called as a plain function, so every Form() default has to be
+                # spelled out - FastAPI only fills those in on a real request.
+                return admin_approve_article(
+                    request, article_id, note=note, redirect_to=redirect_to,
+                    schedule_mode="auto", schedule_at="",
+                )
             update_article_status(article_id, target_internal, actor=user, note=note or None)
             return _back(
                 f"Artikel #{article_id}: {ui_status_label(current_ui)} -> {ui_status_label(target_ui)}"
@@ -1310,7 +1415,12 @@ def admin_retry_article(request: Request, article_id: int):
 
 @router.get("/admin/schedule", response_class=HTMLResponse)
 def admin_schedule(request: Request):
-    """Schedule overview: all booked slots from DB and WordPress."""
+    """Schedule overview: all booked slots from DB and WordPress.
+
+    The grid shows the four daily raster times; hand-picked Sondertermine sit
+    beside it in their own column, because forcing 10:30 into an hourly grid
+    would either hide it or make the 09:00 column look occupied.
+    """
     user = _admin_user(request)
     if not user:
         return RedirectResponse(url="/admin/login", status_code=303)
@@ -1322,26 +1432,36 @@ def admin_schedule(request: Request):
     today = _today_cet()
     hours = _preferred_hours()
 
-    # Build a calendar grid: for each day in the next 60 days, show each preferred hour slot
-    booked: dict[tuple[str, int], dict] = {(s["date"], s["hour"]): s for s in slots}
+    booked: dict[tuple[str, int], dict] = {
+        (slot["date"], slot["hour"]): slot for slot in slots if slot["kind"] == "raster"
+    }
+    extras: dict[str, list[dict]] = {}
+    for slot in slots:
+        if slot["kind"] != "raster":
+            extras.setdefault(slot["date"], []).append(slot)
+
     calendar_days = []
     for offset in range(0, 61):
-        d = today + timedelta(days=offset)
-        d_str = d.isoformat()
+        day = today + timedelta(days=offset)
+        day_str = day.isoformat()
         day_slots = []
-        for h in hours:
-            key = (d_str, h)
+        for hour in hours:
+            key = (day_str, hour)
             day_slots.append({
-                "hour": h,
+                "hour": hour,
                 "booked": key in booked,
                 "slot": booked.get(key),
+                "assign_at": f"{day_str}T{hour:02d}:00",
             })
+        day_extras = extras.get(day_str, [])
         calendar_days.append({
-            "date": d_str,
-            "date_fmt": d.strftime("%d.%m.%Y"),
-            "weekday": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][d.weekday()],
+            "date": day_str,
+            "date_fmt": day.strftime("%d.%m.%Y"),
+            "weekday": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][day.weekday()],
+            "is_today": day == today,
             "slots": day_slots,
-            "any_booked": any(s["booked"] for s in day_slots),
+            "extras": day_extras,
+            "any_booked": any(s["booked"] for s in day_slots) or bool(day_extras),
         })
 
     return templates.TemplateResponse(
@@ -1352,8 +1472,53 @@ def admin_schedule(request: Request):
             "title": "Veröffentlichungsplan",
             "user": user,
             "slots": slots,
+            "extra_count": len([slot for slot in slots if slot["kind"] != "raster"]),
             "calendar_days": calendar_days,
             "hours": hours,
+            "flash_msg": request.query_params.get("msg", ""),
+            "flash_type": request.query_params.get("type", "success"),
+        },
+    )
+
+
+@router.get("/admin/schedule/assign", response_class=HTMLResponse)
+def admin_schedule_assign(request: Request):
+    """Pick an article for one specific free slot in the calendar.
+
+    Only articles that already carry a date are offered: one without a date has
+    not been through the editorial sign-off, and that gate stays where it is.
+    """
+    user = _admin_user(request)
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    from .scheduler import get_schedule_overview, _format_slot
+    from datetime import datetime as _dt
+
+    raw = (request.query_params.get("at") or "").strip()
+    try:
+        target = _dt.fromisoformat(raw)
+    except ValueError:
+        return RedirectResponse(
+            url=f"/admin/schedule?msg={quote_plus('Kein gueltiger Termin angegeben')}&type=error",
+            status_code=303,
+        )
+
+    candidates = [
+        slot for slot in get_schedule_overview(lookahead_days=60)
+        if slot["source"] == "db" and slot["article_id"]
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "admin_schedule_assign.html",
+        {
+            "request": request,
+            "title": "Termin vergeben",
+            "user": user,
+            "target_iso": target.strftime("%Y-%m-%dT%H:%M"),
+            "target_label": _format_slot(target.date(), target.hour, target.minute),
+            "candidates": candidates,
             "flash_msg": request.query_params.get("msg", ""),
             "flash_type": request.query_params.get("type", "success"),
         },

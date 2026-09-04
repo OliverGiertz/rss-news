@@ -202,9 +202,24 @@
         Erst nach deiner Freigabe geht der Artikel nach WordPress und bekommt einen
         Veröffentlichungs-Slot. Datum und Uhrzeit der Prüfung werden automatisch gesetzt.
       </p>
-      <form method="post" action="/admin/articles/{{ article.id }}/approve" class="row">
-        <input name="note" placeholder="Notiz zur Prüfung (optional)" style="min-width:260px;" />
-        <button type="submit">✅ Redaktionell geprüft &amp; freigeben</button>
+      <form method="post" action="/admin/articles/{{ article.id }}/approve" class="schedule-form">
+        <div class="row">
+          <input name="note" placeholder="Notiz zur Prüfung (optional)" style="min-width:260px;" />
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <label for="approve-mode">Veröffentlichung:</label>
+          <select id="approve-mode" name="schedule_mode" class="schedule-mode">
+            {% for value, label in slot_modes.items() %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+          <input type="datetime-local" name="schedule_at" class="schedule-at" hidden />
+          <button type="submit">✅ Redaktionell geprüft &amp; freigeben</button>
+        </div>
+        <p class="subtle" style="margin:6px 0 0;">
+          Vorgezogene Beiträge bekommen einen Sondertermin zwischen den Rasterzeiten.
+          Kein anderer geplanter Beitrag wird dadurch verschoben.
+        </p>
       </form>
       <div class="row" style="margin-top:8px;">
         <form method="post" action="/admin/articles/{{ article.id }}/rewrite-run" class="inline">
@@ -220,6 +235,46 @@
       <p class="subtle">Für diesen Status ist keine Freigabe vorgesehen.</p>
       {% endif %}
     </section>
+
+    {% if article.scheduled_label %}
+    <section class="card">
+      <h2>Veröffentlichungstermin</h2>
+      <p>
+        <strong>{{ article.scheduled_label }}</strong>
+        {% if article.scheduled_kind == "extra" %}
+        <span class="badge">Sondertermin</span>
+        {% else %}
+        <span class="badge">Rastertermin</span>
+        {% endif %}
+        {% if article.wp_post_url %}
+        — <a href="{{ article.wp_post_url }}" target="_blank" rel="noopener">in WordPress öffnen</a>
+        {% endif %}
+      </p>
+      {% if article.schedule_meta and article.schedule_meta.manual %}
+      <p class="subtle">
+        Von Hand gesetzt durch <strong>{{ article.schedule_meta.set_by }}</strong>
+        ({{ article.schedule_meta.mode }}).
+      </p>
+      {% endif %}
+      {% if article.status_ui in ["publish", "published"] %}
+      <form method="post" action="/admin/articles/{{ article.id }}/schedule" class="row schedule-form">
+        <label for="reschedule-mode">Verschieben auf:</label>
+        <select id="reschedule-mode" name="schedule_mode" class="schedule-mode">
+          {% for value, label in slot_modes.items() %}
+          <option value="{{ value }}"{% if value == "custom" %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <input type="datetime-local" name="schedule_at" class="schedule-at"
+               value="{{ article.scheduled_input }}" />
+        <button type="submit" class="secondary">Termin ändern</button>
+      </form>
+      <p class="subtle" style="margin:6px 0 0;">
+        Der bisherige Termin wird frei und fällt beim nächsten Pipeline-Lauf dem
+        nächsten Artikel zu. Andere Beiträge bleiben, wo sie sind.
+      </p>
+      {% endif %}
+    </section>
+    {% endif %}
 
     <section class="card">
       <h2>Status ändern</h2>
@@ -265,5 +320,18 @@
       </form>
     </section>
   </main>
+<script>
+  // Die Datumswahl gehoert nur zur Option "Datum und Uhrzeit waehlen".
+  document.addEventListener("change", function (event) {
+    var select = event.target;
+    if (!select.classList || !select.classList.contains("schedule-mode")) return;
+    var field = select.form.querySelector(".schedule-at");
+    if (!field) return;
+    var custom = select.value === "custom";
+    field.hidden = !custom;
+    field.required = custom;
+    if (custom && !field.value) field.value = "{{ default_custom }}";
+  });
+</script>
 </body>
 </html>

@@ -8,6 +8,7 @@ import json
 import os
 import tempfile
 import unittest
+from datetime import date, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,9 +17,10 @@ from fastapi.testclient import TestClient
 from backend.app import config as config_module
 from backend.app import pipeline as pipeline_module
 from backend.app.admin_ui import _safe_admin_redirect, _sanitize_preview_html
-from backend.app.db import init_db
+from backend.app.db import get_conn, init_db
 from backend.app.main import app
 from backend.app.publisher import _can_publish
+from backend.app.scheduler import SlotPlan
 from backend.app.repositories import (
     ArticleUpsert,
     FeedCreate,
@@ -48,6 +50,13 @@ class EditorialReviewTestBase(unittest.TestCase):
         for key in ("APP_DB_PATH", "APP_ADMIN_USERNAME", "APP_ADMIN_PASSWORD"):
             os.environ.pop(key, None)
         self.tmp_dir.cleanup()
+
+    def _login(self) -> None:
+        self.client.post(
+            "/admin/login",
+            data={"username": "admin", "password": "secret"},
+            follow_redirects=False,
+        )
 
     def _create_article(self, *, with_image: bool = True, status: str = "new", rewritten: str | None = None) -> int:
         source_id = create_source(
@@ -175,14 +184,18 @@ class TestApproveArticle(EditorialReviewTestBase):
     def test_approval_stamps_reviewer_and_publishes(self) -> None:
         article_id = self._create_article(status="pending_review", rewritten=LONG_TEXT)
 
-        with patch.object(pipeline_module, "reserve_publish_slot", return_value="2026-08-25 09:00:00") as reserve, \
+        plan = SlotPlan(datetime(2026, 8, 25, 9, 0), kind="raster")
+        with patch.object(pipeline_module, "set_publish_slot", return_value=plan) as reserve, \
              patch.object(pipeline_module, "publish_article_draft", return_value=(4711, "https://blog/p/4711")) as wp_draft:
             result = pipeline_module.approve_article(article_id, actor="oliver", note="gelesen und geprüft")
 
-        reserve.assert_called_once_with(article_id)
+        reserve.assert_called_once_with(
+            article_id, mode="auto", custom=None, actor="oliver", keep_existing=True
+        )
         wp_draft.assert_called_once()
+        self.assertFalse(wp_draft.call_args.kwargs["publish_now"])
         self.assertEqual(result["wp_post_id"], 4711)
-        self.assertEqual(result["scheduled_publish_at"], "2026-08-25 09:00:00")
+        self.assertEqual(result["scheduled_publish_at"], "Di, 25.08.2026 um 09:00 Uhr")
 
         stored = get_article_by_id(article_id)
         self.assertEqual(stored["status"], "approved")
@@ -218,7 +231,7 @@ class TestApproveArticle(EditorialReviewTestBase):
     def test_wordpress_failure_returns_article_to_the_queue(self) -> None:
         article_id = self._create_article(status="pending_review", rewritten=LONG_TEXT)
 
-        with patch.object(pipeline_module, "reserve_publish_slot", return_value="2026-08-25 09:00:00"), \
+        with patch.object(pipeline_module, "set_publish_slot", return_value=SlotPlan(datetime(2026, 8, 25, 9, 0), kind="raster")), \
              patch.object(pipeline_module, "publish_article_draft", side_effect=RuntimeError("WP 401")):
             with self.assertRaises(RuntimeError):
                 pipeline_module.approve_article(article_id, actor="oliver")
@@ -231,13 +244,6 @@ class TestApproveArticle(EditorialReviewTestBase):
 
 
 class TestAdminUiApproval(EditorialReviewTestBase):
-    def _login(self) -> None:
-        self.client.post(
-            "/admin/login",
-            data={"username": "admin", "password": "secret"},
-            follow_redirects=False,
-        )
-
     def test_detail_page_offers_approval_button(self) -> None:
         self._login()
         article_id = self._create_article(status="pending_review", rewritten=LONG_TEXT)
@@ -265,6 +271,40 @@ class TestAdminUiApproval(EditorialReviewTestBase):
         self.assertEqual(stored["editorial_review_by"], "admin")
         self.assertTrue(stored["editorial_review_at"])
 
+    def test_approve_route_passes_the_editors_date_wish(self) -> None:
+        """The picker is only useful if the wish survives the form post."""
+        self._login()
+        article_id = self._create_article(status="pending_review", rewritten=LONG_TEXT)
+
+        plan = SlotPlan(datetime(2026, 8, 25, 10, 30), kind="extra", note="Sondertermin dazwischen")
+        with patch.object(pipeline_module, "set_publish_slot", return_value=plan) as reserve, \
+             patch.object(pipeline_module, "publish_article_draft", return_value=(99, "https://blog/p/99")):
+            response = self.client.post(
+                f"/admin/articles/{article_id}/approve",
+                data={"note": "", "schedule_mode": "today", "schedule_at": ""},
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(reserve.call_args.kwargs["mode"], "today")
+        self.assertIsNone(reserve.call_args.kwargs["custom"])
+
+    def test_approve_route_publishes_now_when_asked_to(self) -> None:
+        self._login()
+        article_id = self._create_article(status="pending_review", rewritten=LONG_TEXT)
+
+        plan = SlotPlan(datetime(2026, 8, 25, 10, 31), kind="now", publish_now=True)
+        with patch.object(pipeline_module, "set_publish_slot", return_value=plan), \
+             patch.object(pipeline_module, "publish_article_draft", return_value=(99, "https://blog/p/99")) as wp_draft:
+            self.client.post(
+                f"/admin/articles/{article_id}/approve",
+                data={"note": "", "schedule_mode": "now", "schedule_at": ""},
+                follow_redirects=False,
+            )
+
+        self.assertTrue(wp_draft.call_args.kwargs["publish_now"])
+        self.assertEqual(get_article_by_id(article_id)["status"], "published")
+
     def test_manual_transition_to_publish_also_stamps(self) -> None:
         """The status dropdown must not be a way around the gate."""
         self._login()
@@ -281,6 +321,108 @@ class TestAdminUiApproval(EditorialReviewTestBase):
         stored = get_article_by_id(article_id)
         self.assertEqual(stored["status"], "approved")
         self.assertTrue(stored["editorial_review_at"])
+
+
+class TestReschedule(EditorialReviewTestBase):
+    """Moving an article that is already scheduled."""
+
+    def _scheduled_article(self, wp_post_id: int | None = 4711) -> int:
+        article_id = self._create_article(status="approved", rewritten=LONG_TEXT)
+        with get_conn() as conn:
+            conn.execute(
+                "UPDATE articles SET scheduled_publish_at = ?, wp_post_id = ? WHERE id = ?",
+                ("2026-11-13T12:00:00", wp_post_id, article_id),
+            )
+        return article_id
+
+    def test_reschedule_writes_the_new_date_to_db_and_wordpress(self) -> None:
+        article_id = self._scheduled_article()
+
+        with patch.object(pipeline_module, "update_wp_post_schedule") as wp_update:
+            plan = pipeline_module.reschedule_article(
+                article_id, mode="custom", custom="2026-09-24T16:45", actor="oliver"
+            )
+
+        self.assertEqual(plan.iso, "2026-09-24T16:45:00")
+        self.assertEqual(get_article_by_id(article_id)["scheduled_publish_at"], "2026-09-24T16:45:00")
+        wp_update.assert_called_once_with(4711, "2026-09-24T16:45:00", publish_now=False)
+
+    def test_a_wordpress_refusal_rolls_the_old_date_back(self) -> None:
+        """A date only the DB believes in is worse than no change at all."""
+        article_id = self._scheduled_article()
+
+        with patch.object(pipeline_module, "update_wp_post_schedule", side_effect=RuntimeError("WP 403")):
+            with self.assertRaises(RuntimeError):
+                pipeline_module.reschedule_article(article_id, mode="custom", custom="2026-09-24T16:45")
+
+        self.assertEqual(get_article_by_id(article_id)["scheduled_publish_at"], "2026-11-13T12:00:00")
+
+    def test_an_article_without_approval_has_no_date_to_move(self) -> None:
+        article_id = self._create_article(status="pending_review", rewritten=LONG_TEXT)
+        with self.assertRaises(ValueError):
+            pipeline_module.reschedule_article(article_id, mode="tomorrow")
+
+    def test_reschedule_route_reports_the_new_date(self) -> None:
+        self._login()
+        article_id = self._scheduled_article()
+
+        with patch.object(pipeline_module, "update_wp_post_schedule"):
+            response = self.client.post(
+                f"/admin/articles/{article_id}/schedule",
+                data={"schedule_mode": "custom", "schedule_at": "2026-09-24T16:45", "redirect_to": ""},
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("Sondertermin", response.headers["location"])
+        self.assertEqual(get_article_by_id(article_id)["scheduled_publish_at"], "2026-09-24T16:45:00")
+
+
+class TestSchedulePages(EditorialReviewTestBase):
+    """The pages that carry the date picker have to render at all."""
+
+    def test_review_queue_offers_the_date_choice(self) -> None:
+        self._login()
+        self._create_article(status="pending_review", rewritten=LONG_TEXT)
+
+        page = self.client.get("/admin/freigabe")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('name="schedule_mode"', page.text)
+        self.assertIn("Sofort veröffentlichen", page.text)
+
+    def test_calendar_shows_sondertermine_and_free_slots(self) -> None:
+        self._login()
+        article_id = self._create_article(status="approved", rewritten=LONG_TEXT)
+        with get_conn() as conn:
+            conn.execute(
+                "UPDATE articles SET scheduled_publish_at = ? WHERE id = ?",
+                (f"{date.today().isoformat()}T10:30:00", article_id),
+            )
+
+        page = self.client.get("/admin/schedule")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Sondertermin", page.text)
+        self.assertIn("/admin/schedule/assign?at=", page.text)
+
+    def test_assign_page_lists_the_scheduled_articles(self) -> None:
+        self._login()
+        article_id = self._create_article(status="approved", rewritten=LONG_TEXT)
+        with get_conn() as conn:
+            conn.execute(
+                "UPDATE articles SET scheduled_publish_at = ? WHERE id = ?",
+                ("2026-11-13T12:00:00", article_id),
+            )
+
+        page = self.client.get("/admin/schedule/assign?at=2026-09-24T12:00")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Artikel zur Freigabe", page.text)
+        self.assertIn(f'/admin/articles/{article_id}/schedule', page.text)
+
+    def test_assign_page_rejects_a_broken_date(self) -> None:
+        self._login()
+        page = self.client.get("/admin/schedule/assign?at=morgen", follow_redirects=False)
+        self.assertEqual(page.status_code, 303)
+        self.assertIn("/admin/schedule?msg=", page.headers["location"])
 
 
 class TestStampFollowsTheText(EditorialReviewTestBase):

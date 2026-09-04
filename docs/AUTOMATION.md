@@ -176,6 +176,44 @@ PIPELINE_RELEVANCE_WARN=60
 - Der zugeteilte Slot erscheint in der Freigabe-Bestätigung per Telegram
 - WordPress veröffentlicht den Beitrag zum Slot selbst (Status `future`)
 
+### Termin bei der Freigabe wählen
+
+Der Standard bleibt „Nächster freier Termin" — der Artikel hängt sich hinten an
+die Warteschlange. Für Themen, die nicht acht Wochen warten können (Messeberichte
+etwa), gibt es daneben:
+
+| Auswahl | Was passiert |
+|---------|--------------|
+| Nächster freier Termin | Erster freier Rastertermin ab morgen (Standard) |
+| Heute | Nächste freie Rasterzeit heute, mindestens 20 Minuten voraus |
+| Morgen | Erste freie Rasterzeit morgen |
+| Sofort veröffentlichen | Geht direkt live, WordPress-Status `publish` |
+| Datum und Uhrzeit wählen | Frei wählbar, wird genau so übernommen |
+
+**Es wird nie etwas verschoben.** Ist die gewünschte Rasterzeit belegt, bekommt
+der Artikel einen **Sondertermin** auf der halben Stunde zwischen zwei
+Rasterzeiten (also 10:30, 13:30, 16:30). An dem Tag erscheinen dann fünf statt
+vier Beiträge; alle anderen Termine bleiben, wo sie sind. Ein Sondertermin hält
+mindestens 45 Minuten Abstand zu jedem anderen Beitrag, deshalb kommen 09:30 oder
+11:30 neben einem 09:00/12:00-Raster nicht in Frage.
+
+Ist heute keine Zeit mehr frei, wird „Heute" zu „Sofort" — mit entsprechendem
+Hinweis in der Bestätigung.
+
+Wird ein bereits eingeplanter Artikel vorgezogen, fällt sein alter Rastertermin
+einfach frei und der nächste Pipeline-Lauf setzt den nächsten Artikel hinein. Die
+Warteschlange wird dadurch nicht länger.
+
+Termine ändern lassen sich an zwei Stellen:
+
+- **Artikel-Detailseite** — Kasten „Veröffentlichungstermin" bei freigegebenen Artikeln
+- **`/admin/schedule`** — freier Rastertermin im Kalender ist anklickbar und
+  führt auf eine Liste der eingeplanten Artikel („Hierhin setzen"); Sondertermine
+  stehen in einer eigenen Spalte
+
+Scheitert das Umdatieren in WordPress, bleibt der alte Termin stehen — DB und
+WordPress laufen nicht auseinander.
+
 Einstellbar via:
 ```
 PIPELINE_MAX_DRAFTS_PER_DAY=4

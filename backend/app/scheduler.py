@@ -7,6 +7,12 @@ Rules:
 - Scheduling only happens between the configured start/end hours
 - New articles queue up after the last already-scheduled article
 - Checks both local DB AND WordPress future posts to avoid double-booking
+
+Ein freigegebener Artikel muss aber manchmal sofort raus - ein Messebericht ist
+in acht Wochen wertlos. Dafuer gibt es Sondertermine: sie liegen zwischen den
+Rasterzeiten (10:30 statt 09:00 oder 12:00) und lassen den Plan unangetastet.
+Nichts wird verschoben; der frei werdende Rastertermin faellt beim naechsten
+Lauf ohnehin dem Lueckenfueller in `_find_next_free_slot` zu.
 """
 from __future__ import annotations
 
@@ -14,8 +20,8 @@ import base64
 import json
 import threading
 import urllib.request
-from datetime import date, datetime, timedelta
-from typing import Any
+from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from .config import get_settings
@@ -29,6 +35,11 @@ _BERLIN_TZ = ZoneInfo("Europe/Berlin")
 
 def _today_cet() -> date:
     return datetime.now(_BERLIN_TZ).date()
+
+
+def _now_cet() -> datetime:
+    """Local wall clock without tzinfo - the form `scheduled_publish_at` uses."""
+    return datetime.now(_BERLIN_TZ).replace(tzinfo=None, second=0, microsecond=0)
 
 
 def _schedule_bounds() -> tuple[int, int, int]:
@@ -73,19 +84,19 @@ def _preferred_hours() -> list[int]:
     return candidates[:max_per_day]
 
 
-def _fetch_wp_occupied_slots() -> set[tuple[str, int]]:
-    """Fetch all future-scheduled WordPress posts and return occupied (date_iso, hour) pairs.
+def _fetch_wp_future_datetimes() -> list[datetime]:
+    """Fetch the publish datetimes of all future-scheduled WordPress posts.
 
-    This prevents the scheduler from assigning a slot that is already taken
-    by a WP post that was not created via this pipeline (e.g. manually or via recovery scripts).
-    Returns an empty set on any error so the scheduler degrades gracefully.
+    Minutes matter here: a Sondertermin at 10:30 is a real booking, and rounding
+    it to a full hour would either hide it or block the wrong raster slot.
+    Returns an empty list on any error so the scheduler degrades gracefully.
     """
     settings = get_settings()
     try:
         auth = base64.b64encode(
             f"{settings.wordpress_username}:{settings.wordpress_app_password}".encode()
         ).decode()
-        occupied: set[tuple[str, int]] = set()
+        found: list[datetime] = []
         for page in range(1, 21):
             url = (
                 f"{settings.wordpress_base_url}/wp-json/wp/v2/posts"
@@ -96,124 +107,40 @@ def _fetch_wp_occupied_slots() -> set[tuple[str, int]]:
                 posts = json.loads(resp.read())
             if not isinstance(posts, list) or not posts:
                 break
-            for p in posts:
+            for post in posts:
                 try:
-                    dt = datetime.fromisoformat(p["date"])
-                    occupied.add((dt.date().isoformat(), dt.hour))
+                    found.append(datetime.fromisoformat(post["date"]).replace(tzinfo=None))
                 except Exception:
                     pass
             if len(posts) < 100:
                 break
-        return occupied
+        return found
     except Exception:
-        return set()
+        return []
 
 
-def _get_last_future_scheduled_date(wp_occupied: set[tuple[str, int]]) -> date | None:
-    """Return the date of the latest already-scheduled slot (DB + WP)."""
-    today = _today_cet()
+def _fetch_wp_occupied_slots() -> set[tuple[str, int]]:
+    """Occupied (date_iso, hour) pairs from WordPress, for the hour-based callers.
 
-    # Latest from local DB
-    with get_conn() as conn:
-        row = conn.execute(
-            """
-            SELECT MAX(scheduled_publish_at) AS last_slot
-            FROM articles
-            WHERE scheduled_publish_at IS NOT NULL
-            AND scheduled_publish_at >= ?
-            AND status NOT IN ('error', 'no_image')
-            """,
-            (today.isoformat() + "T00:00:00",),
-        ).fetchone()
-    db_last: date | None = None
-    if row and row["last_slot"]:
-        try:
-            db_last = datetime.fromisoformat(row["last_slot"]).date()
-        except Exception:
-            pass
-
-    # Latest from WP
-    wp_last: date | None = None
-    for d_str, _ in wp_occupied:
-        try:
-            d = date.fromisoformat(d_str)
-            if d >= today and (wp_last is None or d > wp_last):
-                wp_last = d
-        except Exception:
-            pass
-
-    if db_last and wp_last:
-        return max(db_last, wp_last)
-    return db_last or wp_last
+    This prevents the scheduler from assigning a slot that is already taken
+    by a WP post that was not created via this pipeline (e.g. manually or via recovery scripts).
+    """
+    return {(dt.date().isoformat(), dt.hour) for dt in _fetch_wp_future_datetimes()}
 
 
-def _next_free_hour(target_date: date, wp_occupied: set[tuple[str, int]]) -> int | None:
-    """Return first allowed hour with enough spacing to existing slots, or None if day is full."""
-    hours = _preferred_hours()
-    _, _, min_gap = _schedule_bounds()
-    date_str = target_date.isoformat()
-
-    # Hours used in local DB
-    with get_conn() as conn:
-        rows = conn.execute(
-            """
-            SELECT scheduled_publish_at FROM articles
-            WHERE scheduled_publish_at >= ? AND scheduled_publish_at < ?
-            AND status NOT IN ('error', 'no_image')
-            """,
-            (date_str + "T00:00:00", date_str + "T23:59:59"),
-        ).fetchall()
-
-    used_hours: set[int] = set()
-    for row in rows:
-        ts = row["scheduled_publish_at"] or ""
-        try:
-            used_hours.add(datetime.fromisoformat(ts).hour)
-        except Exception:
-            pass
-
-    # Hours used in WordPress
-    for d_str, h in wp_occupied:
-        if d_str == date_str:
-            used_hours.add(h)
-
-    for h in hours:
-        if all(abs(h - used_hour) >= min_gap for used_hour in used_hours):
-            return h
-    return None
-
-
-def _format_slot(d: date, hour: int) -> str:
+def _format_slot(d: date, hour: int, minute: int = 0) -> str:
     weekday_names = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
     wd = weekday_names[d.weekday()]
-    return f"{wd}, {d.strftime('%d.%m.%Y')} um {hour:02d}:00 Uhr"
-
-
-def _find_next_free_slot(
-    wp_occupied: set[tuple[str, int]], lookahead_days: int = 60
-) -> tuple[date, int] | None:
-    """Find the next free (date, hour) slot.
-
-    Starts from tomorrow and scans forward, filling any gaps in the schedule
-    rather than always appending after the last existing post.
-    """
-    today = _today_cet()
-    tomorrow = today + timedelta(days=1)
-
-    for offset in range(0, lookahead_days + 1):
-        candidate = tomorrow + timedelta(days=offset)
-        hour = _next_free_hour(candidate, wp_occupied)
-        if hour is not None:
-            return candidate, hour
-
-    hours = _preferred_hours()
-    return tomorrow, hours[0] if hours else 9
+    return f"{wd}, {d.strftime('%d.%m.%Y')} um {hour:02d}:{minute:02d} Uhr"
 
 
 def get_schedule_overview(lookahead_days: int = 60) -> list[dict]:
-    """Return all booked scheduling slots (DB + WP) for the next N days, sorted by date."""
+    """Return all booked scheduling slots (DB + WP) for the next N days, sorted by date.
+
+    Keyed by the full minute, not by the hour: a Sondertermin at 10:30 and the
+    raster slot at 09:00 are two different bookings and both have to show up.
+    """
     today = _today_cet()
-    hours = _preferred_hours()
 
     # Slots booked in local DB
     with get_conn() as conn:
@@ -229,51 +156,320 @@ def get_schedule_overview(lookahead_days: int = 60) -> list[dict]:
             (today.isoformat() + "T00:00:00",),
         ).fetchall()
 
-    db_slots: dict[tuple[str, int], dict] = {}
+    db_slots: dict[tuple[str, int, int], dict] = {}
     for row in rows:
         try:
             dt = datetime.fromisoformat(row["scheduled_publish_at"])
-            key = (dt.date().isoformat(), dt.hour)
-            db_slots[key] = {
-                "date": dt.date().isoformat(),
-                "hour": dt.hour,
-                "formatted": _format_slot(dt.date(), dt.hour),
-                "source": "db",
-                "article_id": row["id"],
-                "article_title": row["title"],
-                "article_status": row["status"],
-                "wp_post_id": row["wp_post_id"],
-                "wp_post_url": row["wp_post_url"],
-            }
         except Exception:
-            pass
+            continue
+        db_slots[(dt.date().isoformat(), dt.hour, dt.minute)] = {
+            "date": dt.date().isoformat(),
+            "hour": dt.hour,
+            "minute": dt.minute,
+            "kind": _slot_kind(dt),
+            "formatted": _format_slot(dt.date(), dt.hour, dt.minute),
+            "source": "db",
+            "article_id": row["id"],
+            "article_title": row["title"],
+            "article_status": row["status"],
+            "wp_post_id": row["wp_post_id"],
+            "wp_post_url": row["wp_post_url"],
+        }
 
     # Slots occupied in WordPress but not in local DB
-    wp_occupied = _fetch_wp_occupied_slots()
     wp_only: list[dict] = []
-    for d_str, h in sorted(wp_occupied):
-        if (d_str, h) in db_slots:
+    for dt in sorted(_fetch_wp_future_datetimes()):
+        if (dt.date().isoformat(), dt.hour, dt.minute) in db_slots or dt.date() < today:
             continue
-        try:
-            d = date.fromisoformat(d_str)
-            if d >= today:
-                wp_only.append({
-                    "date": d_str,
-                    "hour": h,
-                    "formatted": _format_slot(d, h),
-                    "source": "wordpress",
-                    "article_id": None,
-                    "article_title": "(WP-Beitrag außerhalb Pipeline)",
-                    "article_status": None,
-                    "wp_post_id": None,
-                    "wp_post_url": None,
-                })
-        except Exception:
-            pass
+        wp_only.append({
+            "date": dt.date().isoformat(),
+            "hour": dt.hour,
+            "minute": dt.minute,
+            "kind": _slot_kind(dt),
+            "formatted": _format_slot(dt.date(), dt.hour, dt.minute),
+            "source": "wordpress",
+            "article_id": None,
+            "article_title": "(WP-Beitrag außerhalb Pipeline)",
+            "article_status": None,
+            "wp_post_id": None,
+            "wp_post_url": None,
+        })
 
     all_slots = list(db_slots.values()) + wp_only
-    all_slots.sort(key=lambda s: (s["date"], s["hour"]))
+    all_slots.sort(key=lambda slot: (slot["date"], slot["hour"], slot["minute"]))
     return all_slots
+
+
+# ---------------------------------------------------------------------------
+# Terminwahl bei der Freigabe
+# ---------------------------------------------------------------------------
+
+SLOT_MODES = ("auto", "now", "today", "tomorrow", "custom")
+
+SLOT_MODE_LABELS: dict[str, str] = {
+    "auto": "Nächster freier Termin",
+    "now": "Sofort veröffentlichen",
+    "today": "Heute",
+    "tomorrow": "Morgen",
+    "custom": "Datum und Uhrzeit wählen",
+}
+
+# Abstand, den ein Sondertermin zu jedem anderen Beitrag haelt. 45 Minuten sind
+# so gewaehlt, dass zwischen zwei Rasterzeiten (3 h) nur die Mitte uebrig
+# bleibt: 10:30 geht, 09:30 und 11:30 nicht.
+_EXTRA_MIN_GAP_MINUTES = 45
+
+# Ein Rastertermin in fuenf Minuten waere keiner - "Heute" springt erst auf
+# Zeiten, die weit genug weg sind, um noch eingeplant zu heissen.
+_LEAD_MINUTES = 20
+
+
+@dataclass(frozen=True)
+class SlotPlan:
+    """A resolved publish date, plus what kind of slot it turned out to be."""
+
+    when: datetime
+    kind: str  # "raster" | "extra" | "now"
+    publish_now: bool = False
+    note: str = ""
+
+    @property
+    def iso(self) -> str:
+        return self.when.strftime("%Y-%m-%dT%H:%M:%S")
+
+    @property
+    def label(self) -> str:
+        return _format_slot(self.when.date(), self.when.hour, self.when.minute)
+
+
+def _slot_kind(when: datetime) -> str:
+    return "raster" if when.minute == 0 and when.hour in _preferred_hours() else "extra"
+
+
+def _parse_custom_datetime(raw: str | None) -> datetime:
+    value = (raw or "").strip()
+    if not value:
+        raise ValueError("Kein Datum angegeben")
+    try:
+        return datetime.fromisoformat(value).replace(tzinfo=None, second=0, microsecond=0)
+    except ValueError:
+        raise ValueError(f"Datum nicht lesbar: {value}") from None
+
+
+def _db_scheduled_datetimes(conn, exclude_article_id: int | None) -> list[datetime]:
+    rows = conn.execute(
+        """
+        SELECT id, scheduled_publish_at FROM articles
+        WHERE scheduled_publish_at IS NOT NULL
+          AND scheduled_publish_at >= ?
+          AND status NOT IN ('error', 'no_image')
+        """,
+        (_today_cet().isoformat() + "T00:00:00",),
+    ).fetchall()
+    found: list[datetime] = []
+    for row in rows:
+        if exclude_article_id is not None and int(row["id"]) == int(exclude_article_id):
+            continue
+        try:
+            found.append(datetime.fromisoformat(row["scheduled_publish_at"]))
+        except Exception:
+            pass
+    return found
+
+
+def _is_free(when: datetime, taken: list[datetime]) -> bool:
+    gap = timedelta(minutes=_EXTRA_MIN_GAP_MINUTES)
+    return all(abs(when - other) >= gap for other in taken)
+
+
+def _raster_candidates(day: date) -> list[datetime]:
+    return [datetime.combine(day, time(hour, 0)) for hour in _preferred_hours()]
+
+
+def _extra_candidates(day: date) -> list[datetime]:
+    """Sondertermine liegen auf der halben Stunde, nie auf einer Rasterzeit."""
+    # end_hour is the last raster hour, so the last half hour inside the window
+    # is end_hour - 1 + 30 min - a 19:30 slot would sit outside it.
+    start_hour, end_hour, _ = _schedule_bounds()
+    return [datetime.combine(day, time(hour, 30)) for hour in range(start_hour, end_hour)]
+
+
+def _first_free(
+    candidates: list[datetime], taken: list[datetime], not_before: datetime | None = None
+) -> datetime | None:
+    for candidate in candidates:
+        if not_before is not None and candidate < not_before:
+            continue
+        if _is_free(candidate, taken):
+            return candidate
+    return None
+
+
+def _plan_slot(
+    conn,
+    mode: str,
+    custom: str | None,
+    exclude_article_id: int | None,
+    wp_datetimes: list[datetime],
+) -> SlotPlan:
+    """Turn a scheduling wish into a concrete date. Writes nothing."""
+    mode = (mode or "auto").strip() or "auto"
+    if mode not in SLOT_MODES:
+        raise ValueError(f"Unbekannter Terminwunsch: {mode}")
+
+    taken = _db_scheduled_datetimes(conn, exclude_article_id) + list(wp_datetimes)
+    now = _now_cet()
+
+    if mode == "now":
+        return SlotPlan(
+            now + timedelta(minutes=1),
+            kind="now",
+            publish_now=True,
+            note="Wird sofort veröffentlicht, der Plan bleibt unverändert.",
+        )
+
+    if mode == "custom":
+        wanted = _parse_custom_datetime(custom)
+        if wanted <= now:
+            return SlotPlan(
+                now + timedelta(minutes=1),
+                kind="now",
+                publish_now=True,
+                note="Der gewählte Zeitpunkt liegt in der Vergangenheit — der Artikel wird sofort veröffentlicht.",
+            )
+        # Zwei Beitraege auf derselben Minute nimmt WordPress zwar an, aber so
+        # will sie niemand lesen.
+        while any(other == wanted for other in taken):
+            wanted += timedelta(minutes=5)
+        note = ""
+        if not _is_free(wanted, taken):
+            note = "Hinweis: Der Termin liegt dicht neben einem bereits geplanten Beitrag."
+        return SlotPlan(wanted, kind=_slot_kind(wanted), note=note)
+
+    if mode in {"today", "tomorrow"}:
+        day = _today_cet() if mode == "today" else _today_cet() + timedelta(days=1)
+        earliest = now + timedelta(minutes=_LEAD_MINUTES) if mode == "today" else None
+
+        hit = _first_free(_raster_candidates(day), taken, earliest)
+        if hit is not None:
+            return SlotPlan(hit, kind="raster", note="Freier Rastertermin — es wird nichts verschoben.")
+
+        hit = _first_free(_extra_candidates(day), taken, earliest)
+        if hit is not None:
+            return SlotPlan(
+                hit,
+                kind="extra",
+                note="Alle Rasterzeiten belegt — Sondertermin dazwischen, der übrige Plan bleibt unverändert.",
+            )
+
+        if mode == "today":
+            return SlotPlan(
+                now + timedelta(minutes=1),
+                kind="now",
+                publish_now=True,
+                note="Heute ist kein Termin mehr frei — der Artikel wird sofort veröffentlicht.",
+            )
+        # Morgen restlos dicht: der naechste freie Rastertermin ist ehrlicher
+        # als ein erzwungener Sondertermin mitten in der Nacht.
+        mode = "auto"
+
+    # auto: erster freier Rastertermin ab morgen, Luecken zuerst
+    tomorrow = _today_cet() + timedelta(days=1)
+    for offset in range(0, 61):
+        hit = _first_free(_raster_candidates(tomorrow + timedelta(days=offset)), taken)
+        if hit is not None:
+            return SlotPlan(hit, kind="raster")
+
+    hours = _preferred_hours()
+    return SlotPlan(datetime.combine(tomorrow, time(hours[0] if hours else 9, 0)), kind="raster")
+
+
+def _record_schedule_choice(conn, article_id: int, plan: SlotPlan, mode: str, actor: str | None) -> None:
+    """Note in the article's meta why it sits where it sits.
+
+    The calendar reads this to mark hand-picked dates, and it is the trail for
+    who moved a post off the grid and when.
+    """
+    row = conn.execute("SELECT meta_json FROM articles WHERE id = ?", (article_id,)).fetchone()
+    try:
+        meta = json.loads((row["meta_json"] if row else None) or "{}")
+    except Exception:
+        meta = {}
+    if not isinstance(meta, dict):
+        meta = {}
+    meta["schedule"] = {
+        "mode": mode,
+        "kind": plan.kind,
+        "manual": mode != "auto",
+        "scheduled_for": plan.iso,
+        "set_by": actor or "system",
+        "set_at": datetime.now(_BERLIN_TZ).isoformat(),
+    }
+    conn.execute(
+        "UPDATE articles SET meta_json = ? WHERE id = ?",
+        (json.dumps(meta, ensure_ascii=False), article_id),
+    )
+
+
+def plan_publish_slot(
+    mode: str = "auto", custom: str | None = None, exclude_article_id: int | None = None
+) -> SlotPlan:
+    """Preview the date a wish would resolve to, without touching the article."""
+    wp_datetimes = _fetch_wp_future_datetimes()
+    with get_conn() as conn:
+        return _plan_slot(conn, mode, custom, exclude_article_id, wp_datetimes)
+
+
+def set_publish_slot(
+    article_id: int,
+    mode: str = "auto",
+    custom: str | None = None,
+    actor: str | None = None,
+    keep_existing: bool = False,
+) -> SlotPlan:
+    """Resolve a wish and write it to the article's `scheduled_publish_at`.
+
+    With `keep_existing` an already reserved slot wins - that is the behaviour
+    the pipeline relies on, so a repeated run never moves a post. An explicit
+    wish always overwrites: choosing "Heute" for a post that sits in November is
+    the whole point.
+
+    Uses a module-level lock so that concurrent pipeline runs (two threads)
+    cannot read the same "free" slot and assign it twice.
+    """
+    mode = (mode or "auto").strip() or "auto"
+
+    # Fetch WP-occupied slots BEFORE acquiring the lock - the API call can be slow
+    # and must not block other threads unnecessarily.
+    wp_datetimes = _fetch_wp_future_datetimes()
+
+    with _slot_lock:
+        # Single DB connection for the entire read-find-write cycle so the
+        # slot we pick is still free when we write it.
+        with get_conn() as conn:
+            # Only the automatic mode defers to an existing slot. An explicit
+            # wish is the caller saying "move it", so honouring the old date
+            # there would silently do nothing.
+            if keep_existing and mode == "auto":
+                row = conn.execute(
+                    "SELECT scheduled_publish_at FROM articles WHERE id = ?",
+                    (article_id,),
+                ).fetchone()
+                existing = row["scheduled_publish_at"] if row else None
+                if existing:
+                    try:
+                        when = datetime.fromisoformat(existing)
+                        return SlotPlan(when, kind=_slot_kind(when))
+                    except Exception:
+                        pass  # invalid - fall through and assign a fresh slot
+
+            plan = _plan_slot(conn, mode, custom, article_id, wp_datetimes)
+            conn.execute(
+                "UPDATE articles SET scheduled_publish_at = ? WHERE id = ?",
+                (plan.iso, article_id),
+            )
+            _record_schedule_choice(conn, article_id, plan, mode, actor)
+            return plan
 
 
 def release_publish_slot(article_id: int) -> None:
@@ -285,94 +481,40 @@ def release_publish_slot(article_id: int) -> None:
         )
 
 
+def restore_publish_slot(article_id: int, scheduled_at: str | None) -> None:
+    """Write a slot back verbatim, e.g. after WordPress refused a new date.
+
+    Unlike `set_publish_slot` this asks no questions: a rollback has to land on
+    the exact old timestamp, even one that has meanwhile slipped into the past.
+    """
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE articles SET scheduled_publish_at = ? WHERE id = ?",
+            (scheduled_at, article_id),
+        )
+
+
 def suggest_publish_slot() -> str:
     """Return a suggested publish datetime string (CET) for the next free slot."""
-    wp_occupied = _fetch_wp_occupied_slots()
-    result = _find_next_free_slot(wp_occupied)
-    if result:
-        d, hour = result
-        return _format_slot(d, hour)
-    tomorrow = _today_cet() + timedelta(days=1)
-    hours = _preferred_hours()
-    return _format_slot(tomorrow, hours[0] if hours else 9)
+    return plan_publish_slot("auto").label
 
 
-def reserve_publish_slot(article_id: int) -> str:
+def reserve_publish_slot(
+    article_id: int,
+    mode: str = "auto",
+    custom: str | None = None,
+    actor: str | None = None,
+) -> str:
     """Reserve a publish slot for an article and persist it in the DB.
 
-    If the article already has a scheduled_publish_at, keep it unchanged.
-    Returns the formatted publish datetime string.
-
-    Uses a module-level lock so that concurrent pipeline runs (two threads)
-    cannot read the same "free" slot and assign it twice.
+    In the default mode an article that already has a slot keeps it. A caller
+    that passes an explicit wish ("today", "custom", ...) wants the slot moved,
+    so that one overwrites. Returns the formatted publish datetime string.
     """
-    # Fetch WP-occupied slots BEFORE acquiring the lock — the API call can be slow
-    # and must not block other threads unnecessarily.
-    wp_occupied = _fetch_wp_occupied_slots()
-
-    with _slot_lock:
-        # Single DB connection for the entire read-find-write cycle so the
-        # slot we pick is still free when we write it.
-        with get_conn() as conn:
-            row = conn.execute(
-                "SELECT scheduled_publish_at FROM articles WHERE id = ?",
-                (article_id,),
-            ).fetchone()
-            existing_slot = row["scheduled_publish_at"] if row else None
-            if existing_slot:
-                try:
-                    dt = datetime.fromisoformat(existing_slot)
-                    return _format_slot(dt.date(), dt.hour)
-                except Exception:
-                    pass  # invalid — fall through and assign a fresh slot
-
-            # Find the next free (date, hour) slot using THIS connection so we
-            # see all slots written during this lock window.
-            hours = _preferred_hours()
-            today = _today_cet()
-            tomorrow = today + timedelta(days=1)
-            candidate: date | None = None
-            chosen_hour: int | None = None
-
-            for offset in range(0, 61):
-                d = tomorrow + timedelta(days=offset)
-                date_str = d.isoformat()
-
-                rows = conn.execute(
-                    """
-                    SELECT scheduled_publish_at FROM articles
-                    WHERE scheduled_publish_at >= ? AND scheduled_publish_at < ?
-                    AND status NOT IN ('error', 'no_image')
-                    """,
-                    (date_str + "T00:00:00", date_str + "T23:59:59"),
-                ).fetchall()
-
-                used_hours: set[int] = set()
-                for r in rows:
-                    ts = r["scheduled_publish_at"] or ""
-                    try:
-                        used_hours.add(datetime.fromisoformat(ts).hour)
-                    except Exception:
-                        pass
-                for d_str, h in wp_occupied:
-                    if d_str == date_str:
-                        used_hours.add(h)
-
-                for h in hours:
-                    if h not in used_hours:
-                        candidate = d
-                        chosen_hour = h
-                        break
-                if candidate is not None:
-                    break
-
-            if candidate is None:
-                candidate = tomorrow
-                chosen_hour = hours[0] if hours else 9
-
-            iso_ts = f"{candidate.isoformat()}T{chosen_hour:02d}:00:00"
-            conn.execute(
-                "UPDATE articles SET scheduled_publish_at = ? WHERE id = ?",
-                (iso_ts, article_id),
-            )
-            return _format_slot(candidate, chosen_hour)
+    return set_publish_slot(
+        article_id,
+        mode=mode,
+        custom=custom,
+        actor=actor,
+        keep_existing=(mode or "auto") == "auto",
+    ).label

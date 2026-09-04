@@ -1,3 +1,28 @@
+## [1.9.0] - 2026-09-04
+
+### 📅 Veröffentlichungstermin bei der Freigabe wählbar
+  - Die Freigabe hängt Artikel nicht mehr zwingend hinten an: Auswahl zwischen „Nächster freier Termin" (Standard), „Heute", „Morgen", „Sofort veröffentlichen" und freier Datum-/Zeitwahl
+  - Auswahl steckt in der Freigabe-Warteschlange `/admin/freigabe` und auf der Artikel-Detailseite
+  - **Es wird nichts verschoben.** Ist die Wunschzeit belegt, entsteht ein **Sondertermin** auf der halben Stunde zwischen zwei Rasterzeiten (10:30, 13:30, 16:30) — an dem Tag erscheinen fünf statt vier Beiträge, alle anderen Termine bleiben unverändert
+  - Ein Sondertermin hält mindestens 45 Minuten Abstand zu jedem anderen Beitrag
+  - Der frei werdende Rastertermin eines vorgezogenen Artikels fällt beim nächsten Pipeline-Lauf dem nächsten Artikel zu — die Warteschlange wird nicht länger
+  - „Heute" fällt auf „Sofort" zurück, wenn der Tag durch ist; „Sofort" setzt den WP-Status direkt auf `publish` statt auf WP-Cron zu warten
+  - Ein Termin in der Vergangenheit wird als „Sofort" behandelt, ein exakter Doppeltermin um fünf Minuten versetzt
+
+### 🗓 Veröffentlichungsplan
+  - Bereits eingeplante Artikel lassen sich nachträglich umdatieren (Kasten „Veröffentlichungstermin" auf der Detailseite)
+  - Kalender: freie Rastertermine sind anklickbar und führen auf eine Zuweisungsliste („Hierhin setzen"), Sondertermine haben eine eigene Spalte, der heutige Tag ist hervorgehoben
+  - Der Plan rechnet jetzt minutengenau statt in vollen Stunden — vorher wäre ein 10:30-Termin unsichtbar gewesen oder hätte die 10:00-Spalte belegt
+  - Neuer WordPress-Weg, der nur Datum und Status ändert, statt den ganzen Beitrag neu zu schreiben (Änderungen in WordPress bleiben erhalten)
+  - Scheitert das Umdatieren in WordPress, wird der alte Termin zurückgeschrieben
+  - Handgesetzte Termine stehen mit Prüfer und Zeitpunkt in `meta_json.schedule`
+
+### 🐛 Behoben
+  - Der Statuswechsel `Freigabe → Freigegeben` rief die Freigabe-Route als normale Funktion auf und wäre an den neuen Formularfeldern gescheitert — alle Defaults werden dort jetzt ausgeschrieben
+  - Die alte, stundengenaue Slot-Suche (`_find_next_free_slot`) war eine zweite, ungenauere Implementierung derselben Logik und ist entfallen
+
+---
+
 ## [1.8.1] - 2026-08-24
 
 ### 📋 Freigabe-Seite

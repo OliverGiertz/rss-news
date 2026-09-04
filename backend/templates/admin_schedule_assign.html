@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/admin/static/admin.css" />
+  <style>
+    .target { font-size: 1.15em; }
+    .assign-table td, .assign-table th { padding: 6px 10px; }
+    .badge-extra { background: #ede9fe; color: #5b21b6; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Termin vergeben</h1>
+      <p>Angemeldet als <strong>{{ user }}</strong></p>
+    </div>
+    <div class="row">
+      <a class="linkbtn" href="/admin/schedule">Veröffentlichungsplan</a>
+      <a class="linkbtn" href="/admin/dashboard">Dashboard</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit" class="secondary">Logout</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container">
+    {% if flash_msg %}
+    <section class="card flash {{ 'flash-error' if flash_type == 'error' else 'flash-success' }}">
+      {{ flash_msg }}
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <h2>Zieltermin</h2>
+      <p class="target"><strong>{{ target_label }}</strong></p>
+      <p class="subtle">
+        Wähle den Artikel, der hier erscheinen soll. Sein bisheriger Termin wird frei
+        und fällt beim nächsten Pipeline-Lauf dem nächsten Artikel zu. Alle anderen
+        Beiträge bleiben, wo sie sind.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Geplante Artikel</h2>
+      {% if candidates %}
+      <table class="assign-table">
+        <thead>
+          <tr><th>Bisheriger Termin</th><th>Artikel</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for c in candidates %}
+          <tr>
+            <td>
+              {{ c.formatted }}
+              {% if c.kind == 'extra' %}<span class="badge-extra">Sondertermin</span>{% endif %}
+            </td>
+            <td><a href="/admin/articles/{{ c.article_id }}">{{ (c.article_title or "Artikel")[:70] }}</a></td>
+            <td>{{ c.article_status or "-" }}</td>
+            <td>
+              <form method="post" action="/admin/articles/{{ c.article_id }}/schedule" class="inline">
+                <input type="hidden" name="schedule_mode" value="custom" />
+                <input type="hidden" name="schedule_at" value="{{ target_iso }}" />
+                <input type="hidden" name="redirect_to" value="/admin/schedule" />
+                <button type="submit">Hierhin setzen</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="subtle">Zurzeit ist kein Artikel eingeplant, der verschoben werden könnte.</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>
