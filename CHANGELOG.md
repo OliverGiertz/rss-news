@@ -1,3 +1,15 @@
+## [1.9.1] - 2026-09-18
+
+### 🧹 Werkzeug: Bildbereinigung nach Abmahnung
+  - Neues `tools/wp_cleanup.py`: entfernt alle vom Portal erzeugten Blogbeiträge samt Medien aus WordPress
+  - `scan` liest nur und schreibt Listen (A geplant, B veröffentlicht, C zur Durchsicht, M Medien); `apply` löscht genau diese Listen endgültig und schreibt ein Protokoll (`protokoll.jsonl`)
+  - Erkennung über den Absatz `article-attribution`; Bilder, die ein bleibender Beitrag noch nutzt, werden nie gelöscht (`shared.csv`)
+  - Waisen in der Mediathek mit `Quelle:`-Caption werden mit entfernt — ein gelöschter Beitrag lässt seine Datei sonst online
+  - `apply --private` stellt Beiträge aus `c.csv` auf privat und löscht dabei fremde Beitragsbilder
+  - `prune-tags` räumt Schlagwörter ohne Beitrag ab, `portal-reset` leert die Portal-Datenbank mit Backup (Feeds und Quellen bleiben)
+
+---
+
 ## [1.9.0] - 2026-09-04
 
 ### 📅 Veröffentlichungstermin bei der Freigabe wählbar
