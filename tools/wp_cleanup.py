@@ -95,6 +95,11 @@ class WP:
     def paged(self, endpoint: str, params: dict) -> list[dict]:
         items: list[dict] = []
         page = 1
+        # Nach ID sortieren: viele Beiträge teilen sich exakt denselben
+        # Zeitstempel (Rasterzeiten), und bei Datum-Sortierung ist die
+        # Reihenfolge zwischen zwei Seiten dann nicht stabil — Einträge
+        # rutschen durch oder kommen doppelt.
+        params = {**params, "orderby": "id", "order": "asc"}
         while True:
             body, _ = self.call("GET", endpoint, {**params, "per_page": PER_PAGE, "page": page})
             if not body:
